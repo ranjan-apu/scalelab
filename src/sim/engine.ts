@@ -141,7 +141,7 @@ interface Req {
    * thrown away, and `advance()` runs per frame.
    */
   trace: TraceHop[] | null;
-  /** Simulated time the root request was generated (client only). */
+  /** Simulated time the root request was generated (traffic-source root). */
   rootStartMs: number;
   /** Hop depth from the client root. */
   hop: number;

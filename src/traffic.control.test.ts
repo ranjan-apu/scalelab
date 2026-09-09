@@ -15,13 +15,13 @@ import type { Topology } from './sim/types';
 
 /** The App's own rule for the disabled state, kept in step by this test. */
 function hasTrafficSource(t: Topology): boolean {
-  return t.nodes.some((n) => n.kind === 'client');
+  return t.nodes.some((n) => n.kind === 'client' || n.kind === 'producer');
 }
 
 /** Total offered load, as the header derives it. */
-function clientRps(t: Topology): number {
+function sourceRps(t: Topology): number {
   return t.nodes
-    .filter((n) => n.kind === 'client')
+    .filter((n) => n.kind === 'client' || n.kind === 'producer')
     .reduce((sum, c) => sum + c.config.rps, 0);
 }
 
@@ -32,7 +32,7 @@ describe('offered load control', () => {
     // did caused it.
     for (const preset of PRESETS) {
       expect(hasTrafficSource(preset.topology), preset.id).toBe(true);
-      expect(clientRps(preset.topology), preset.id).toBeGreaterThan(0);
+      expect(sourceRps(preset.topology), preset.id).toBeGreaterThan(0);
     }
   });
 
@@ -42,7 +42,7 @@ describe('offered load control', () => {
       nodes: PRESETS[0]!.topology.nodes.filter((n) => n.kind !== 'client'),
     };
     expect(hasTrafficSource(stripped)).toBe(false);
-    expect(clientRps(stripped)).toBe(0);
+    expect(sourceRps(stripped)).toBe(0);
   });
 
   it('reports the absence rather than a zero', () => {
@@ -74,5 +74,17 @@ describe('offered load control', () => {
     };
     expect(stripped.nodes.length).toBeGreaterThan(0);
     expect(hasTrafficSource(stripped)).toBe(false);
+  });
+
+  it('recognises a producer as a traffic source', () => {
+    const producer = {
+      ...PRESETS[0]!.topology.nodes[0]!,
+      id: 'producer',
+      kind: 'producer' as const,
+      config: { ...PRESETS[0]!.topology.nodes[0]!.config, rps: 125 },
+    };
+    const topology: Topology = { nodes: [producer], edges: [] };
+    expect(hasTrafficSource(topology)).toBe(true);
+    expect(sourceRps(topology)).toBe(125);
   });
 });

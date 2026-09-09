@@ -98,6 +98,7 @@ export const KIND_ICON: Record<NodeKind, IconNode> = {
   /* Traffic ORIGIN: the devices load comes from. A plural picture (monitor
      and phone), because this node is a population, not one person. */
   client: icClient,
+  producer: icPubsub,
 
   /* FAN-OUT: one path dividing. The split IS the job. */
   lb: icLb,
@@ -232,6 +233,7 @@ export const ICON_STROKE = 2;
 /** Human-readable kind names. Used by the canvas, the palette and the inspector. */
 export const KIND_NAME: Record<NodeKind, string> = {
   client: 'Client',
+  producer: 'Event producer',
   lb: 'Load balancer',
   service: 'Service',
   cache: 'Cache',
@@ -286,6 +288,7 @@ export const KIND_NAME: Record<NodeKind, string> = {
  */
 export const KIND_TERM: Record<NodeKind, string> = {
   client: 'client',
+  producer: 'event-producer',
   lb: 'load-balancer',
   service: 'service',
   cache: 'cache',
@@ -487,7 +490,7 @@ export interface KindGroup {
 }
 
 export const KIND_GROUPS: KindGroup[] = [
-  { id: 'traffic', title: 'Traffic', kinds: ['client', 'lb', 'cdn', 'edgecompute'] },
+  { id: 'traffic', title: 'Traffic', kinds: ['client', 'producer', 'lb', 'cdn', 'edgecompute'] },
   {
     id: 'compute',
     title: 'Compute',

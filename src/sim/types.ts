@@ -1,5 +1,6 @@
 export type NodeKind =
   | 'client'
+  | 'producer'
   | 'lb'
   | 'service'
   | 'cache'
@@ -79,10 +80,10 @@ export interface NodeConfig {
   timeoutMs: number;
   /** Retries on failure/timeout. */
   retries: number;
-  /** Client only: requests per second offered to the system. */
+  /** Traffic source only: requests/events per second offered to the system. */
   rps: number;
   /**
-   * Client only: how the offered rate varies over time.
+   * Traffic source only: how the offered rate varies over time.
    *
    * `rps` stays the BASELINE the reader set, and the pattern scales it. Real
    * traffic is never a flat line, and a system that copes with 500 a second
@@ -95,7 +96,7 @@ export interface NodeConfig {
    */
   traffic?: TrafficPattern;
   /**
-   * Client only: seconds for one full cycle of `traffic`.
+   * Traffic source only: seconds for one full cycle of `traffic`.
    *
    * What a cycle means depends on the pattern: for `ramp` it is the climb
    * from nothing to the baseline, for `spike` the gap between bursts, for

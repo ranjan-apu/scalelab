@@ -88,6 +88,15 @@ describe('determinism', () => {
     },
   );
 
+  it('generates root traffic from a producer without a client', () => {
+    const producer = { ...makeNode('producer', 0, 0), id: 'producer' };
+    producer.config = { ...producer.config, rps: 50 };
+    const engine = new Engine({ nodes: [producer], edges: [] }, 42);
+    for (let i = 0; i < 600; i += 1) engine.advance(1000 / 60);
+
+    expect(engine.snapshot().system.totalRequests).toBe(485);
+  });
+
   it('replays the initial arrival stream after reset', () => {
     const client = { ...makeNode('client', 0, 0), id: 'client' };
     client.config = { ...client.config, rps: 50 };

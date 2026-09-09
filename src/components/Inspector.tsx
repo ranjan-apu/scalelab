@@ -112,6 +112,7 @@ const FIELDS_BY_KIND: Record<NodeKind, Field[]> = {
   // The client generates load and decides how long to wait for an answer.
   // It serves nothing, so it has no capacity, service time, or queue.
   client: ['rps', 'timeoutMs', 'retries'],
+  producer: ['rps'],
   // A load balancer forwards; its own service time is near-zero but its
   // connection pool and backlog are real and can saturate.
   lb: ['instances', 'capacity', 'serviceMs', 'queueLimit'],
@@ -372,6 +373,8 @@ const HAS_THROUGHPUT_CEILING: ReadonlySet<NodeKind> = new Set<NodeKind>([
 const KIND_BLURB: Record<NodeKind, string> = {
   client:
     'Offers load and waits for an answer. Its timeout decides when a slow reply becomes a failure.',
+  producer:
+    'Publishes events from an external system. It offers load without pretending a user is waiting for a response.',
   lb: 'Spreads requests across its targets. Its own pool and backlog can saturate before theirs do.',
   service:
     'The workhorse. How many it handles at once, divided by how long each takes, is the ceiling everything else queues behind.',
@@ -1475,6 +1478,7 @@ function VitalsMeter({
     // Their own panels below carry the honest reading; a utilisation bar
     // here would be a second gauge pinned at zero.
     case 'client':
+    case 'producer':
     case 'queue':
     case 'cron':
     case 'autoscaler':

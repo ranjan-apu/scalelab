@@ -48,7 +48,7 @@ describe('Guide component', () => {
     });
 
     expect(document.body.textContent).toContain('Assembling Your Architecture');
-    expect(document.body.textContent).toContain('33 specialized building blocks');
+    expect(document.body.textContent).toContain('34 specialized building blocks');
   });
 
   it('triggers onClose when close button clicked', () => {
