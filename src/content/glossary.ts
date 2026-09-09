@@ -427,6 +427,15 @@ export const GLOSSARY: GlossaryEntry[] = [
     see: ['rps', 'latency'],
   },
   {
+    id: 'event-producer',
+    term: 'Event producer',
+    short: 'An external system that publishes events',
+    why: 'It creates server-to-server traffic without representing a user waiting for a response. Use its rate to test ingestion, queues and consumers under realistic event load.',
+    category: 'component',
+    aliases: ['producer', 'publisher', 'event source'],
+    see: ['rps', 'throughput'],
+  },
+  {
     id: 'service',
     term: 'Service',
     short: 'A server that handles requests and calls its dependencies',

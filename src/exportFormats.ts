@@ -62,6 +62,7 @@ export function exportToMermaid(topology: Topology): string {
         lines.push(`  ${id}{{"${label}"}}`);
         break;
       case 'client':
+      case 'producer':
         lines.push(`  ${id}>"${label}"]`);
         break;
       default:
@@ -88,4 +89,3 @@ export function exportToMermaid(topology: Topology): string {
 
   return lines.join('\n');
 }
-

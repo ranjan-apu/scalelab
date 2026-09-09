@@ -3,7 +3,7 @@ export function BuildingPane() {
     <div className="gd-pane">
       <h3>🧩 Assembling Your Architecture</h3>
       <p>
-        ScaleLab provides <strong>33 specialized building blocks</strong> covering modern cloud systems:
+        ScaleLab provides <strong>34 specialized building blocks</strong> covering modern cloud systems:
       </p>
 
       <div className="gd-feature-list">

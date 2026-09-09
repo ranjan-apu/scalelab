@@ -67,6 +67,18 @@ function baseConfig(kind: NodeKind): Omit<NodeConfig, keyof typeof EXTRA_DEFAULT
         retries: 0,
         rps: 50,
       };
+    case 'producer':
+      return {
+        capacity: 1,
+        serviceMs: 0,
+        serviceCv: 0,
+        queueLimit: 0,
+        hitRate: 0,
+        errorRate: 0,
+        timeoutMs: 0,
+        retries: 0,
+        rps: 50,
+      };
     case 'lb':
       return {
         capacity: 256,
@@ -616,6 +628,7 @@ function baseConfig(kind: NodeKind): Omit<NodeConfig, keyof typeof EXTRA_DEFAULT
 
 const DEFAULT_LABEL: Record<NodeKind, string> = {
   client: 'Client',
+  producer: 'Event producer',
   lb: 'Load Balancer',
   service: 'Service',
   cache: 'Cache',

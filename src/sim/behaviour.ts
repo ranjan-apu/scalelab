@@ -285,6 +285,22 @@ const client: ComponentBehaviour = {
 };
 
 /**
+ * An external event producer. Like a client it creates root work, but unlike
+ * a client it represents server-to-server/event traffic and does not model a
+ * caller waiting for a response.
+ */
+const producer: ComponentBehaviour = {
+  kind: 'producer',
+  servesRequests: true,
+  generatesLoad: true,
+  pullsFromQueues: false,
+  buffersForConsumers: false,
+  pump: 'none',
+  creditsJoinCompletion: false,
+  onAdmit: () => 'passthru',
+};
+
+/**
  * A dispatcher. Picks exactly one downstream per request: weighted-random when
  * the edge weights differ, least-loaded when they are all equal.
  */
@@ -385,6 +401,7 @@ const worker: ComponentBehaviour = {
 
 const ALL: ComponentBehaviour[] = [
   client,
+  producer,
   lb,
   service,
   cache,

@@ -21,6 +21,7 @@ import type { NodeKind, SimEdge, SimNode, Topology } from './sim/types';
  */
 export const NODE_KINDS: readonly NodeKind[] = [
   'client',
+  'producer',
   'lb',
   'service',
   'cache',

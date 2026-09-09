@@ -649,12 +649,13 @@ export function readoutFor(
   const losing = s.shedRate + s.timeoutRate > 0;
 
   switch (kind) {
-    case 'client': {
+    case 'client':
+    case 'producer': {
       const err = clamp(s.errorRate, 0, 1);
-      /* The headline is what the client is SENDING, not what came back.
+      /* The headline is what the source is SENDING, not what came back.
          Throughput counts successes, so during a total collapse it is
          genuinely 0 and the node read "0/s rps, 100% err", which looks like a
-         client that has stopped generating load rather than one whose every
+         source that has stopped generating load rather than one whose every
          request is dying. Offered load is the honest headline; the success
          rate belongs beside it, where the contrast between the two is the
          thing worth seeing. */
