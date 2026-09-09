@@ -106,7 +106,6 @@ Test your system design intuition with built-in, hands-on debugging challenges:
 
 ScaleLab diagrams are not locked into the tool:
 
-- **Docker Compose (`docker-compose.yml`)**: Export any topology into a runnable Docker Compose setup with preconfigured PostgreSQL, Redis, RabbitMQ, Kafka, OpenSearch, and Nginx containers.
 - **Mermaid.js Flowcharts**: Export clear, documented architecture diagrams directly into markdown or PR descriptions.
 - **High-Res SVG & PNG**: Export styled vector or raster graphics with inline styling.
 - **Topology JSON**: Save and share architecture templates using portable JSON design files or encoded URL hashes.
@@ -173,7 +172,7 @@ scalelab/
 │   │   └── Glossary.tsx   # Integrated distributed systems knowledge base
 │   ├── content/           # Cloud vendor mappings (AWS, GCP, Azure) and glossary text
 │   ├── theme/             # Theme tokens, dark mode, and accessible contrast palettes
-│   ├── exportFormats.ts   # Docker Compose & Mermaid export generators
+│   ├── exportFormats.ts   # Mermaid export generator
 │   ├── imageExport.ts     # SVG and high-resolution PNG canvas renderer
 │   ├── App.tsx            # Main application shell and simulation orchestration
 │   └── main.tsx           # React entry point

@@ -125,7 +125,6 @@ export interface SettingsProps {
   onCopyLink?: () => void;
   onExportImage?: (format: 'svg' | 'png') => void;
   onExportMermaid?: () => void;
-  onExportDockerCompose?: () => void;
   /** Take everything this browser holds out as one file, and put it back. */
   onBackup?: () => void;
   onRestore?: () => void;
@@ -139,7 +138,6 @@ export function Settings({
   onCopyLink,
   onExportImage,
   onExportMermaid,
-  onExportDockerCompose,
   onBackup,
   onRestore,
 }: SettingsProps) {
@@ -323,21 +321,7 @@ export function Settings({
                     </span>
                   </button>
                 )}
-                {onExportDockerCompose && (
-                  <button
-                    type="button"
-                    className="st-action"
-                    onClick={onExportDockerCompose}
-                  >
-                    <Glyph d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM9 9h6M9 13h6M9 17h6" />
-                    <span className="st-action-text">
-                      <span className="st-row-label">Export Docker Compose</span>
-                      <span className="st-hint">
-                        Runnable docker-compose.yml with Postgres, Redis, and containers.
-                      </span>
-                    </span>
-                  </button>
-                )}
+
                 {onImport && (
                   <button type="button" className="st-action" onClick={onImport}>
                     <Glyph d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />

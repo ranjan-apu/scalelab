@@ -73,7 +73,7 @@ import { DESIGN_FILE_ACCEPT, downloadDesign, readDesignFile } from './designFile
 import { downloadBlob, svgToPng } from './imageExport';
 import { Advisor } from './components/Advisor';
 import { analyzeArchitecture } from './sim/advisor';
-import { exportToDockerCompose, exportToMermaid } from './exportFormats';
+import { exportToMermaid } from './exportFormats';
 import './App.css';
 
 /* ------------------------------------------------------------------ *
@@ -2168,15 +2168,7 @@ export default function App() {
       });
   }, [topology]);
 
-  const handleExportDockerCompose = useCallback(() => {
-    const yaml = exportToDockerCompose(topology);
-    downloadBlob(
-      new Blob([yaml], { type: 'application/x-yaml' }),
-      'docker-compose.yml',
-    );
-    toastSeq.current += 1;
-    setToast({ text: 'Downloaded docker-compose.yml', id: toastSeq.current });
-  }, [topology]);
+
 
   const importDesign = useCallback(
     async (file: File) => {
@@ -3106,7 +3098,6 @@ export default function App() {
         onCopyLink={handleCopyLink}
         onExportImage={handleExportImage}
         onExportMermaid={handleExportMermaid}
-        onExportDockerCompose={handleExportDockerCompose}
         onBackup={handleBackup}
         onRestore={() => backupInputRef.current?.click()}
       />

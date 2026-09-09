@@ -4,7 +4,7 @@ import { usePresence } from './presence';
 import { analyzeArchitecture } from '../sim/advisor';
 import type { Finding, FindingSeverity } from '../sim/advisor';
 import type { Topology } from '../sim/types';
-import { exportToDockerCompose, exportToMermaid } from '../exportFormats';
+import { exportToMermaid } from '../exportFormats';
 import './Advisor.css';
 
 export interface AdvisorProps {
@@ -59,19 +59,7 @@ export function Advisor({
     }
   };
 
-  const handleDownloadDockerCompose = () => {
-    const yaml = exportToDockerCompose(topology);
-    const blob = new Blob([yaml], { type: 'application/x-yaml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'docker-compose.yml';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    onNotify?.('Downloaded docker-compose.yml');
-  };
+
 
   if (!mounted) return null;
 
@@ -246,14 +234,7 @@ export function Advisor({
             >
               Copy Mermaid
             </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-ghost"
-              onClick={handleDownloadDockerCompose}
-              title="Download docker-compose.yml for local testing"
-            >
-              Export Docker Compose
-            </button>
+
           </div>
           <button type="button" className="btn btn-sm" onClick={onClose}>
             Done
