@@ -807,12 +807,21 @@ export default function App() {
     return ann && isTextBox(ann) ? ann : null;
   }, [selectedIds, topology.annotations]);
 
+  const selectedNote = useMemo<Note | null>(() => {
+    if (selectedIds.size !== 1) return null;
+    const [id] = selectedIds;
+    const ann = (topology.annotations ?? []).find((a) => a.id === id);
+    return ann && isNote(ann) ? ann : null;
+  }, [selectedIds, topology.annotations]);
+
   /**
    * "Something the INSPECTOR can talk about is selected."
-   * Nodes, edges, and first-class Requirements Cards (TextBoxes) are configurable.
+   * Nodes, edges, Requirements Cards (TextBoxes), and Notes are configurable.
    */
   const hasSelection =
-    selectedNodes.length + selectedEdgeCount > 0 || selectedTextBox !== null;
+    selectedNodes.length + selectedEdgeCount > 0 ||
+    selectedTextBox !== null ||
+    selectedNote !== null;
   const inspectorVisible = hasSelection && !inspectorHidden;
 
   /**
@@ -3256,6 +3265,11 @@ export default function App() {
             onSetTextBoxTone={handleSetSectionTone}
             onApplyTextBoxTemplate={handleApplyTextBoxTemplate}
             onDeleteTextBox={handleDeleteTextBox}
+            note={selectedNote}
+            onEditNote={handleEditNote}
+            onSetNoteSize={handleSetNoteSize}
+            onSetNoteStyle={handleSetNoteStyle}
+            onDeleteNote={(id) => handleDeleteSelection([], [], [id])}
           />
           <PanelResizer
             edge="right"

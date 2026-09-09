@@ -1031,3 +1031,44 @@
   transform: scale(1.15);
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
 }
+
+.ins-tone-swatch.cv-format-tone-none {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--surface-2),
+    var(--surface-2) 3px,
+    var(--border) 3px,
+    var(--border) 6px
+  );
+  border-color: var(--border);
+}
+
+/* Note Inspector Typeface Grid */
+.ins-note-fonts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.ins-font-btn {
+  font-size: 13px;
+  padding: 6px 10px;
+  text-align: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-input, 6px);
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.ins-font-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ins-font-btn.is-active {
+  border-color: var(--accent);
+  background: var(--accent-faint, rgba(66, 133, 244, 0.15));
+  color: var(--accent);
+  font-weight: 600;
+}

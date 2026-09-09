@@ -164,6 +164,13 @@ export const ANNOTATION_FONTS = ['sans', 'hand', 'serif', 'mono'] as const;
 
 export type AnnotationFont = (typeof ANNOTATION_FONTS)[number];
 
+export const FONT_LABEL: Record<AnnotationFont, string> = {
+  sans: 'Interface (Sans)',
+  hand: 'Handwritten',
+  serif: 'Serif',
+  mono: 'Monospace',
+};
+
 export type Annotation = Note | Section | TextBox;
 
 /** Sections render behind nodes; notes and textboxes render in front. */

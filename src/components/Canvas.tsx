@@ -92,6 +92,7 @@ import {
   TEXTBOX_MIN_HEIGHT,
   TEXTBOX_MIN_WIDTH,
   ANNOTATION_FONTS,
+  FONT_LABEL,
   NOTE_MAX_SCALE,
   NOTE_MAX_WIDTH,
   NOTE_MIN_SCALE,
@@ -1884,14 +1885,6 @@ const EdgeView = memo(function EdgeView({
  * ------------------------------------------------------------------ */
 
 /** Label plate metrics, shared by the SVG label and its hit target. */
-/** Names for the face buttons, which all read "Aa" in their own face. */
-const FONT_LABEL: Record<AnnotationFont, string> = {
-  sans: 'Interface',
-  hand: 'Handwritten',
-  serif: 'Serif',
-  mono: 'Monospace',
-};
-
 /**
  * A note's handles: two sides that reflow the text, four corners that scale
  * it. Listed once so the chrome and the cursor rules cannot disagree.

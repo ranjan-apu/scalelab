@@ -30,8 +30,8 @@ import {
 } from './format';
 import { Term } from './Tooltip';
 import { VendorPanel } from './VendorPanel';
-import { SECTION_TONE_COUNT } from '../sim/annotations';
-import type { TextBox } from '../sim/annotations';
+import { SECTION_TONE_COUNT, ANNOTATION_FONTS, FONT_LABEL } from '../sim/annotations';
+import type { TextBox, Note, AnnotationFont } from '../sim/annotations';
 import { INTERVIEW_TEMPLATES, applyTab } from './annotationLayout';
 import type { InterviewTemplate } from './annotationLayout';
 import './Inspector.css';
@@ -2238,6 +2238,189 @@ function TextBoxInspector({
   );
 }
 
+interface NoteInspectorProps {
+  note: Note;
+  onEditNote?: (id: string, text: string) => void;
+  onSetNoteSize?: (id: string, size: Note['size']) => void;
+  onSetNoteStyle?: (
+    id: string,
+    change: {
+      font?: AnnotationFont;
+      tone?: number | null;
+      bold?: 'toggle';
+      italic?: 'toggle';
+      underline?: 'toggle';
+    },
+  ) => void;
+  onDeleteNote?: (id: string) => void;
+}
+
+function NoteInspector({
+  note,
+  onEditNote,
+  onSetNoteSize,
+  onSetNoteStyle,
+  onDeleteNote,
+}: NoteInspectorProps) {
+  const [draftText, setDraftText] = useState(note.text);
+
+  useEffect(() => {
+    setDraftText(note.text);
+  }, [note.text]);
+
+  const handleTextChange = (val: string) => {
+    setDraftText(val);
+    onEditNote?.(note.id, val);
+  };
+
+  return (
+    <aside className="ins" aria-label="Note Inspector">
+      <div className="ins-scroll scroll">
+        <header className="ins-head">
+          <p className="ins-title" style={{ margin: 0, padding: '4px 0', fontSize: '15px', fontWeight: 600 }}>
+            Canvas Note
+          </p>
+          <p className="ins-kind">
+            <span>Freeform Text</span>
+            <span className="badge">Note</span>
+          </p>
+        </header>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Note Content</h4>
+          <textarea
+            className="ins-textbox-body-field"
+            value={draftText}
+            rows={6}
+            placeholder="Type notes or commentary..."
+            spellCheck={false}
+            aria-label="Note content text"
+            onChange={(e) => handleTextChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                const el = e.currentTarget;
+                const next = applyTab(
+                  { value: el.value, start: el.selectionStart, end: el.selectionEnd },
+                  e.shiftKey,
+                );
+                if (next.value === el.value) return;
+                el.value = next.value;
+                el.setSelectionRange(next.start, next.end);
+                handleTextChange(el.value);
+              }
+            }}
+          />
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Typeface</h4>
+          <div className="ins-note-fonts-grid">
+            {ANNOTATION_FONTS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`btn btn-ghost ins-font-btn${(note.font ?? 'sans') === f ? ' is-active' : ''}`}
+                style={{ fontFamily: `var(--${f})` }}
+                onClick={() => onSetNoteStyle?.(note.id, { font: f })}
+              >
+                {FONT_LABEL[f]}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Text Size & Style</h4>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="btn-group" role="group" aria-label="Note size">
+              {(['sm', 'md', 'lg'] as const).map((sz) => (
+                <button
+                  key={sz}
+                  type="button"
+                  className={`btn btn-ghost${(note.size ?? 'md') === sz ? ' is-active' : ''}`}
+                  onClick={() => onSetNoteSize?.(note.id, sz)}
+                >
+                  {sz.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <div className="btn-group" role="group" aria-label="Text styles">
+              <button
+                type="button"
+                className={`btn btn-ghost${note.bold ? ' is-active' : ''}`}
+                style={{ fontWeight: 'bold' }}
+                title="Bold"
+                aria-pressed={Boolean(note.bold)}
+                onClick={() => onSetNoteStyle?.(note.id, { bold: 'toggle' })}
+              >
+                B
+              </button>
+              <button
+                type="button"
+                className={`btn btn-ghost${note.italic ? ' is-active' : ''}`}
+                style={{ fontStyle: 'italic' }}
+                title="Italic"
+                aria-pressed={Boolean(note.italic)}
+                onClick={() => onSetNoteStyle?.(note.id, { italic: 'toggle' })}
+              >
+                I
+              </button>
+              <button
+                type="button"
+                className={`btn btn-ghost${note.underline ? ' is-active' : ''}`}
+                style={{ textDecoration: 'underline' }}
+                title="Underline"
+                aria-pressed={Boolean(note.underline)}
+                onClick={() => onSetNoteStyle?.(note.id, { underline: 'toggle' })}
+              >
+                U
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Text Colour</h4>
+          <div className="ins-tone-swatches" role="group" aria-label="Text colour shades">
+            {Array.from({ length: SECTION_TONE_COUNT }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`ins-tone-swatch${note.tone === i ? ' is-active' : ''}`}
+                style={{
+                  backgroundColor: `var(--ann-${i}-fill)`,
+                  borderColor: `var(--ann-${i}-line)`,
+                }}
+                aria-label={`Colour ${i + 1}`}
+                onClick={() => onSetNoteStyle?.(note.id, { tone: i })}
+              />
+            ))}
+            <button
+              type="button"
+              className={`ins-tone-swatch cv-format-tone-none${note.tone === undefined ? ' is-active' : ''}`}
+              aria-label="Default theme colour"
+              title="Default theme colour"
+              onClick={() => onSetNoteStyle?.(note.id, { tone: null })}
+            />
+          </div>
+        </section>
+      </div>
+
+      <div className="ins-foot">
+        <button
+          type="button"
+          className="btn btn-danger ins-delete"
+          onClick={() => onDeleteNote?.(note.id)}
+        >
+          Delete Note
+        </button>
+      </div>
+    </aside>
+  );
+}
+
 /* ------------------------------------------------------------------ *
  * Inspector
  * ------------------------------------------------------------------ */
@@ -2291,6 +2474,23 @@ export interface InspectorProps {
   onSetTextBoxTone?: (id: string, tone: number) => void;
   onApplyTextBoxTemplate?: (id: string, template: InterviewTemplate) => void;
   onDeleteTextBox?: (id: string) => void;
+  /**
+   * Selected Note annotation, if any.
+   */
+  note?: Note | null;
+  onEditNote?: (id: string, text: string) => void;
+  onSetNoteSize?: (id: string, size: Note['size']) => void;
+  onSetNoteStyle?: (
+    id: string,
+    change: {
+      font?: AnnotationFont;
+      tone?: number | null;
+      bold?: 'toggle';
+      italic?: 'toggle';
+      underline?: 'toggle';
+    },
+  ) => void;
+  onDeleteNote?: (id: string) => void;
 }
 
 export function Inspector({
@@ -2309,6 +2509,11 @@ export function Inspector({
   onSetTextBoxTone,
   onApplyTextBoxTemplate,
   onDeleteTextBox,
+  note,
+  onEditNote,
+  onSetNoteSize,
+  onSetNoteStyle,
+  onDeleteNote,
 }: InspectorProps) {
   /**
    * The selection this panel is actually describing. `selectedNodes` wins
@@ -2333,6 +2538,17 @@ export function Inspector({
           onSetTextBoxTone={onSetTextBoxTone}
           onApplyTextBoxTemplate={onApplyTextBoxTemplate}
           onDeleteTextBox={onDeleteTextBox}
+        />
+      );
+    }
+    if (note) {
+      return (
+        <NoteInspector
+          note={note}
+          onEditNote={onEditNote}
+          onSetNoteSize={onSetNoteSize}
+          onSetNoteStyle={onSetNoteStyle}
+          onDeleteNote={onDeleteNote}
         />
       );
     }
