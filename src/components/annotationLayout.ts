@@ -188,6 +188,97 @@ export function layoutNote(
   };
 }
 
+export const NEW_TEXTBOX_TITLE = 'Functional Requirements';
+export const NEW_TEXTBOX_TEXT =
+  '• Core user action 1\n• Core user action 2\n• Data input & validation\n• Query & view flows';
+export const TEXTBOX_PAD_X = 14;
+export const TEXTBOX_PAD_Y = 12;
+export const TEXTBOX_HEADER_H = 34;
+
+export interface TextBoxLayout {
+  lines: string[];
+  font: number;
+  lineH: number;
+  weight: number;
+  headerH: number;
+  contentH: number;
+  baseline: number;
+  innerWidth: number;
+}
+
+export function layoutTextBox(
+  text: string,
+  title: string | undefined,
+  width: number,
+  size: Note['size'] = 'md',
+  font?: AnnotationFont,
+  bold?: boolean,
+  italic?: boolean,
+  scale = 1,
+): TextBoxLayout {
+  const spec = scaledSpec(size, scale);
+  const style = noteStyle(size, font, bold, italic, scale);
+  const innerWidth = Math.max(20, width - TEXTBOX_PAD_X * 2);
+  const lines = wrapText(text, innerWidth, style);
+  const baseline = baselineIn(spec.line, style);
+  const hasHeader = Boolean(title && title.trim());
+  const headerH = hasHeader
+    ? Math.round(TEXTBOX_HEADER_H * (scale ? Math.max(0.8, Math.min(scale, 1.5)) : 1))
+    : 0;
+  const textH = lines.length * spec.line;
+  const contentH = headerH + TEXTBOX_PAD_Y * 2 + textH;
+
+  return {
+    lines,
+    font: spec.font,
+    lineH: spec.line,
+    weight: style.weight,
+    headerH,
+    contentH,
+    baseline,
+    innerWidth,
+  };
+}
+
+export interface InterviewTemplate {
+  id: string;
+  name: string;
+  title: string;
+  text: string;
+  tone: number;
+}
+
+export const INTERVIEW_TEMPLATES: readonly InterviewTemplate[] = [
+  {
+    id: 'functional',
+    name: 'Functional',
+    title: 'Functional Requirements',
+    text: '• Core user action 1\n• Core user action 2\n• Data input & validation\n• Query & view flows',
+    tone: 1, // Blue
+  },
+  {
+    id: 'non-functional',
+    name: 'Non-Functional',
+    title: 'Non-Functional Requirements',
+    text: '• High Availability (99.99%)\n• Latency: p99 < 100ms\n• Throughput: 10k read / 1k write rps\n• Scalability: 10M DAU\n• Eventual Consistency',
+    tone: 2, // Green
+  },
+  {
+    id: 'estimations',
+    name: 'Estimations',
+    title: 'Scale & Estimations',
+    text: '• DAU: 50M active users\n• QPS: 50M / 100,000s ≈ 500 rps (peak 1.5k)\n• Storage: 50M × 100KB ≈ 5TB/day\n• Bandwidth: ~50MB/s ingress, 200MB/s egress',
+    tone: 4, // Amber
+  },
+  {
+    id: 'assumptions',
+    name: 'Assumptions',
+    title: 'Notes & Assumptions',
+    text: '• Read-heavy workload (10:1 ratio)\n• Global user base with regional caches\n• Out-of-order delivery acceptable',
+    tone: 0, // Neutral
+  },
+];
+
 /* ------------------------------------------------------------------ *
  * Note editing
  * ------------------------------------------------------------------ */

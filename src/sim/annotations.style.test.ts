@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { sanitizeAnnotations } from './annotations';
+import { isTextBox, makeTextBox, sanitizeAnnotations } from './annotations';
 
 const noteWith = (extra: Record<string, unknown>) => [
   { id: 'n1', kind: 'note', text: 'hello', x: 0, y: 0, width: 200, ...extra },
@@ -95,5 +95,74 @@ describe('annotation font', () => {
     // Painting in a face we cannot measure wraps the note to the wrong width.
     expect(firstNote(noteWith({ font: 'Papyrus' }))).not.toHaveProperty('font');
     expect(firstNote(noteWith({ font: 42 }))).not.toHaveProperty('font');
+  });
+});
+
+describe('textbox sanitization and helpers', () => {
+  it('sanitizes a valid textbox correctly', () => {
+    const raw = [
+      {
+        id: 'tb1',
+        kind: 'textbox',
+        title: 'Functional Requirements',
+        text: '• Core action',
+        x: 50,
+        y: 60,
+        width: 320,
+        height: 220,
+        tone: 2,
+      },
+    ];
+    const sanitized = sanitizeAnnotations(raw);
+    expect(sanitized).toHaveLength(1);
+    expect(sanitized[0]).toMatchObject({
+      id: 'tb1',
+      kind: 'textbox',
+      title: 'Functional Requirements',
+      text: '• Core action',
+      x: 50,
+      y: 60,
+      width: 320,
+      height: 220,
+      tone: 2,
+    });
+  });
+
+  it('clamps dimensions to min and max bounds', () => {
+    const raw = [
+      {
+        id: 'tb2',
+        kind: 'textbox',
+        text: 'hello',
+        x: 0,
+        y: 0,
+        width: 10,
+        height: 5000,
+      },
+    ];
+    const [tb] = sanitizeAnnotations(raw);
+    expect(tb).toMatchObject({
+      width: 160,
+      height: 2000,
+    });
+  });
+
+  it('makeTextBox factory produces expected default attributes', () => {
+    const tb = makeTextBox(100, 200);
+    expect(tb.kind).toBe('textbox');
+    expect(tb.x).toBe(100);
+    expect(tb.y).toBe(200);
+    expect(tb.width).toBe(280);
+    expect(tb.height).toBe(180);
+    expect(isTextBox(tb)).toBe(true);
+  });
+
+  it('makeTextBox supports clean plain text box with empty title (draw.io double-click)', () => {
+    const tb = makeTextBox(150, 250, '', '');
+    expect(tb.kind).toBe('textbox');
+    expect(tb.title).toBe('');
+    expect(tb.text).toBe('');
+    expect(tb.x).toBe(150);
+    expect(tb.y).toBe(250);
   });
 });

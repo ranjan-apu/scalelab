@@ -1476,79 +1476,92 @@
    any consumer, so a source-order tie can never grey a tone out.
    ========================================================================== */
 
-.cv-section[data-tone='0'] {
+.cv-section[data-tone='0'],
+.cv-textbox[data-tone='0'] {
   --sec-fill: var(--ann-0-fill);
   --sec-line: var(--ann-0-line);
   --sec-ink: var(--ann-0-ink);
 }
 
-.cv-section[data-tone='1'] {
+.cv-section[data-tone='1'],
+.cv-textbox[data-tone='1'] {
   --sec-fill: var(--ann-1-fill);
   --sec-line: var(--ann-1-line);
   --sec-ink: var(--ann-1-ink);
 }
 
-.cv-section[data-tone='2'] {
+.cv-section[data-tone='2'],
+.cv-textbox[data-tone='2'] {
   --sec-fill: var(--ann-2-fill);
   --sec-line: var(--ann-2-line);
   --sec-ink: var(--ann-2-ink);
 }
 
-.cv-section[data-tone='3'] {
+.cv-section[data-tone='3'],
+.cv-textbox[data-tone='3'] {
   --sec-fill: var(--ann-3-fill);
   --sec-line: var(--ann-3-line);
   --sec-ink: var(--ann-3-ink);
 }
 
-.cv-section[data-tone='4'] {
+.cv-section[data-tone='4'],
+.cv-textbox[data-tone='4'] {
   --sec-fill: var(--ann-4-fill);
   --sec-line: var(--ann-4-line);
   --sec-ink: var(--ann-4-ink);
 }
 
-.cv-section[data-tone='5'] {
+.cv-section[data-tone='5'],
+.cv-textbox[data-tone='5'] {
   --sec-fill: var(--ann-5-fill);
   --sec-line: var(--ann-5-line);
   --sec-ink: var(--ann-5-ink);
 }
 
-.cv-section[data-tone='6'] {
+.cv-section[data-tone='6'],
+.cv-textbox[data-tone='6'] {
   --sec-fill: var(--ann-6-fill);
   --sec-line: var(--ann-6-line);
   --sec-ink: var(--ann-6-ink);
 }
 
-.cv-section[data-tone='7'] {
+.cv-section[data-tone='7'],
+.cv-textbox[data-tone='7'] {
   --sec-fill: var(--ann-7-fill);
   --sec-line: var(--ann-7-line);
   --sec-ink: var(--ann-7-ink);
 }
 
-.cv-section[data-tone='8'] {
+.cv-section[data-tone='8'],
+.cv-textbox[data-tone='8'] {
   --sec-fill: var(--ann-8-fill);
   --sec-line: var(--ann-8-line);
   --sec-ink: var(--ann-8-ink);
 }
 
-.cv-section[data-tone='9'] {
+.cv-section[data-tone='9'],
+.cv-textbox[data-tone='9'] {
   --sec-fill: var(--ann-9-fill);
   --sec-line: var(--ann-9-line);
   --sec-ink: var(--ann-9-ink);
 }
 
-.cv-section[data-tone='10'] {
+.cv-section[data-tone='10'],
+.cv-textbox[data-tone='10'] {
   --sec-fill: var(--ann-10-fill);
   --sec-line: var(--ann-10-line);
   --sec-ink: var(--ann-10-ink);
 }
 
-.cv-section[data-tone='11'] {
+.cv-section[data-tone='11'],
+.cv-textbox[data-tone='11'] {
   --sec-fill: var(--ann-11-fill);
   --sec-line: var(--ann-11-line);
   --sec-ink: var(--ann-11-ink);
 }
 
-.cv-section[data-tone='12'] {
+.cv-section[data-tone='12'],
+.cv-textbox[data-tone='12'] {
   --sec-fill: var(--ann-12-fill);
   --sec-line: var(--ann-12-line);
   --sec-ink: var(--ann-12-ink);
@@ -2100,4 +2113,107 @@
   .cv-hint-idle {
     display: none;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Text Box / Requirements Card
+   -------------------------------------------------------------------------- */
+
+.cv-textbox {
+  --box-fill: var(--sec-fill, var(--surface-2));
+  --box-line: var(--sec-line, var(--border));
+  --box-ink: var(--sec-ink, var(--text));
+  cursor: grab;
+}
+
+.cv-textbox-bg {
+  fill: var(--surface);
+  stroke: var(--box-line);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+.cv-textbox.is-selected .cv-textbox-bg {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.cv-textbox-header-bg {
+  fill: var(--box-fill);
+}
+
+.cv-textbox-header-line {
+  stroke: var(--box-line);
+  stroke-width: 1;
+}
+
+.cv-textbox-title {
+  fill: var(--box-ink);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+  pointer-events: none;
+}
+
+.cv-textbox-text {
+  fill: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.cv-textbox-hit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: grab;
+}
+
+/* Floating in-place editor for Text Box */
+.cv-textbox-editor-wrap {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 50;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.cv-textbox-title-editor {
+  width: 100%;
+  padding: 6px 12px;
+  background: var(--surface-2);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.cv-textbox-title-editor:focus {
+  background: var(--surface-3, var(--surface-2));
+}
+
+.cv-textbox-editor {
+  width: 100%;
+  flex: 1;
+  min-height: 100px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
 }

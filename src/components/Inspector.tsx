@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 /*
  * Transport glyphs. The top-level entry, not the per-icon deep paths the
@@ -30,6 +30,10 @@ import {
 } from './format';
 import { Term } from './Tooltip';
 import { VendorPanel } from './VendorPanel';
+import { SECTION_TONE_COUNT } from '../sim/annotations';
+import type { TextBox } from '../sim/annotations';
+import { INTERVIEW_TEMPLATES, applyTab } from './annotationLayout';
+import type { InterviewTemplate } from './annotationLayout';
 import './Inspector.css';
 
 /* ------------------------------------------------------------------ *
@@ -2091,6 +2095,150 @@ function commonValue(nodes: readonly SimNode[], field: Field): number | null {
 }
 
 /* ------------------------------------------------------------------ *
+ * Requirements Card (Text Box) Inspector
+ * ------------------------------------------------------------------ */
+
+interface TextBoxInspectorProps {
+  textBox: TextBox;
+  onEditTextBox?: (id: string, text: string, title?: string) => void;
+  onSetTextBoxTone?: (id: string, tone: number) => void;
+  onApplyTextBoxTemplate?: (id: string, template: InterviewTemplate) => void;
+  onDeleteTextBox?: (id: string) => void;
+}
+
+function TextBoxInspector({
+  textBox,
+  onEditTextBox,
+  onSetTextBoxTone,
+  onApplyTextBoxTemplate,
+  onDeleteTextBox,
+}: TextBoxInspectorProps) {
+  const [draftTitle, setDraftTitle] = useState(textBox.title ?? '');
+  const [draftText, setDraftText] = useState(textBox.text);
+
+  useEffect(() => {
+    setDraftTitle(textBox.title ?? '');
+  }, [textBox.title]);
+
+  useEffect(() => {
+    setDraftText(textBox.text);
+  }, [textBox.text]);
+
+  const handleTitleChange = (val: string) => {
+    setDraftTitle(val);
+    onEditTextBox?.(textBox.id, textBox.text, val.trim() || undefined);
+  };
+
+  const handleTextChange = (val: string) => {
+    setDraftText(val);
+    onEditTextBox?.(textBox.id, val, textBox.title);
+  };
+
+  return (
+    <aside className="ins" aria-label="Requirements Card Inspector">
+      <div className="ins-scroll scroll">
+        <header className="ins-head">
+          <input
+            className="ins-title"
+            type="text"
+            value={draftTitle}
+            placeholder="Card Title (e.g. Functional Requirements)"
+            spellCheck={false}
+            aria-label="Card Title"
+            onChange={(e) => handleTitleChange(e.target.value)}
+          />
+          <p className="ins-kind">
+            <span>Requirements Card</span>
+            <span className="badge">Text Box</span>
+          </p>
+        </header>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Interview Templates</h4>
+          <p className="ins-empty-hint" style={{ margin: '0 0 8px' }}>
+            Quick-start with standard system design sections:
+          </p>
+          <div className="ins-templates-grid">
+            {INTERVIEW_TEMPLATES.map((tmpl) => (
+              <button
+                key={tmpl.id}
+                type="button"
+                className="btn btn-ghost ins-template-btn"
+                onClick={() => onApplyTextBoxTemplate?.(textBox.id, tmpl)}
+              >
+                <span
+                  className="ins-template-dot"
+                  style={{
+                    backgroundColor: `var(--ann-${tmpl.tone}-line, var(--accent))`,
+                  }}
+                />
+                {tmpl.name}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Requirements & Notes</h4>
+          <textarea
+            className="ins-textbox-body-field"
+            value={draftText}
+            rows={10}
+            placeholder="Type bullet points, capacity estimations, or assumptions..."
+            spellCheck={false}
+            aria-label="Requirements card body text"
+            onChange={(e) => handleTextChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                const el = e.currentTarget;
+                const next = applyTab(
+                  { value: el.value, start: el.selectionStart, end: el.selectionEnd },
+                  e.shiftKey,
+                );
+                if (next.value === el.value) return;
+                el.value = next.value;
+                el.setSelectionRange(next.start, next.end);
+                handleTextChange(el.value);
+              }
+            }}
+          />
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Card Shade</h4>
+          <div className="ins-tone-swatches" role="group" aria-label="Card shades">
+            {Array.from({ length: SECTION_TONE_COUNT }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`ins-tone-swatch${textBox.tone === i ? ' is-active' : ''}`}
+                style={{
+                  backgroundColor: `var(--ann-${i}-fill)`,
+                  borderColor: `var(--ann-${i}-line)`,
+                }}
+                aria-label={`Shade ${i + 1}`}
+                onClick={() => onSetTextBoxTone?.(textBox.id, i)}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="ins-foot">
+        <button
+          type="button"
+          className="btn btn-danger ins-delete"
+          onClick={() => onDeleteTextBox?.(textBox.id)}
+        >
+          Delete Text Box
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * Inspector
  * ------------------------------------------------------------------ */
 
@@ -2135,6 +2283,14 @@ export interface InspectorProps {
   onChangeMany?: (ids: readonly string[], patch: Partial<NodeConfig>) => void;
   /** Delete the whole selection. Falls back to per-node `onDelete`. */
   onDeleteMany?: (ids: readonly string[]) => void;
+  /**
+   * Selected Text Box annotation, if any.
+   */
+  textBox?: TextBox | null;
+  onEditTextBox?: (id: string, text: string, title?: string) => void;
+  onSetTextBoxTone?: (id: string, tone: number) => void;
+  onApplyTextBoxTemplate?: (id: string, template: InterviewTemplate) => void;
+  onDeleteTextBox?: (id: string) => void;
 }
 
 export function Inspector({
@@ -2148,6 +2304,11 @@ export function Inspector({
   selectedEdgeCount = 0,
   onChangeMany,
   onDeleteMany,
+  textBox,
+  onEditTextBox,
+  onSetTextBoxTone,
+  onApplyTextBoxTemplate,
+  onDeleteTextBox,
 }: InspectorProps) {
   /**
    * The selection this panel is actually describing. `selectedNodes` wins
@@ -2164,6 +2325,17 @@ export function Inspector({
   /* Nothing selected. Edges may still be, so the empty state reports that
      rather than claiming the canvas selection is empty when it is not. */
   if (nodes.length === 0) {
+    if (textBox) {
+      return (
+        <TextBoxInspector
+          textBox={textBox}
+          onEditTextBox={onEditTextBox}
+          onSetTextBoxTone={onSetTextBoxTone}
+          onApplyTextBoxTemplate={onApplyTextBoxTemplate}
+          onDeleteTextBox={onDeleteTextBox}
+        />
+      );
+    }
     return (
       <aside className="ins" aria-label="Inspector">
         <div className="ins-scroll scroll">

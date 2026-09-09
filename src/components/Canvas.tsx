@@ -70,19 +70,27 @@ import {
   NEW_NOTE_TEXT,
   NEW_SECTION_H,
   NEW_SECTION_W,
+  NEW_TEXTBOX_TEXT,
+  NEW_TEXTBOX_TITLE,
   NOTE_BOLD_WEIGHT,
   NOTE_SIZES,
+  TEXTBOX_PAD_X,
+  TEXTBOX_PAD_Y,
   scaledSpec,
   RESIZE_DIRS,
   handleAnchor,
   applyTab,
   layoutNote,
+  layoutTextBox,
   resizeRect,
 } from './annotationLayout';
 import type { ResizeDir } from './annotationLayout';
+import type { AnnotationTool } from './Palette';
 import {
   SECTION_MIN_HEIGHT,
   SECTION_MIN_WIDTH,
+  TEXTBOX_MIN_HEIGHT,
+  TEXTBOX_MIN_WIDTH,
   ANNOTATION_FONTS,
   NOTE_MAX_SCALE,
   NOTE_MAX_WIDTH,
@@ -91,8 +99,9 @@ import {
   SECTION_TONE_COUNT,
   isNote,
   isSection,
+  isTextBox,
 } from '../sim/annotations';
-import type { Annotation, AnnotationFont, Note, Section } from '../sim/annotations';
+import type { Annotation, AnnotationFont, Note, Section, TextBox } from '../sim/annotations';
 import { usePreference } from '../content/preferences';
 import { Minimap } from './Minimap';
 import { serialiseSvg } from '../imageExport';
@@ -427,12 +436,26 @@ export interface CanvasProps {
    */
   onCreateNote?: (x: number, y: number) => string | null;
   onCreateSection?: (x: number, y: number, w: number, h: number) => void;
+  onCreateTextBox?: (
+    x: number,
+    y: number,
+    title?: string,
+    text?: string,
+  ) => string | null;
   /**
    * Commit a note text edit. Called ONCE when the editor closes; the shell
    * removes the note outright when the text is emptied.
    */
   onEditNote?: (id: string, text: string) => void;
   onEditSectionLabel?: (id: string, label: string) => void;
+  onEditTextBox?: (id: string, text: string, title?: string) => void;
+  onResizeTextBox?: (
+    id: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => void;
   onSetNoteSize?: (id: string, size: Note['size']) => void;
   /** Recolour a section. `tone` is a palette index, never a colour. */
   onSetSectionTone?: (id: string, tone: number) => void;
@@ -492,8 +515,8 @@ export interface CanvasProps {
    * possible.
    */
   exportSvgRef?: MutableRefObject<(() => string | null) | null>;
-  /** Fires when a tool is armed or disarmed, including by the N and B keys. */
-  onToolChange?: (tool: 'note' | 'section' | null) => void;
+  /** Fires when a tool is armed or disarmed, including by the N, T and B keys. */
+  onToolChange?: (tool: AnnotationTool | null) => void;
   /**
    * Bumped by the shell when the diagram was replaced wholesale (a preset
    * load) and the camera should re-frame the new content. Node edits never
@@ -2246,11 +2269,11 @@ function NoteChrome({ note, ui }: { note: Note; ui: number }) {
           : dir.includes('e')
             ? note.x + note.width + 6
             : 0;
-        const y = corner
-          ? dir.startsWith('n')
-            ? note.y - 4
-            : note.y + layout.height + 4
-          : midY;
+        const y = dir.startsWith('n')
+          ? note.y - 4
+          : dir.startsWith('s')
+            ? note.y + layout.height + 4
+            : midY;
         return (
           <g key={dir}>
             <rect
@@ -2270,6 +2293,207 @@ function NoteChrome({ note, ui }: { note: Note; ui: number }) {
               data-dir={dir}
               x={x - hit / 2}
               y={y - hit / 2}
+              width={hit}
+              height={hit}
+            />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+interface TextBoxViewProps {
+  box: TextBox;
+  selected: boolean;
+  editing: boolean;
+}
+
+const TextBoxView = memo(function TextBoxView({
+  box,
+  selected,
+  editing,
+}: TextBoxViewProps) {
+  const layout = useMemo(
+    () =>
+      layoutTextBox(
+        box.text,
+        box.title,
+        box.width,
+        box.size,
+        box.font,
+        box.bold,
+        box.italic,
+        box.scale,
+      ),
+    [box.text, box.title, box.width, box.size, box.font, box.bold, box.italic, box.scale],
+  );
+
+  const height = Math.max(box.height, layout.contentH);
+  const toneClass = box.tone !== undefined ? ` cv-tone-${box.tone}` : '';
+  const selClass = selected ? ' is-selected' : '';
+
+  return (
+    <g
+      className={`cv-textbox${toneClass}${selClass}`}
+      data-tone={
+        box.tone !== undefined
+          ? ((box.tone % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) % SECTION_TONE_COUNT
+          : undefined
+      }
+      transform={`translate(${box.x},${box.y})`}
+    >
+      <rect
+        className="cv-textbox-bg"
+        x={0}
+        y={0}
+        width={box.width}
+        height={height}
+        rx={8}
+      />
+      {layout.headerH > 0 && (
+        <g className="cv-textbox-header">
+          <rect
+            className="cv-textbox-header-bg"
+            x={0}
+            y={0}
+            width={box.width}
+            height={layout.headerH}
+            rx={8}
+          />
+          <line
+            className="cv-textbox-header-line"
+            x1={0}
+            y1={layout.headerH}
+            x2={box.width}
+            y2={layout.headerH}
+          />
+          {!editing && (
+            <text
+              className="cv-textbox-title"
+              x={TEXTBOX_PAD_X}
+              y={layout.headerH / 2}
+              dominantBaseline="central"
+            >
+              {box.title}
+            </text>
+          )}
+        </g>
+      )}
+      {!editing && (
+        <text
+          className="cv-textbox-text"
+          x={TEXTBOX_PAD_X}
+          y={0}
+          style={box.scale ? { fontSize: layout.font } : undefined}
+        >
+          {layout.lines.map((line, i) => (
+            <tspan
+              key={i}
+              x={TEXTBOX_PAD_X}
+              y={layout.headerH + TEXTBOX_PAD_Y + layout.baseline + i * layout.lineH}
+            >
+              {line === '' ? ' ' : line}
+            </tspan>
+          ))}
+        </text>
+      )}
+      <rect
+        className="cv-textbox-hit"
+        data-hit="textbox"
+        data-id={box.id}
+        x={0}
+        y={0}
+        width={box.width}
+        height={height}
+        rx={8}
+      />
+    </g>
+  );
+});
+
+function TextBoxChrome({
+  box,
+  ui,
+  flipTones,
+}: {
+  box: TextBox;
+  ui: number;
+  flipTones?: boolean;
+}) {
+  const layout = useMemo(
+    () =>
+      layoutTextBox(
+        box.text,
+        box.title,
+        box.width,
+        box.size,
+        box.font,
+        box.bold,
+        box.italic,
+        box.scale,
+      ),
+    [box.text, box.title, box.width, box.size, box.font, box.bold, box.italic, box.scale],
+  );
+  const height = Math.max(box.height, layout.contentH);
+  const rect = { x: box.x, y: box.y, w: box.width, h: height };
+  const hs = 9 * ui;
+  const hit = 36 * ui;
+  const sw = 15 * ui;
+  const swGap = 4 * ui;
+  const below = box.y + height + 10 * ui;
+  const flip = flipTones ?? false;
+  const swY = flip ? box.y - 12 * ui - sw : below;
+
+  return (
+    <g className="cv-ann-sel">
+      <rect
+        className="cv-ann-ring"
+        x={box.x - 3 * ui}
+        y={box.y - 3 * ui}
+        width={box.width + 6 * ui}
+        height={height + 6 * ui}
+        rx={8 + 3 * ui}
+      />
+
+      <g className="cv-sec-tones">
+        {Array.from({ length: SECTION_TONE_COUNT }, (_, i) => (
+          <rect
+            key={i}
+            className={`cv-sec-tone${box.tone === i ? ' is-active' : ''}`}
+            data-hit="textbox-tone"
+            data-id={box.id}
+            data-tone={i}
+            role="button"
+            aria-label={`Box shade ${i + 1}`}
+            x={box.x + i * (sw + swGap)}
+            y={swY}
+            width={sw}
+            height={sw}
+            rx={3 * ui}
+          />
+        ))}
+      </g>
+
+      {RESIZE_DIRS.map((dir) => {
+        const a = handleAnchor(rect, dir);
+        return (
+          <g key={dir}>
+            <rect
+              className="cv-handle"
+              x={a.x - hs / 2}
+              y={a.y - hs / 2}
+              width={hs}
+              height={hs}
+              rx={2 * ui}
+            />
+            <rect
+              className="cv-handle-hit"
+              data-hit="textbox-resize"
+              data-id={box.id}
+              data-dir={dir}
+              x={a.x - hit / 2}
+              y={a.y - hit / 2}
               width={hit}
               height={hit}
             />
@@ -3142,14 +3366,17 @@ type HitKind =
   | 'background'
   | 'note'
   | 'section'
+  | 'textbox'
   | 'section-resize'
+  | 'textbox-resize'
   | 'note-resize'
   | 'note-scale'
   | 'note-size'
   | 'note-bold'
   | 'note-font'
   | 'note-tone'
-  | 'section-tone';
+  | 'section-tone'
+  | 'textbox-tone';
 
 interface Hit {
   kind: HitKind;
@@ -3204,6 +3431,7 @@ interface Pending {
     | 'marquee'
     | 'ann'
     | 'ann-resize'
+    | 'textbox-resize'
     | 'note-resize'
     | 'note-scale'
     | 'draw-section'
@@ -3221,7 +3449,7 @@ interface Pending {
   /** Section rect at promotion, for an 'ann-resize' drag. */
   annRect: { x: number; y: number; w: number; h: number } | null;
   /** The armed annotation tool latched at press time, if any. */
-  tool: 'note' | 'section' | null;
+  tool: AnnotationTool | null;
 }
 
 /** Live marquee rectangle, in world units. */
@@ -3264,11 +3492,14 @@ export default function Canvas({
   onResizeSection,
   onCreateNote,
   onCreateSection,
+  onCreateTextBox,
   onEditNote,
   onEditSectionLabel,
+  onEditTextBox,
   onSetNoteSize,
   onSetSectionTone,
   onResizeNote,
+  onResizeTextBox,
   onScaleNote,
   onSetNoteStyle,
   spark,
@@ -3382,7 +3613,7 @@ export default function Canvas({
    * a click drops a default one). Modeless in the same way pendingLink is:
    * it survives across gestures until spent or Escaped.
    */
-  const [tool, setTool] = useState<'note' | 'section' | null>(null);
+  const [tool, setTool] = useState<AnnotationTool | null>(null);
   const toolRef = useRef(tool);
   useLayoutEffect(() => {
     toolRef.current = tool;
@@ -3411,6 +3642,14 @@ export default function Canvas({
     null,
   );
   const labelEditDoneRef = useRef(false);
+  /** In-place textbox editor: which textbox, and the live title and draft. */
+  const [textBoxEdit, setTextBoxEdit] = useState<{
+    id: string;
+    title: string;
+    draft: string;
+  } | null>(null);
+  const textBoxEditDoneRef = useRef(false);
+  const textBoxAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const annotations = topology.annotations ?? EMPTY_ANNOTATIONS;
   const annIdSet = useMemo(() => new Set(annotations.map((a) => a.id)), [annotations]);
@@ -3517,8 +3756,22 @@ export default function Canvas({
         // ran past the lowest node, which is most of them.
         const h = isSection(a)
           ? a.height
-          : layoutNote(a.text, a.width, a.size, a.font, a.bold, a.italic, a.scale)
-              .height;
+          : isTextBox(a)
+            ? Math.max(
+                a.height,
+                layoutTextBox(
+                  a.text,
+                  a.title,
+                  a.width,
+                  a.size,
+                  a.font,
+                  a.bold,
+                  a.italic,
+                  a.scale,
+                ).contentH,
+              )
+            : layoutNote(a.text, a.width, a.size, a.font, a.bold, a.italic, a.scale)
+                .height;
         if (a.x < minX) minX = a.x;
         // A section's label plate paints ABOVE its frame.
         if ((isSection(a) ? a.y - 28 : a.y) < minY) {
@@ -3899,7 +4152,7 @@ export default function Canvas({
         }
         return;
       }
-      if (p.tool === 'note') {
+      if (p.tool === 'note' || p.tool === 'textbox') {
         p.mode = 'pan';
         setCursor('grabbing');
         try {
@@ -3986,7 +4239,8 @@ export default function Canvas({
         }
 
         case 'note':
-        case 'section': {
+        case 'section':
+        case 'textbox': {
           const id = p.hit.id;
           const ann = id
             ? (topoRef.current.annotations ?? []).find((a) => a.id === id)
@@ -4064,6 +4318,21 @@ export default function Canvas({
           break;
         }
 
+        case 'textbox-resize': {
+          const id = p.hit.id;
+          const ann = id
+            ? (topoRef.current.annotations ?? []).find((a) => a.id === id)
+            : undefined;
+          if (!ann || !id || !isTextBox(ann) || !p.hit.dir) {
+            p.mode = 'pan';
+            break;
+          }
+          p.mode = 'textbox-resize';
+          onMoveStart?.('resize');
+          p.annRect = { x: ann.x, y: ann.y, w: ann.width, h: ann.height };
+          break;
+        }
+
         case 'note-resize':
         case 'note-scale': {
           const id = p.hit.id;
@@ -4088,6 +4357,7 @@ export default function Canvas({
         case 'note-font':
         case 'note-tone':
         case 'section-tone':
+        case 'textbox-tone':
           // Dragging a toolbar button or a swatch means nothing; the click
           // path handles all of them.
           p.mode = 'pan';
@@ -4297,6 +4567,20 @@ export default function Canvas({
         return;
       }
 
+      if (p.mode === 'textbox-resize' && p.annRect) {
+        const r = resizeRect(
+          p.annRect,
+          p.hit.dir as ResizeDir,
+          w.x - p.worldX,
+          w.y - p.worldY,
+          place,
+          TEXTBOX_MIN_WIDTH,
+          TEXTBOX_MIN_HEIGHT,
+        );
+        onResizeTextBox?.(p.hit.id!, r.x, r.y, r.w, r.h);
+        return;
+      }
+
       if (p.mode === 'note-resize' && p.annRect) {
         // Only the dragged edge moves. Pulling the WEST handle moves the
         // note's x as well as its width, so the east edge stays put and the
@@ -4431,6 +4715,19 @@ export default function Canvas({
               noteEditDoneRef.current = false;
               setNoteEdit({ id, draft: NEW_NOTE_TEXT });
             }
+          } else if (p.tool === 'textbox') {
+            const id =
+              onCreateTextBox?.(
+                snap(p.worldX),
+                snap(p.worldY),
+                NEW_TEXTBOX_TITLE,
+                NEW_TEXTBOX_TEXT,
+              ) ?? null;
+            setTool(null);
+            if (id) {
+              textBoxEditDoneRef.current = false;
+              setTextBoxEdit({ id, title: NEW_TEXTBOX_TITLE, draft: NEW_TEXTBOX_TEXT });
+            }
           } else {
             onCreateSection?.(
               snap(p.worldX - NEW_SECTION_W / 2),
@@ -4499,7 +4796,9 @@ export default function Canvas({
 
           case 'note':
           case 'section':
+          case 'textbox':
           case 'section-resize':
+          case 'textbox-resize':
           case 'note-resize':
           case 'note-scale':
             // A handle click without a drag is a click on what it belongs to.
@@ -4515,7 +4814,8 @@ export default function Canvas({
             }
             break;
 
-          case 'section-tone': {
+          case 'section-tone':
+          case 'textbox-tone': {
             const tone = Number(p.hit.tone);
             if (p.hit.id && Number.isInteger(tone)) {
               onSetSectionTone?.(p.hit.id, tone);
@@ -4592,8 +4892,25 @@ export default function Canvas({
             if (a.x >= x0 && a.x + a.width <= x1 && a.y >= y0 && a.y + a.height <= y1) {
               next.add(a.id);
             }
+          } else if (isTextBox(a)) {
+            const h = Math.max(
+              a.height,
+              layoutTextBox(
+                a.text,
+                a.title,
+                a.width,
+                a.size,
+                a.font,
+                a.bold,
+                a.italic,
+                a.scale,
+              ).contentH,
+            );
+            if (a.x <= x1 && a.x + a.width >= x0 && a.y <= y1 && a.y + h >= y0) {
+              next.add(a.id);
+            }
           } else {
-            const h = layoutNote(a.text, a.width, a.size).height;
+            const h = layoutNote(a.text, a.width, a.size, a.font, a.bold, a.italic, a.scale).height;
             if (a.x <= x1 && a.x + a.width >= x0 && a.y <= y1 && a.y + h >= y0) {
               next.add(a.id);
             }
@@ -4628,6 +4945,7 @@ export default function Canvas({
       onDeleteSelection,
       onCreateNote,
       onCreateSection,
+      onCreateTextBox,
       onSetNoteSize,
       onSetSectionTone,
       onResizeNote,
@@ -4806,6 +5124,12 @@ export default function Canvas({
           setTool((t) => (t === 'note' ? null : 'note'));
           return;
         }
+        if (e.key === 't' || e.key === 'T') {
+          e.preventDefault();
+          setPendingLink(null);
+          setTool((t) => (t === 'textbox' ? null : 'textbox'));
+          return;
+        }
         if (e.key === 'b' || e.key === 'B') {
           e.preventDefault();
           setPendingLink(null);
@@ -4902,7 +5226,20 @@ export default function Canvas({
       const el = e.target as Element | null;
       if (el?.closest?.('button, input, select, textarea, a, [data-chrome]')) return;
       const hit = hitTest(e.target);
-      if (!hit.id) return;
+      if (!hit.id) {
+        // Double-click empty canvas: create a text box at click position (draw.io style)
+        e.preventDefault();
+        const w = toWorld(e.clientX, e.clientY);
+        const place = snapsToGrid(snapOn, e.ctrlKey || e.metaKey) ? snap : Math.round;
+        const x = place(w.x - TEXTBOX_PAD_X);
+        const y = place(w.y - TEXTBOX_PAD_Y);
+        const id = onCreateTextBox?.(x, y, '', '') ?? null;
+        if (id) {
+          textBoxEditDoneRef.current = false;
+          setTextBoxEdit({ id, title: '', draft: '' });
+        }
+        return;
+      }
 
       // Double-click a note: edit its text in place. Double-click a section
       // border, label or handle: edit its label. Same editor contract as the
@@ -4924,6 +5261,15 @@ export default function Canvas({
         return;
       }
 
+      if (hit.kind === 'textbox' || hit.kind === 'textbox-resize') {
+        const ann = (topoRef.current.annotations ?? []).find((a) => a.id === hit.id);
+        if (!ann || !isTextBox(ann)) return;
+        e.preventDefault();
+        textBoxEditDoneRef.current = false;
+        setTextBoxEdit({ id: ann.id, title: ann.title ?? '', draft: ann.text });
+        return;
+      }
+
       if (hit.kind !== 'node') return;
       const node = topoRef.current.nodes.find((n) => n.id === hit.id);
       if (!node) return;
@@ -4932,7 +5278,7 @@ export default function Canvas({
       setRenameDraft(node.label);
       setRenaming(node.id);
     },
-    [hitTest],
+    [hitTest, toWorld, snapOn, onCreateTextBox],
   );
 
   const commitRename = useCallback(() => {
@@ -4992,6 +5338,34 @@ export default function Canvas({
     labelEditDoneRef.current = true;
     setLabelEdit(null);
   }, []);
+
+  const commitTextBoxEdit = useCallback(() => {
+    if (textBoxEditDoneRef.current) return;
+    textBoxEditDoneRef.current = true;
+    const edit = textBoxEdit;
+    setTextBoxEdit(null);
+    if (!edit || !onEditTextBox) return;
+    const ann = (topoRef.current.annotations ?? []).find((a) => a.id === edit.id);
+    if (!ann || !isTextBox(ann)) return;
+    const title = edit.title.trim() || undefined;
+    if (!edit.draft.trim() && !title) {
+      onEditTextBox(edit.id, '', undefined);
+      return;
+    }
+    if (title === ann.title && edit.draft === ann.text) return;
+    onEditTextBox(edit.id, edit.draft, title);
+  }, [textBoxEdit, onEditTextBox]);
+
+  const cancelTextBoxEdit = useCallback(() => {
+    textBoxEditDoneRef.current = true;
+    const edit = textBoxEdit;
+    setTextBoxEdit(null);
+    if (!edit) return;
+    const ann = (topoRef.current.annotations ?? []).find((a) => a.id === edit.id);
+    if (ann && isTextBox(ann) && !ann.text.trim() && !ann.title?.trim()) {
+      onDeleteSelection?.([], [], [ann.id]);
+    }
+  }, [textBoxEdit, onDeleteSelection]);
 
   /* ---------------- system clipboard ----------------
    *
@@ -5104,7 +5478,7 @@ export default function Canvas({
       // An annotation dragged off the palette. A dropped note opens its
       // editor immediately, matching the tool-armed click path.
       const ann = e.dataTransfer.getData(ANN_DND_MIME);
-      if (ann === 'note' || ann === 'section') {
+      if (ann === 'note' || ann === 'section' || ann === 'textbox') {
         e.preventDefault();
         const w = toWorld(e.clientX, e.clientY);
         if (ann === 'note') {
@@ -5112,6 +5486,18 @@ export default function Canvas({
           if (id) {
             noteEditDoneRef.current = false;
             setNoteEdit({ id, draft: NEW_NOTE_TEXT });
+          }
+        } else if (ann === 'textbox') {
+          const id =
+            onCreateTextBox?.(
+              snap(w.x),
+              snap(w.y),
+              NEW_TEXTBOX_TITLE,
+              NEW_TEXTBOX_TEXT,
+            ) ?? null;
+          if (id) {
+            textBoxEditDoneRef.current = false;
+            setTextBoxEdit({ id, title: NEW_TEXTBOX_TITLE, draft: NEW_TEXTBOX_TEXT });
           }
         } else {
           onCreateSection?.(
@@ -5140,7 +5526,7 @@ export default function Canvas({
       const place = snapsToGrid(snapOn, e.ctrlKey || e.metaKey) ? snap : Math.round;
       onDropNode(kind, place(w.x - NODE_W / 2), place(w.y - NODE_H / 2));
     },
-    [toWorld, onDropNode, onCreateNote, onCreateSection, snapOn],
+    [toWorld, onDropNode, onCreateNote, onCreateSection, onCreateTextBox, snapOn],
   );
 
   /* ---------------- fit to content ---------------- */
@@ -5199,7 +5585,7 @@ export default function Canvas({
    * that strip is just as unclickable as one off the bottom of the window.
    */
   const toneRowWouldClip = useCallback(
-    (s: Section) => {
+    (s: { y: number; height: number }) => {
       const rects = visibleRect();
       if (!rects) return false;
       const { surface, view: vis } = rects;
@@ -5640,6 +6026,11 @@ export default function Canvas({
     ? (annotations.find((a) => a.id === noteEdit.id) ?? null)
     : null;
   const editNote = editNoteRaw && isNote(editNoteRaw) ? editNoteRaw : null;
+  const editTextBoxRaw = textBoxEdit
+    ? (annotations.find((a) => a.id === textBoxEdit.id) ?? null)
+    : null;
+  const editTextBox =
+    editTextBoxRaw && isTextBox(editTextBoxRaw) ? editTextBoxRaw : null;
   const editSectionRaw = labelEdit
     ? (annotations.find((a) => a.id === labelEdit.id) ?? null)
     : null;
@@ -5655,6 +6046,17 @@ export default function Canvas({
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
   });
+
+  /** Focus body textarea and position caret at end when textbox editor opens. */
+  useLayoutEffect(() => {
+    if (textBoxEdit) {
+      const el = textBoxAreaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    }
+  }, [textBoxEdit?.id]);
 
   /** Snapped drop target of the live drag-link, if the drop would be legal. */
   const snapTarget =
@@ -5798,6 +6200,20 @@ export default function Canvas({
               ))}
             </g>
 
+            {/* Text boxes: render with notes above nodes */}
+            {annotations.length > 0 && (
+              <g className="cv-textboxes">
+                {annotations.filter(isTextBox).map((b) => (
+                  <TextBoxView
+                    key={b.id}
+                    box={b}
+                    selected={selectedIds.has(b.id)}
+                    editing={textBoxEdit?.id === b.id}
+                  />
+                ))}
+              </g>
+            )}
+
             {/* Notes LAST among content: commentary is never hidden by the
                 diagram it comments on. */}
             {annotations.length > 0 && (
@@ -5830,6 +6246,13 @@ export default function Canvas({
                         // area. visibleRect already knows where the floating
                         // panels are, so a section near the bottom does not
                         // hide its own picker under the charts strip.
+                        flipTones={toneRowWouldClip(a)}
+                      />
+                    ) : isTextBox(a) ? (
+                      <TextBoxChrome
+                        key={a.id}
+                        box={a}
+                        ui={1 / view.k}
                         flipTones={toneRowWouldClip(a)}
                       />
                     ) : (
@@ -6065,6 +6488,106 @@ export default function Canvas({
         />
       )}
 
+      {/* In-place text box editor: title bar and body textarea. */}
+      {editTextBox && textBoxEdit && (
+        <div
+          className="cv-textbox-editor-wrap"
+          data-chrome="textbox-edit"
+          style={{
+            left: editTextBox.x * view.k + view.x,
+            top: editTextBox.y * view.k + view.y,
+            width: editTextBox.width * view.k,
+            minHeight: editTextBox.height * view.k,
+          }}
+        >
+          <input
+            className="cv-textbox-title-editor"
+            data-chrome="textbox-title-edit"
+            value={textBoxEdit.title}
+            onChange={(e) =>
+              setTextBoxEdit((cur) =>
+                cur ? { ...cur, title: e.target.value.slice(0, 200) } : cur,
+              )
+            }
+            onBlur={(e) => {
+              const nextTarget = e.relatedTarget as HTMLElement | null;
+              if (nextTarget && nextTarget.closest('[data-chrome="textbox-edit"]')) {
+                return;
+              }
+              commitTextBoxEdit();
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                textBoxAreaRef.current?.focus();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelTextBoxEdit();
+              }
+            }}
+            placeholder="Card Title (optional, e.g. Functional Requirements)"
+            spellCheck={false}
+          />
+          <textarea
+            ref={textBoxAreaRef}
+            className={`cv-textbox-editor is-${editTextBox.size}`}
+            data-chrome="textbox-body-edit"
+            style={{
+              fontSize: scaledSpec(editTextBox.size, editTextBox.scale).font * view.k,
+              lineHeight: `${scaledSpec(editTextBox.size, editTextBox.scale).line * view.k}px`,
+              fontFamily: `var(--${editTextBox.font ?? 'sans'})`,
+            }}
+            value={textBoxEdit.draft}
+            onChange={(e) =>
+              setTextBoxEdit((cur) =>
+                cur ? { ...cur, draft: e.target.value.slice(0, 5000) } : cur,
+              )
+            }
+            onBlur={(e) => {
+              const nextTarget = e.relatedTarget as HTMLElement | null;
+              if (nextTarget && nextTarget.closest('[data-chrome="textbox-edit"]')) {
+                return;
+              }
+              commitTextBoxEdit();
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                commitTextBoxEdit();
+                return;
+              }
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                commitTextBoxEdit();
+                return;
+              }
+              if (e.key === 'Tab') {
+                e.preventDefault();
+                const el = e.currentTarget;
+                const next = applyTab(
+                  { value: el.value, start: el.selectionStart, end: el.selectionEnd },
+                  e.shiftKey,
+                );
+                if (next.value === el.value) return;
+                el.value = next.value;
+                el.setSelectionRange(next.start, next.end);
+                setTextBoxEdit((cur) =>
+                  cur ? { ...cur, draft: el.value.slice(0, 5000) } : cur,
+                );
+              }
+            }}
+            aria-label="Requirements card body text"
+            placeholder="Type notes or requirements here..."
+            spellCheck={false}
+            autoFocus
+          />
+        </div>
+      )}
+
       {topology.nodes.length === 0 && (
         <div className="cv-empty">
           <p className="cv-empty-lead">Start with an empty canvas</p>
@@ -6121,9 +6644,13 @@ export default function Canvas({
             ? coarsePointer
               ? 'Tap the canvas to place a note'
               : 'Click the canvas to place a note · Esc to cancel'
-            : coarsePointer
-              ? 'Drag to draw a section'
-              : 'Drag to draw a section · Esc to cancel'}
+            : tool === 'textbox'
+              ? coarsePointer
+                ? 'Tap the canvas to place a text box'
+                : 'Click the canvas to place a text box · Esc to cancel'
+              : coarsePointer
+                ? 'Drag to draw a section'
+                : 'Drag to draw a section · Esc to cancel'}
         </p>
       )}
 

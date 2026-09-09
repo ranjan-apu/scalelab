@@ -45,6 +45,10 @@ import {
   NOTE_DEFAULT_WIDTH,
   SECTION_MIN_HEIGHT,
   SECTION_MIN_WIDTH,
+  TEXTBOX_DEFAULT_HEIGHT,
+  TEXTBOX_DEFAULT_WIDTH,
+  TEXTBOX_MIN_HEIGHT,
+  TEXTBOX_MIN_WIDTH,
   NOTE_MAX_SCALE,
   NOTE_MAX_WIDTH,
   NOTE_MIN_SCALE,
@@ -52,10 +56,16 @@ import {
   SECTION_TONE_COUNT,
   isNote,
   isSection,
+  isTextBox,
   sanitizeAnnotations,
 } from './sim/annotations';
-import type { Annotation, AnnotationFont, Note } from './sim/annotations';
-import { NEW_NOTE_TEXT } from './components/annotationLayout';
+import type { Annotation, AnnotationFont, Note, TextBox } from './sim/annotations';
+import {
+  NEW_NOTE_TEXT,
+  NEW_TEXTBOX_TEXT,
+  NEW_TEXTBOX_TITLE,
+} from './components/annotationLayout';
+import type { InterviewTemplate } from './components/annotationLayout';
 import type { AnnotationTool } from './components/Palette';
 import { TooltipLayer, setGlossaryNavigate } from './components/Tooltip';
 import { togglePreference, usePreference } from './content/preferences';
@@ -790,13 +800,19 @@ export default function App() {
     };
   }, [topology.nodes, topology.annotations, selectedIds]);
 
+  const selectedTextBox = useMemo<TextBox | null>(() => {
+    if (selectedIds.size !== 1) return null;
+    const [id] = selectedIds;
+    const ann = (topology.annotations ?? []).find((a) => a.id === id);
+    return ann && isTextBox(ann) ? ann : null;
+  }, [selectedIds, topology.annotations]);
+
   /**
-   * "Something the INSPECTOR can talk about is selected." Annotations are
-   * deliberately excluded: a selected note has nothing to configure, and
-   * opening an empty inspector for it would teach that selection sometimes
-   * produces a blank panel.
+   * "Something the INSPECTOR can talk about is selected."
+   * Nodes, edges, and first-class Requirements Cards (TextBoxes) are configurable.
    */
-  const hasSelection = selectedNodes.length + selectedEdgeCount > 0;
+  const hasSelection =
+    selectedNodes.length + selectedEdgeCount > 0 || selectedTextBox !== null;
   const inspectorVisible = hasSelection && !inspectorHidden;
 
   /**
@@ -1158,7 +1174,7 @@ export default function App() {
   /** `kind-N` ids of the same shape freshId in clipboard.ts mints, scanned
    *  against the live list because a restored session's ids predate this
    *  tab's counters. */
-  const freshAnnId = useCallback((prefix: 'note' | 'section'): string => {
+  const freshAnnId = useCallback((prefix: 'note' | 'section' | 'textbox'): string => {
     const used = new Set((topoLiveRef.current.annotations ?? []).map((a) => a.id));
     let n = 1;
     while (used.has(`${prefix}-${n}`)) n += 1;
@@ -1291,6 +1307,125 @@ export default function App() {
     [freshAnnId, history, setAnnotations],
   );
 
+  const handleCreateTextBox = useCallback(
+    (
+      x: number,
+      y: number,
+      title = NEW_TEXTBOX_TITLE,
+      text = NEW_TEXTBOX_TEXT,
+    ): string => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      const id = freshAnnId('textbox');
+      history.commit('add text box', snapRef.current);
+      setAnnotations([
+        ...anns,
+        {
+          id,
+          kind: 'textbox',
+          title,
+          text,
+          x,
+          y,
+          width: TEXTBOX_DEFAULT_WIDTH,
+          height: TEXTBOX_DEFAULT_HEIGHT,
+          size: 'md',
+          tone: 1,
+        },
+      ]);
+      setSelectedIds(new Set([id]));
+      return id;
+    },
+    [freshAnnId, history, setAnnotations],
+  );
+
+  const handleResizeTextBox = useCallback(
+    (id: string, x: number, y: number, w: number, h: number) => {
+      if (!history.inGesture) history.touch('resize', snapRef.current);
+      setAnnotations(
+        (topoLiveRef.current.annotations ?? []).map((a) =>
+          a.id === id && isTextBox(a)
+            ? {
+                ...a,
+                x,
+                y,
+                width: Math.max(w, TEXTBOX_MIN_WIDTH),
+                height: Math.max(h, TEXTBOX_MIN_HEIGHT),
+              }
+            : a,
+        ),
+      );
+    },
+    [history, setAnnotations],
+  );
+
+  const handleEditTextBox = useCallback(
+    (id: string, text: string, title?: string) => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      const cur = anns.find((a) => a.id === id);
+      if (!cur || cur.kind !== 'textbox') return;
+      const nextText = text.slice(0, 5000);
+      const nextTitle = title !== undefined ? title.slice(0, 200) : cur.title;
+      if (!nextText.trim() && !nextTitle?.trim()) {
+        // An emptied or unedited blank text box is removed outright: invisible and unselectable,
+        // it would otherwise be litter the user cannot find to delete.
+        history.commit('delete text box', snapRef.current);
+        setAnnotations(anns.filter((a) => a.id !== id));
+        setSelectedIds((sel) => {
+          if (!sel.has(id)) return sel;
+          const out = new Set(sel);
+          out.delete(id);
+          return out;
+        });
+        return;
+      }
+      if (nextText === cur.text && nextTitle === cur.title) return;
+      history.commit('edit text box', snapRef.current);
+      setAnnotations(
+        anns.map((a) =>
+          a.id === id ? { ...a, text: nextText, title: nextTitle } : a,
+        ),
+      );
+    },
+    [history, setAnnotations],
+  );
+
+  const handleApplyTextBoxTemplate = useCallback(
+    (id: string, template: InterviewTemplate) => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      const cur = anns.find((a) => a.id === id);
+      if (!cur || cur.kind !== 'textbox') return;
+      history.commit('apply template', snapRef.current);
+      setAnnotations(
+        anns.map((a) =>
+          a.id === id
+            ? {
+                ...a,
+                title: template.title,
+                text: template.text,
+                tone: template.tone,
+              }
+            : a,
+        ),
+      );
+    },
+    [history, setAnnotations],
+  );
+
+  const handleDeleteTextBox = useCallback(
+    (id: string) => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      history.commit('delete text box', snapRef.current);
+      setAnnotations(anns.filter((a) => a.id !== id));
+      setSelectedIds((sel) => {
+        if (!sel.has(id)) return sel;
+        const out = new Set(sel);
+        out.delete(id);
+        return out;
+      });
+    },
+    [history, setAnnotations],
+  );
+
   const handleEditNote = useCallback(
     (id: string, text: string) => {
       const anns = topoLiveRef.current.annotations ?? [];
@@ -1382,13 +1517,13 @@ export default function App() {
     (id: string, tone: number) => {
       const anns = topoLiveRef.current.annotations ?? [];
       const cur = anns.find((a) => a.id === id);
-      if (!cur || cur.kind !== 'section' || cur.tone === tone) return;
+      if (!cur || (cur.kind !== 'section' && cur.kind !== 'textbox') || cur.tone === tone) return;
       // Wrapped rather than clamped, matching sanitizeAnnotations, so a shade
       // index can never land outside the palette and render an unstyled frame.
       const next =
         ((Math.floor(tone) % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) %
         SECTION_TONE_COUNT;
-      history.commit('section shade', snapRef.current);
+      history.commit('shade', snapRef.current);
       setAnnotations(anns.map((a) => (a.id === id ? { ...a, tone: next } : a)));
     },
     [history, setAnnotations],
@@ -1414,11 +1549,13 @@ export default function App() {
       const gx = (v: number) => Math.round(v / GRID) * GRID;
       if (tool === 'note') {
         handleCreateNote(gx(centre.x - NOTE_DEFAULT_WIDTH / 2), gx(centre.y));
+      } else if (tool === 'textbox') {
+        handleCreateTextBox(gx(centre.x - TEXTBOX_DEFAULT_WIDTH / 2), gx(centre.y));
       } else {
         handleCreateSection(gx(centre.x - 160), gx(centre.y - 112), 320, 224);
       }
     },
-    [handleCreateNote, handleCreateSection],
+    [handleCreateNote, handleCreateSection, handleCreateTextBox],
   );
 
   const handleAddNode = useCallback(
@@ -2995,12 +3132,15 @@ export default function App() {
               onPaste={handlePaste}
               onMoveAnnotation={handleMoveAnnotation}
               onResizeSection={handleResizeSection}
+              onResizeTextBox={handleResizeTextBox}
               onResizeNote={handleResizeNote}
               onScaleNote={handleScaleNote}
               onCreateNote={handleCreateNote}
               onCreateSection={handleCreateSection}
+              onCreateTextBox={handleCreateTextBox}
               onEditNote={handleEditNote}
               onEditSectionLabel={handleEditSectionLabel}
+              onEditTextBox={handleEditTextBox}
               onSetNoteSize={handleSetNoteSize}
               onSetSectionTone={handleSetSectionTone}
               onSetNoteStyle={handleSetNoteStyle}
@@ -3111,6 +3251,11 @@ export default function App() {
             onChangeMany={handleConfigChangeMany}
             onDeleteMany={handleDeleteMany}
             lockedFields={challenge ? FIXED_DURING_CHALLENGE : undefined}
+            textBox={selectedTextBox}
+            onEditTextBox={handleEditTextBox}
+            onSetTextBoxTone={handleSetSectionTone}
+            onApplyTextBoxTemplate={handleApplyTextBoxTemplate}
+            onDeleteTextBox={handleDeleteTextBox}
           />
           <PanelResizer
             edge="right"

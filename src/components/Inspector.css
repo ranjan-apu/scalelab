@@ -945,3 +945,89 @@
 .ins-field-row.is-locked .ins-hint {
   color: var(--text-dim);
 }
+
+/* --------------------------------------------------------------------------
+   Requirements Card (Text Box) Inspector
+   -------------------------------------------------------------------------- */
+
+.ins-templates-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2, 8px);
+  margin-bottom: var(--sp-2, 8px);
+}
+
+.ins-template-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-start;
+  font-size: var(--fs-xs, 11px);
+  padding: 5px 8px;
+  height: auto;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.ins-template-btn:hover {
+  background: var(--surface-3, var(--surface-2));
+  border-color: var(--accent);
+}
+
+.ins-template-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ins-textbox-body-field {
+  width: 100%;
+  min-height: 180px;
+  padding: var(--sp-2, 8px) var(--sp-3, 12px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input, 6px);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--fs-sm, 12px);
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.ins-textbox-body-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-faint, rgba(66, 133, 244, 0.2));
+}
+
+.ins-tone-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.ins-tone-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+.ins-tone-swatch:hover {
+  transform: scale(1.15);
+}
+
+.ins-tone-swatch.is-active {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}

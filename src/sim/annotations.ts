@@ -109,6 +109,33 @@ export interface Section {
 }
 
 /**
+ * A first-class text box / requirements card placed on the canvas.
+ *
+ * Designed for system design interviews, architecture presentations, and
+ * structured documentation (Functional Requirements, Non-Functional,
+ * Estimations, Assumptions). Has a visible container, optional title bar,
+ * formatted bullet text, and 8-direction resize.
+ */
+export interface TextBox {
+  id: string;
+  kind: 'textbox';
+  title?: string;
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  size: 'sm' | 'md' | 'lg';
+  scale?: number;
+  font?: AnnotationFont;
+  color?: string;
+  tone?: number;
+  bold?: boolean;
+  italic?: boolean;
+  cardStyle?: 'card' | 'sticky' | 'outline';
+}
+
+/**
  * The shades a note's text can take.
  *
  * Same indices the sections use, for the same reason: an index resolves per
@@ -137,15 +164,19 @@ export const ANNOTATION_FONTS = ['sans', 'hand', 'serif', 'mono'] as const;
 
 export type AnnotationFont = (typeof ANNOTATION_FONTS)[number];
 
-export type Annotation = Note | Section;
+export type Annotation = Note | Section | TextBox;
 
-/** Sections render behind nodes; notes render in front. */
+/** Sections render behind nodes; notes and textboxes render in front. */
 export function isSection(a: Annotation): a is Section {
   return a.kind === 'section';
 }
 
 export function isNote(a: Annotation): a is Note {
   return a.kind === 'note';
+}
+
+export function isTextBox(a: Annotation): a is TextBox {
+  return a.kind === 'textbox';
 }
 
 export const NOTE_DEFAULT_WIDTH = 220;
@@ -172,6 +203,13 @@ export const NOTE_MIN_SCALE = 0.6;
 export const NOTE_MAX_SCALE = 4;
 export const SECTION_MIN_WIDTH = 120;
 export const SECTION_MIN_HEIGHT = 90;
+
+export const TEXTBOX_DEFAULT_WIDTH = 280;
+export const TEXTBOX_DEFAULT_HEIGHT = 180;
+export const TEXTBOX_MIN_WIDTH = 160;
+export const TEXTBOX_MAX_WIDTH = 1200;
+export const TEXTBOX_MIN_HEIGHT = 100;
+export const TEXTBOX_MAX_HEIGHT = 2000;
 
 /**
  * How many shades the section palette offers.
@@ -215,6 +253,28 @@ export function makeSection(
     width: Math.max(width, SECTION_MIN_WIDTH),
     height: Math.max(height, SECTION_MIN_HEIGHT),
     tone: counter % SECTION_TONE_COUNT,
+  };
+}
+
+export function makeTextBox(
+  x: number,
+  y: number,
+  title = 'Functional Requirements',
+  text = '• Core user action 1\n• Core user action 2\n• Data input & validation\n• Query & view flows',
+  tone = 1,
+): TextBox {
+  counter += 1;
+  return {
+    id: `textbox-${counter}`,
+    kind: 'textbox',
+    title,
+    text,
+    x,
+    y,
+    width: TEXTBOX_DEFAULT_WIDTH,
+    height: TEXTBOX_DEFAULT_HEIGHT,
+    size: 'md',
+    tone,
   };
 }
 
@@ -283,6 +343,29 @@ export function sanitizeAnnotations(input: unknown): Annotation[] {
             : ((Math.floor(tone) % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) %
               SECTION_TONE_COUNT,
         ...colour(a.color),
+      });
+      seen.add(id);
+    } else if (a.kind === 'textbox') {
+      const text = typeof a.text === 'string' ? a.text : '';
+      const title = typeof a.title === 'string' ? a.title.slice(0, 200) : undefined;
+      const width = num(a.width);
+      const height = num(a.height);
+      out.push({
+        id,
+        kind: 'textbox',
+        title: title && title.trim() ? title : undefined,
+        text: text.slice(0, 5000),
+        x,
+        y,
+        width: clamp(width ?? TEXTBOX_DEFAULT_WIDTH, TEXTBOX_MIN_WIDTH, TEXTBOX_MAX_WIDTH),
+        height: clamp(height ?? TEXTBOX_DEFAULT_HEIGHT, TEXTBOX_MIN_HEIGHT, TEXTBOX_MAX_HEIGHT),
+        size: a.size === 'sm' || a.size === 'lg' ? a.size : 'md',
+        ...font(a.font),
+        ...colour(a.color),
+        ...noteTone(a.tone),
+        ...(a.bold === true ? { bold: true } : {}),
+        ...(a.italic === true ? { italic: true } : {}),
+        ...noteScale(a.scale),
       });
       seen.add(id);
     }
