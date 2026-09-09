@@ -2170,6 +2170,51 @@
   cursor: grab;
 }
 
+/* ---------- Ink strokes ----------
+ *
+ * The painted line is pointer-inert; the invisible hit path beside it is
+ * what the pointer router reads. Its width is the painted width plus a
+ * fat-finger allowance, and pointer-events: stroke means only that band
+ * around the centreline captures presses — a stroke crossing a node never
+ * swallows the node's clicks off the line.
+ */
+.cv-ink-tone-0 { --ink-c: var(--ann-0-ink); }
+.cv-ink-tone-1 { --ink-c: var(--ann-1-ink); }
+.cv-ink-tone-2 { --ink-c: var(--ann-2-ink); }
+.cv-ink-tone-3 { --ink-c: var(--ann-3-ink); }
+.cv-ink-tone-4 { --ink-c: var(--ann-4-ink); }
+
+.cv-ink-line {
+  fill: none;
+  stroke: var(--ink-c, var(--ann-0-ink));
+  stroke-width: var(--ink-w, 4px);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.cv-ink-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: calc(var(--ink-w, 4px) + 12px);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  cursor: grab;
+}
+
+/* Selection chrome: a dashed box in the accent colour, scaled by the
+   caller's ui factor so the dashes read the same at any zoom. Inert —
+   the hit path underneath is what makes the stroke selectable. */
+.cv-ink-chrome {
+  pointer-events: none;
+}
+
+.cv-ink-ring {
+  fill: none;
+  stroke: var(--accent);
+}
+
 /* Floating in-place editor for Text Box */
 .cv-textbox-editor-wrap {
   position: absolute;

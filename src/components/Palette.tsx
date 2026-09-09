@@ -107,7 +107,7 @@ function Glyph({ kind }: { kind: NodeKind }) {
   );
 }
 
-export type AnnotationTool = 'note' | 'section' | 'textbox';
+export type AnnotationTool = 'note' | 'section' | 'textbox' | 'ink';
 
 /**
  * The annotation rows. Not components: they carry no traffic, have no
@@ -140,6 +140,13 @@ const ANN_ROWS: {
       'M7 13h10',
       'M7 16h6',
     ],
+  },
+  {
+    tool: 'ink',
+    name: 'Pen',
+    hint: 'Draw freehand on the canvas: click or drag to sketch (P)',
+    // Lucide "pencil": the mark it leaves.
+    icon: ['M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'],
   },
   {
     tool: 'section',

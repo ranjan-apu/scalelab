@@ -364,8 +364,9 @@ describe('hostile input', () => {
     expect(anns).toHaveLength(2);
     for (const a of anns) {
       // The colour is gone entirely; the annotation survives and falls
-      // back to its theme shade.
-      expect(a.color).toBeUndefined();
+      // back to its theme shade. (Ink strokes carry no colour field at
+      // all, so the cast is a shape check, not a behaviour change.)
+      expect((a as { color?: string }).color).toBeUndefined();
     }
     expect(anns[0]!.id).toBe('note-1');
   });

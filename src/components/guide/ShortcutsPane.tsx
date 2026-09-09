@@ -21,6 +21,14 @@ export function ShortcutsPane() {
           <div className="gd-sc-desc">Arm Note tool (<kbd>N</kbd>) or Section Frame tool (<kbd>B</kbd>)</div>
         </div>
         <div className="gd-sc-row">
+          <div className="gd-sc-keys"><kbd>T</kbd></div>
+          <div className="gd-sc-desc">Arm Text Box tool (<kbd>T</kbd>), or double-click the canvas (draw.io style)</div>
+        </div>
+        <div className="gd-sc-row">
+          <div className="gd-sc-keys"><kbd>P</kbd></div>
+          <div className="gd-sc-desc">Arm Pen tool (<kbd>P</kbd>) and draw freehand</div>
+        </div>
+        <div className="gd-sc-row">
           <div className="gd-sc-keys"><kbd>Ctrl</kbd> + <kbd>D</kbd></div>
           <div className="gd-sc-desc">Duplicate selected components</div>
         </div>

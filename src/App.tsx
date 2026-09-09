@@ -54,12 +54,22 @@ import {
   NOTE_MIN_SCALE,
   NOTE_MIN_WIDTH,
   SECTION_TONE_COUNT,
+  isInk,
   isNote,
   isSection,
   isTextBox,
   sanitizeAnnotations,
 } from './sim/annotations';
 import type { Annotation, AnnotationFont, Note, TextBox } from './sim/annotations';
+import {
+  INK_DEFAULT_OPACITY,
+  INK_DEFAULT_WIDTH,
+  INK_MAX_POINTS,
+  INK_MAX_WIDTH,
+  INK_MIN_OPACITY,
+  INK_MIN_WIDTH,
+} from './sim/sketch';
+import type { InkTone } from './sim/sketch';
 import {
   NEW_NOTE_TEXT,
   NEW_TEXTBOX_TEXT,
@@ -820,14 +830,23 @@ export default function App() {
     return ann && isNote(ann) ? ann : null;
   }, [selectedIds, topology.annotations]);
 
+  const selectedInk = useMemo<import('./sim/sketch').Ink | null>(() => {
+    if (selectedIds.size !== 1) return null;
+    const [id] = selectedIds;
+    const ann = (topology.annotations ?? []).find((a) => a.id === id);
+    return ann && isInk(ann) ? ann : null;
+  }, [selectedIds, topology.annotations]);
+
   /**
    * "Something the INSPECTOR can talk about is selected."
-   * Nodes, edges, Requirements Cards (TextBoxes), and Notes are configurable.
+   * Nodes, edges, Requirements Cards (TextBoxes), Notes and ink strokes are
+   * configurable.
    */
   const hasSelection =
     selectedNodes.length + selectedEdgeCount > 0 ||
     selectedTextBox !== null ||
-    selectedNote !== null;
+    selectedNote !== null ||
+    selectedInk !== null;
   const inspectorVisible = hasSelection && !inspectorHidden;
 
   /**
@@ -1189,7 +1208,7 @@ export default function App() {
   /** `kind-N` ids of the same shape freshId in clipboard.ts mints, scanned
    *  against the live list because a restored session's ids predate this
    *  tab's counters. */
-  const freshAnnId = useCallback((prefix: 'note' | 'section' | 'textbox'): string => {
+  const freshAnnId = useCallback((prefix: 'note' | 'section' | 'textbox' | 'ink'): string => {
     const used = new Set((topoLiveRef.current.annotations ?? []).map((a) => a.id));
     let n = 1;
     while (used.has(`${prefix}-${n}`)) n += 1;
@@ -1353,6 +1372,69 @@ export default function App() {
     [freshAnnId, history, setAnnotations],
   );
 
+  /**
+   * Commit a finished stroke. The canvas already decimated the samples and
+   * normalised them relative to (x, y), so this is a plain append plus the
+   * history entry — one stroke, one undo.
+   */
+  const handleCreateInk = useCallback(
+    (x: number, y: number, points: number[]) => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      const id = freshAnnId('ink');
+      history.commit('draw', snapRef.current);
+      setAnnotations([
+        ...anns,
+        {
+          id,
+          kind: 'ink',
+          x,
+          y,
+          points: points.slice(0, INK_MAX_POINTS * 2),
+          tone: 0 as InkTone,
+          width: INK_DEFAULT_WIDTH,
+          opacity: INK_DEFAULT_OPACITY,
+        },
+      ]);
+    },
+    [freshAnnId, history, setAnnotations],
+  );
+
+  /** Discrete tone change from the inspector's swatch row: one commit. */
+  const handleSetInkTone = useCallback(
+    (id: string, tone: InkTone) => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      const cur = anns.find((a) => a.id === id);
+      if (!cur || !isInk(cur) || cur.tone === tone) return;
+      history.commit('change ink colour', snapRef.current);
+      setAnnotations(anns.map((a) => (a.id === id && isInk(a) ? { ...a, tone } : a)));
+    },
+    [history, setAnnotations],
+  );
+
+  /**
+   * Streaming width/opacity from the inspector's sliders: touch, never
+   * commit-per-frame, so a slider drag is one history entry on settle.
+   */
+  const handleInkStyle = useCallback(
+    (id: string, patch: { width?: number; opacity?: number }) => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      const cur = anns.find((a) => a.id === id);
+      if (!cur || !isInk(cur)) return;
+      const width = patch.width !== undefined
+        ? Math.min(INK_MAX_WIDTH, Math.max(INK_MIN_WIDTH, patch.width))
+        : cur.width;
+      const opacity = patch.opacity !== undefined
+        ? Math.min(1, Math.max(INK_MIN_OPACITY, patch.opacity))
+        : cur.opacity;
+      if (width === cur.width && opacity === cur.opacity) return;
+      if (!history.inGesture) history.touch('ink style', snapRef.current);
+      setAnnotations(
+        anns.map((a) => (a.id === id && isInk(a) ? { ...a, width, opacity } : a)),
+      );
+    },
+    [history, setAnnotations],
+  );
+
   const handleResizeTextBox = useCallback(
     (id: string, x: number, y: number, w: number, h: number) => {
       if (!history.inGesture) history.touch('resize', snapRef.current);
@@ -1412,7 +1494,7 @@ export default function App() {
       history.commit('apply template', snapRef.current);
       setAnnotations(
         anns.map((a) =>
-          a.id === id
+          a.id === id && a.kind === 'textbox'
             ? {
                 ...a,
                 title: template.title,
@@ -1539,7 +1621,7 @@ export default function App() {
         ((Math.floor(tone) % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) %
         SECTION_TONE_COUNT;
       history.commit('shade', snapRef.current);
-      setAnnotations(anns.map((a) => (a.id === id ? { ...a, tone: next } : a)));
+      setAnnotations(anns.map((a) => (a.id === id && a.kind === 'section' ? { ...a, tone: next } : a)));
     },
     [history, setAnnotations],
   );
@@ -1559,7 +1641,9 @@ export default function App() {
       }
       // No canvas mounted to arm (the rail can outlive it during a layout
       // change). Falling back to placing one is better than the click doing
-      // nothing at all.
+      // nothing at all — except for the pen, which places nothing: there is
+      // no canvas to draw on, so the click arms nothing and says nothing.
+      if (tool === 'ink') return;
       const centre = viewCenterRef.current?.() ?? { x: 240, y: 200 };
       const gx = (v: number) => Math.round(v / GRID) * GRID;
       if (tool === 'note') {
@@ -3153,6 +3237,7 @@ export default function App() {
               onCreateNote={handleCreateNote}
               onCreateSection={handleCreateSection}
               onCreateTextBox={handleCreateTextBox}
+              onCreateInk={handleCreateInk}
               onEditNote={handleEditNote}
               onEditSectionLabel={handleEditSectionLabel}
               onEditTextBox={handleEditTextBox}
@@ -3276,6 +3361,10 @@ export default function App() {
             onSetNoteSize={handleSetNoteSize}
             onSetNoteStyle={handleSetNoteStyle}
             onDeleteNote={(id) => handleDeleteSelection([], [], [id])}
+            ink={selectedInk}
+            onSetInkTone={handleSetInkTone}
+            onInkStyle={handleInkStyle}
+            onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
           />
           <PanelResizer
             edge="right"

@@ -210,7 +210,7 @@ describe('hostile and damaged input', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     for (const a of result.topology.annotations ?? []) {
-      expect(a.color).toBeUndefined();
+      expect((a as { color?: string }).color).toBeUndefined();
     }
   });
 
@@ -220,7 +220,7 @@ describe('hostile and damaged input', () => {
     const result = parseDesignFile(buildDesignFile(t, null));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.topology.annotations![1]!.color).toBe('#ff8800');
+    expect((result.topology.annotations![1]! as { color?: string }).color).toBe('#ff8800');
   });
 
   it('drops malformed annotations but keeps the design', () => {

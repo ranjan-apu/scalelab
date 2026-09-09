@@ -32,6 +32,13 @@ import { Term } from './Tooltip';
 import { VendorPanel } from './VendorPanel';
 import { SECTION_TONE_COUNT, ANNOTATION_FONTS, FONT_LABEL } from '../sim/annotations';
 import type { TextBox, Note, AnnotationFont } from '../sim/annotations';
+import {
+  INK_MAX_WIDTH,
+  INK_MIN_OPACITY,
+  INK_MIN_WIDTH,
+  INK_TONE_COUNT,
+} from '../sim/sketch';
+import type { Ink, InkTone } from '../sim/sketch';
 import { INTERVIEW_TEMPLATES, applyTab } from './annotationLayout';
 import type { InterviewTemplate } from './annotationLayout';
 import './Inspector.css';
@@ -2095,6 +2102,114 @@ function commonValue(nodes: readonly SimNode[], field: Field): number | null {
 }
 
 /* ------------------------------------------------------------------ *
+ * Ink Stroke Inspector
+ * ------------------------------------------------------------------ */
+
+interface InkInspectorProps {
+  ink: Ink;
+  onSetInkTone?: (id: string, tone: InkTone) => void;
+  onInkStyle?: (id: string, patch: { width?: number; opacity?: number }) => void;
+  onDeleteInk?: (id: string) => void;
+}
+
+function InkInspector({ ink, onSetInkTone, onInkStyle, onDeleteInk }: InkInspectorProps) {
+  return (
+    <aside className="ins" aria-label="Inspector">
+      <div className="ins-scroll scroll">
+        <header className="ins-header">
+          <p className="ins-title" style={{ margin: 0, padding: '4px 0', fontSize: '15px', fontWeight: 600 }}>
+            Ink Stroke
+          </p>
+          <p className="ins-kind">
+            <span>Freehand Drawing</span>
+            <span className="badge">Ink</span>
+          </p>
+        </header>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Colour</h4>
+          <div className="ins-tone-swatches" role="group" aria-label="Ink colours">
+            {Array.from({ length: INK_TONE_COUNT }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                className={`ins-tone-swatch${ink.tone === i ? ' is-active' : ''}`}
+                style={{
+                  backgroundColor: `var(--ann-${i}-ink)`,
+                  borderColor: `var(--ann-${i}-ink)`,
+                }}
+                aria-label={`Ink colour ${i + 1}`}
+                onClick={() => onSetInkTone?.(ink.id, i as InkTone)}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Width</h4>
+          <input
+            className="slider"
+            type="range"
+            min={INK_MIN_WIDTH}
+            max={INK_MAX_WIDTH}
+            step={1}
+            value={ink.width}
+            style={
+              {
+                '--fill-pct': fillPct(ink.width, INK_MIN_WIDTH, INK_MAX_WIDTH),
+              } as React.CSSProperties
+            }
+            aria-label="Stroke width"
+            onChange={(e) => onInkStyle?.(ink.id, { width: Number(e.currentTarget.value) })}
+          />
+          <p className="ins-empty" style={{ textAlign: 'right', fontSize: '12px' }}>
+            {ink.width}px
+          </p>
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Opacity</h4>
+          <input
+            className="slider"
+            type="range"
+            min={Math.round(INK_MIN_OPACITY * 100)}
+            max={100}
+            step={5}
+            value={Math.round(ink.opacity * 100)}
+            style={
+              {
+                '--fill-pct': fillPct(
+                  Math.round(ink.opacity * 100),
+                  Math.round(INK_MIN_OPACITY * 100),
+                  100,
+                ),
+              } as React.CSSProperties
+            }
+            aria-label="Stroke opacity"
+            onChange={(e) =>
+              onInkStyle?.(ink.id, { opacity: Number(e.currentTarget.value) / 100 })
+            }
+          />
+          <p className="ins-empty" style={{ textAlign: 'right', fontSize: '12px' }}>
+            {Math.round(ink.opacity * 100)}%
+          </p>
+        </section>
+
+        <section className="ins-group">
+          <button
+            type="button"
+            className="btn btn-danger ins-delete"
+            onClick={() => onDeleteInk?.(ink.id)}
+          >
+            Delete Stroke
+          </button>
+        </section>
+      </div>
+    </aside>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * Requirements Card (Text Box) Inspector
  * ------------------------------------------------------------------ */
 
@@ -2491,6 +2606,11 @@ export interface InspectorProps {
     },
   ) => void;
   onDeleteNote?: (id: string) => void;
+  /** A single ink stroke in the selection; the pen's panel opens for it. */
+  ink?: Ink | null;
+  onSetInkTone?: (id: string, tone: InkTone) => void;
+  onInkStyle?: (id: string, patch: { width?: number; opacity?: number }) => void;
+  onDeleteInk?: (id: string) => void;
 }
 
 export function Inspector({
@@ -2514,6 +2634,10 @@ export function Inspector({
   onSetNoteSize,
   onSetNoteStyle,
   onDeleteNote,
+  ink,
+  onSetInkTone,
+  onInkStyle,
+  onDeleteInk,
 }: InspectorProps) {
   /**
    * The selection this panel is actually describing. `selectedNodes` wins
@@ -2549,6 +2673,16 @@ export function Inspector({
           onSetNoteSize={onSetNoteSize}
           onSetNoteStyle={onSetNoteStyle}
           onDeleteNote={onDeleteNote}
+        />
+      );
+    }
+    if (ink) {
+      return (
+        <InkInspector
+          ink={ink}
+          onSetInkTone={onSetInkTone}
+          onInkStyle={onInkStyle}
+          onDeleteInk={onDeleteInk}
         />
       );
     }
