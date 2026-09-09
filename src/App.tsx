@@ -38,6 +38,7 @@ import { Palette } from './components/Palette';
 import { Glossary } from './components/Glossary';
 import { Shortcuts } from './components/Shortcuts';
 import { Examples } from './components/Examples';
+import { Guide } from './components/guide';
 import { cloneSubgraph, isTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
 import {
@@ -635,6 +636,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   /**
    * Whether the canvas has reached storage yet.
@@ -2035,6 +2037,11 @@ export default function App() {
         onSelect: handleNewCanvas,
       },
       {
+        label: 'How to use ScaleLab',
+        icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+        onSelect: () => setGuideOpen(true),
+      },
+      {
         label: 'Your designs',
         icon: 'M4 4a2 2 0 0 1 2-2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM13 2v5h5M9 13h6M9 17h6',
         onSelect: () => setDesignsOpen(true),
@@ -2759,6 +2766,31 @@ export default function App() {
             </span>
           </button>
 
+          <button
+            type="button"
+            className="app-guide-btn"
+            title="How to use ScaleLab: Interactive guide & manual"
+            aria-label="How to use ScaleLab"
+            onClick={() => setGuideOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span className="app-guide-label">Guide</span>
+          </button>
+
           {/*
           Everything that is reference or setup, behind one button.
 
@@ -3103,6 +3135,12 @@ export default function App() {
       <TooltipLayer />
       <Glossary open={glossaryOpen} onClose={closeGlossary} focusId={glossaryFocusId} />
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <Guide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        onOpenExamples={() => setExamplesOpen(true)}
+        onOpenChallenges={() => setChallengesOpen(true)}
+      />
       {/* The real file input, kept off screen. A bare one cannot be styled,
           so the Settings row calls click() on this. It lives beside the
           dialogs rather than in the top bar, which no longer carries any
