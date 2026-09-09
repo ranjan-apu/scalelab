@@ -19,6 +19,8 @@ import {
   applyTab,
   scaledSpec,
   layoutNote,
+  layoutTextBox,
+  INTERVIEW_TEMPLATES,
   noteStyle,
   resizeRect,
   handleAnchor,
@@ -288,5 +290,51 @@ describe('scaledSpec', () => {
     const s = scaledSpec('sm', 1.37);
     expect(Number.isInteger(s.font)).toBe(true);
     expect(Number.isInteger(s.line)).toBe(true);
+  });
+});
+
+describe('layoutTextBox', () => {
+  it('calculates header height when title is provided', () => {
+    const layout = layoutTextBox('• Item 1\n• Item 2', 'Functional Requirements', 280);
+    expect(layout.headerH).toBeGreaterThan(0);
+    expect(layout.lines.length).toBeGreaterThanOrEqual(2);
+    expect(layout.contentH).toBeGreaterThan(layout.headerH);
+  });
+
+  it('sets header height to 0 when title is absent or whitespace', () => {
+    const layoutNoTitle = layoutTextBox('• Item 1\n• Item 2', undefined, 280);
+    expect(layoutNoTitle.headerH).toBe(0);
+    const layoutEmptyTitle = layoutTextBox('• Item 1\n• Item 2', '   ', 280);
+    expect(layoutEmptyTitle.headerH).toBe(0);
+    const layoutDrawIoPlain = layoutTextBox('Normal text box content', '', 280);
+    expect(layoutDrawIoPlain.headerH).toBe(0);
+    const layoutFreshDoubleClick = layoutTextBox('', '', 280);
+    expect(layoutFreshDoubleClick.headerH).toBe(0);
+  });
+
+  it('wraps long lines within available inner width', () => {
+    const longText =
+      'This is a very long functional requirement line that should wrap cleanly into multiple lines within the text box card';
+    const layout = layoutTextBox(longText, 'Title', 200);
+    expect(layout.lines.length).toBeGreaterThan(1);
+    for (const line of layout.lines) {
+      expect(measureText(line, style)).toBeLessThanOrEqual(layout.innerWidth + 5);
+    }
+  });
+});
+
+describe('INTERVIEW_TEMPLATES', () => {
+  it('provides all 4 standard interview templates', () => {
+    expect(INTERVIEW_TEMPLATES).toHaveLength(4);
+    const ids = INTERVIEW_TEMPLATES.map((t) => t.id);
+    expect(ids).toContain('functional');
+    expect(ids).toContain('non-functional');
+    expect(ids).toContain('estimations');
+    expect(ids).toContain('assumptions');
+    for (const tmpl of INTERVIEW_TEMPLATES) {
+      expect(tmpl.title.length).toBeGreaterThan(0);
+      expect(tmpl.text.length).toBeGreaterThan(0);
+      expect(tmpl.tone).toBeGreaterThanOrEqual(0);
+    }
   });
 });

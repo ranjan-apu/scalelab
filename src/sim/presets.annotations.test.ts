@@ -207,7 +207,7 @@ describe.each(annotated)('preset %s annotations', (_id, preset, annotations) => 
 
   it('writes copy in the house style', () => {
     for (const a of annotations) {
-      const text = a.kind === 'note' ? a.text : a.label;
+      const text = a.kind === 'note' || a.kind === 'textbox' ? a.text : a.label;
       expect(text.includes('—'), `${a.id} uses an em dash`).toBe(false);
       expect(text.trim(), `${a.id} is blank`).not.toBe('');
     }

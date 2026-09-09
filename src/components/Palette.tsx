@@ -107,10 +107,10 @@ function Glyph({ kind }: { kind: NodeKind }) {
   );
 }
 
-export type AnnotationTool = 'note' | 'section';
+export type AnnotationTool = 'note' | 'section' | 'textbox';
 
 /**
- * The two annotation rows. Not components: they carry no traffic, have no
+ * The annotation rows. Not components: they carry no traffic, have no
  * simulation behaviour and never reach the engine, so they sit in their own
  * group rather than borrowing a NodeKind. The icons are drawn inline for
  * the same reason: KIND_ICON is the engine-backed vocabulary and these are
@@ -128,6 +128,18 @@ const ANN_ROWS: {
     hint: 'Click, then click the canvas to place text (N)',
     // Lucide "type": text as text.
     icon: ['M4 7V5h16v2', 'M9 20h6', 'M12 5v15'],
+  },
+  {
+    tool: 'textbox',
+    name: 'Text Box',
+    hint: 'Click or drag to place a requirements card (T)',
+    // Card with header bar and bullet lines.
+    icon: [
+      'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z',
+      'M3 9h18',
+      'M7 13h10',
+      'M7 16h6',
+    ],
   },
   {
     tool: 'section',
