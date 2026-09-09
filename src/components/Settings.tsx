@@ -122,7 +122,6 @@ export interface SettingsProps {
    */
   onExport?: () => void;
   onImport?: () => void;
-  onCopyLink?: () => void;
   onExportImage?: (format: 'svg' | 'png') => void;
   onExportMermaid?: () => void;
   /** Take everything this browser holds out as one file, and put it back. */
@@ -135,7 +134,6 @@ export function Settings({
   onClose,
   onExport,
   onImport,
-  onCopyLink,
   onExportImage,
   onExportMermaid,
   onBackup,
@@ -253,22 +251,10 @@ export function Settings({
             </div>
           </section>
 
-          {(onExport || onImport || onCopyLink) && (
+          {(onExport || onImport || onExportImage || onExportMermaid) && (
             <section className="st-group">
               <h3 className="st-group-title">Your design</h3>
               <div className="st-actions">
-                {onCopyLink && (
-                  <button type="button" className="st-action" onClick={onCopyLink}>
-                    <Glyph d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
-                    <span className="st-action-text">
-                      <span className="st-row-label">Copy link</span>
-                      <span className="st-hint">
-                        Carries the design in the address itself. Nothing is uploaded
-                        and nobody needs an account.
-                      </span>
-                    </span>
-                  </button>
-                )}
                 {onExport && (
                   <button type="button" className="st-action" onClick={onExport}>
                     <Glyph d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />

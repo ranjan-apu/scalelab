@@ -2279,6 +2279,8 @@ export default function App() {
     // reload the link over the change they had just made.
   }, [engine, resetLostRate]);
 
+  const [copiedLink, setCopiedLink] = useState(false);
+
   /**
    * Copy link. Writes the whole design into the URL fragment and puts that
    * URL on the clipboard, so the confirmation the reader gets is the same
@@ -2298,6 +2300,8 @@ export default function App() {
         });
         return;
       }
+      setCopiedLink(true);
+      window.setTimeout(() => setCopiedLink(false), 2000);
       toastSeq.current += 1;
       setToast({
         text: 'Link copied. It carries the whole design.',
@@ -2714,6 +2718,47 @@ export default function App() {
             </span>
           </button>
 
+          <button
+            type="button"
+            className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
+            title="Share design: copy link to clipboard"
+            aria-label="Share design"
+            onClick={handleCopyLink}
+          >
+            {copiedLink ? (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
+              </svg>
+            )}
+            <span className="app-share-label">
+              {copiedLink ? 'Copied!' : 'Share'}
+            </span>
+          </button>
+
           {/*
           Everything that is reference or setup, behind one button.
 
@@ -3095,7 +3140,6 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         onExport={handleExport}
         onImport={() => fileInputRef.current?.click()}
-        onCopyLink={handleCopyLink}
         onExportImage={handleExportImage}
         onExportMermaid={handleExportMermaid}
         onBackup={handleBackup}
