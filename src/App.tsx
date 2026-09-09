@@ -646,7 +646,13 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(() => {
+    try {
+      return localStorage.getItem('scalelab.guide-dismissed') !== 'true';
+    } catch {
+      return true; // If storage is unavailable, show the guide anyway.
+    }
+  });
 
   /**
    * Whether the canvas has reached storage yet.
@@ -3365,7 +3371,10 @@ export default function App() {
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Guide
         open={guideOpen}
-        onClose={() => setGuideOpen(false)}
+        onClose={() => {
+          setGuideOpen(false);
+          try { localStorage.setItem('scalelab.guide-dismissed', 'true'); } catch { /* quota / private browsing */ }
+        }}
         onOpenExamples={() => setExamplesOpen(true)}
         onOpenChallenges={() => setChallengesOpen(true)}
       />
