@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ ScaleLab
+# <img src="public/favicon.svg" width="32" height="32" alt="ScaleLab Logo" align="center" /> ScaleLab
 
 **A discrete-event distributed system design simulator & scale testing platform.**
 

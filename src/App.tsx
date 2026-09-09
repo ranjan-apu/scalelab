@@ -2598,8 +2598,77 @@ export default function App() {
             voice. Two words, sentence case, no abbreviation — a student
             opening this should be able to say what it is out loud. */}
           <div className="app-brand">
-            <h1 className="app-title">ScaleLab</h1>
-            <p className="app-tagline">Simulate, load test, and observe systems</p>
+            <div className="app-brand-mark" aria-hidden="true">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 32 32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <defs>
+                  <linearGradient
+                    id="brand-sl-top"
+                    x1="8"
+                    y1="6"
+                    x2="24"
+                    y2="15"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop stopColor="#60A5FA" />
+                    <stop offset="1" stopColor="#2563EB" />
+                  </linearGradient>
+                  <linearGradient
+                    id="brand-sl-left"
+                    x1="5"
+                    y1="14"
+                    x2="16"
+                    y2="27"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop stopColor="#1D4ED8" />
+                    <stop offset="1" stopColor="#0F172A" />
+                  </linearGradient>
+                  <linearGradient
+                    id="brand-sl-right"
+                    x1="16"
+                    y1="14"
+                    x2="27"
+                    y2="27"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop stopColor="#3B82F6" />
+                    <stop offset="1" stopColor="#1E293B" />
+                  </linearGradient>
+                </defs>
+                <rect width="32" height="32" rx="7.5" fill="#0D131F" />
+                <rect width="32" height="32" rx="7.5" stroke="#1E293B" strokeWidth="0.75" />
+                <path d="M16 6 L25.5 11.5 L16 17 L6.5 11.5 Z" fill="url(#brand-sl-top)" />
+                <path d="M6.5 11.5 L16 17 V27 L6.5 21.5 Z" fill="url(#brand-sl-left)" />
+                <path d="M16 17 L25.5 11.5 V21.5 L16 27 Z" fill="url(#brand-sl-right)" />
+                <path
+                  d="M16 8.5 L22 12 L16 15 L10 12 Z"
+                  stroke="#93C5FD"
+                  strokeOpacity="0.6"
+                  strokeWidth="0.8"
+                  fill="none"
+                />
+                <path d="M16 17 V25" stroke="#38BDF8" strokeWidth="1.2" strokeLinecap="round" />
+                <path
+                  d="M10 13.5 L16 17 L22 13.5"
+                  stroke="#60A5FA"
+                  strokeWidth="0.8"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <circle cx="16" cy="17" r="2.2" fill="#38BDF8" />
+                <circle cx="16" cy="17" r="1" fill="#FFFFFF" />
+              </svg>
+            </div>
+            <div className="app-brand-text">
+              <h1 className="app-title">ScaleLab</h1>
+              <p className="app-tagline">Simulate, load test, and observe systems</p>
+            </div>
           </div>
 
           {/*
