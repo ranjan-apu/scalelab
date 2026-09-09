@@ -108,6 +108,31 @@
 .app-brand {
   display: flex;
   flex: none;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.app-brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-btn);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease);
+  user-select: none;
+}
+
+.app-brand-mark:hover {
+  transform: scale(1.05);
+}
+
+.app-brand-text {
+  display: flex;
   flex-direction: column;
   gap: var(--sp-1);
   min-width: 0;
