@@ -567,12 +567,28 @@ export interface SimNode {
   description?: string;
 }
 
+export type EdgeProtocol =
+  | 'grpc'
+  | 'rest'
+  | 'kafka'
+  | 'ws'
+  | 'sql'
+  | 'graphql'
+  | 'custom';
+
 export interface SimEdge {
   id: string;
   from: string;
   to: string;
   /** Share of traffic leaving `from` that takes this edge (relative weight). */
   weight: number;
+
+  /** High-level design protocol (e.g. gRPC, REST, Kafka, WebSocket, SQL) */
+  protocol?: EdgeProtocol;
+  /** Route, API endpoint, or event payload description (e.g. POST /v1/checkout) */
+  edgeLabel?: string;
+  /** Whether the communication is synchronous blocking (true) or asynchronous event (false). Defaults to true. */
+  sync?: boolean;
 
   /**
    * This edge is a CONTROL relationship, not a request path.

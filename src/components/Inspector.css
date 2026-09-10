@@ -1153,3 +1153,45 @@
   margin-top: var(--sp-2, 8px);
 }
 
+/* Edge Inspector Protocol & Semantics */
+.ins-proto-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin-top: var(--sp-2, 8px);
+}
+
+.ins-proto-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 550;
+  padding: 8px 10px;
+  text-align: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-btn, 8px);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
+}
+
+.ins-proto-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.ins-proto-btn.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 650;
+}
+
+.ins-proto-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: var(--sp-2, 8px);
+}
+

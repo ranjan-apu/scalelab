@@ -82,6 +82,7 @@
   align-items: flex-start;
   justify-content: space-between;
   padding: var(--sp-4) var(--sp-5) var(--sp-3);
+  background: var(--surface-2);
   border-bottom: var(--bw) solid var(--border);
   gap: var(--sp-4);
   flex: none;
@@ -102,8 +103,8 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  background: rgba(99, 102, 241, 0.15);
-  color: var(--accent, #6366f1);
+  background: var(--accent-subtle);
+  color: var(--accent);
   border-radius: var(--r-full);
   margin-bottom: var(--sp-1);
 }
@@ -126,9 +127,9 @@
 
 .gd-nav {
   display: flex;
-  gap: var(--sp-1);
-  padding: var(--sp-2) var(--sp-5);
-  background: var(--surface-raised, var(--surface));
+  gap: 6px;
+  padding: 8px var(--sp-5);
+  background: var(--surface-2);
   border-bottom: var(--bw) solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
@@ -142,28 +143,46 @@
 .gd-tab {
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
-  padding: var(--sp-1) var(--sp-2);
+  gap: 6px;
+  padding: 6px 12px;
   font-size: var(--fs-xs);
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-dim);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--r-md);
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: all 0.15s ease;
+  position: relative;
 }
 
 .gd-tab:hover {
-  background: var(--surface-hover, var(--border));
+  background: var(--surface-3);
   color: var(--text);
 }
 
 .gd-tab.is-active {
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  font-weight: 700;
+}
+
+.gd-tab.is-active .gd-tab-icon {
+  stroke: var(--accent);
+}
+
+.gd-tab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
 }
 
 .gd-tab-icon {
@@ -171,11 +190,11 @@
 }
 
 .gd-tab-badge {
-  padding: 1px 5px;
+  padding: 1px 6px;
   font-size: 0.65rem;
   font-weight: 700;
-  background: var(--accent-subtle, rgba(99, 102, 241, 0.15));
-  color: var(--accent, #6366f1);
+  background: var(--accent-subtle);
+  color: var(--accent);
   border-radius: var(--r-full);
 }
 
@@ -445,6 +464,87 @@
   color: var(--text);
 }
 
+/* ---------------- Architectural Advisor Spotlight ---------------- */
+
+.gd-advisor-spotlight {
+  padding: var(--sp-4);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.gd-advisor-spotlight-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.gd-advisor-spotlight-head h4 {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gd-advisor-pill-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #16a34a;
+}
+
+:root[data-theme='dark'] .gd-advisor-pill-sample {
+  color: #4ade80;
+}
+
+.gd-advisor-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+}
+
+@media (max-width: 700px) {
+  .gd-advisor-features {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gd-advisor-item {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gd-advisor-item strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.gd-advisor-item span {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 /* ---------------- Resilience Grid ---------------- */
 
 .gd-resilience-grid {
@@ -582,4 +682,29 @@ kbd {
   .gd-foot {
     padding: var(--sp-2) var(--sp-4);
   }
+}
+
+:root[data-theme='dark'] .gd-head {
+  background: #0f172a;
+  border-bottom-color: #1e293b;
+}
+
+:root[data-theme='dark'] .gd-nav {
+  background: #0b1120;
+  border-bottom-color: #1e293b;
+}
+
+:root[data-theme='dark'] .gd-tab.is-active {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #38bdf8;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme='dark'] .gd-tab.is-active .gd-tab-icon {
+  stroke: var(--accent);
+}
+
+:root[data-theme='dark'] .gd-tab.is-active::after {
+  background: var(--accent);
 }
