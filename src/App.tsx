@@ -35,6 +35,7 @@ import { Glossary } from './components/Glossary';
 import { Shortcuts } from './components/Shortcuts';
 import { Examples } from './components/Examples';
 import { InterviewPractice } from './components/InterviewPractice';
+import { PenToolbar } from './components/PenToolbar';
 import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { Guide } from './components/guide';
 import { cloneSubgraph, isTopology, selectionSubgraph } from './clipboard';
@@ -60,14 +61,14 @@ import {
 } from './sim/annotations';
 import type { Annotation, AnnotationFont, Note, TextBox, TextBoxStyle } from './sim/annotations';
 import {
-  INK_DEFAULT_OPACITY,
-  INK_DEFAULT_WIDTH,
   INK_MAX_POINTS,
   INK_MAX_WIDTH,
   INK_MIN_OPACITY,
   INK_MIN_WIDTH,
 } from './sim/sketch';
 import type { InkTone } from './sim/sketch';
+import { DEFAULT_PEN_SETTINGS } from './sim/sketch';
+import type { PenSettings } from './sim/sketch';
 import {
   NEW_NOTE_TEXT,
   NEW_TEXTBOX_TEXT,
@@ -675,6 +676,18 @@ export default function App() {
 
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [interviewOpen, setInterviewOpen] = useState(false);
+
+  /**
+   * The pen as currently held. Session state, reset every visit by
+   * construction: useState initialises once per page load and nothing
+   * persists it. A stroke copies these values at commit; later changes
+   * never follow already-drawn ink.
+   */
+  const [penSettings, setPenSettings] = useState<PenSettings>(DEFAULT_PEN_SETTINGS);
+
+  const handlePenSettingsChange = useCallback((patch: Partial<PenSettings>) => {
+    setPenSettings((s) => ({ ...s, ...patch }));
+  }, []);
 
   /**
    * Cmd+K landing ping for the library search. Incremented, never reset:
@@ -1409,13 +1422,13 @@ export default function App() {
           x,
           y,
           points: points.slice(0, INK_MAX_POINTS * 2),
-          tone: 0 as InkTone,
-          width: INK_DEFAULT_WIDTH,
-          opacity: INK_DEFAULT_OPACITY,
+          tone: penSettings.tone,
+          width: penSettings.width,
+          opacity: penSettings.opacity,
         },
       ]);
     },
-    [freshAnnId, history, setAnnotations],
+    [freshAnnId, history, setAnnotations, penSettings],
   );
 
   /** Discrete tone change from the inspector's swatch row: one commit. */
@@ -1691,9 +1704,10 @@ export default function App() {
       }
       // No canvas mounted to arm (the rail can outlive it during a layout
       // change). Falling back to placing one is better than the click doing
-      // nothing at all — except for the pen, which places nothing: there is
-      // no canvas to draw on, so the click arms nothing and says nothing.
-      if (tool === 'ink') return;
+      // nothing at all — except for the pen and the eraser, which place
+      // nothing: there is no canvas to draw on, so the click arms nothing
+      // and says nothing.
+      if (tool === 'ink' || tool === 'eraser') return;
       const centre = viewCenterRef.current?.() ?? { x: 240, y: 200 };
       const gx = (v: number) => Math.round(v / GRID) * GRID;
       if (tool === 'note') {
@@ -2196,6 +2210,19 @@ export default function App() {
       setToast({ text: 'Pinned section to canvas', id: toastSeq.current });
     },
     [handleCreateTextBox],
+  );
+
+  /**
+   * One eraser sweep, however many strokes it caught. The generic delete
+   * path already commits once, skips the engine for annotation-only
+   * deletes, and prunes the selection, which is exactly the erase
+   * contract, so there is no second implementation to drift.
+   */
+  const handleEraseInk = useCallback(
+    (ids: readonly string[]) => {
+      handleDeleteSelection([], [], [...ids]);
+    },
+    [handleDeleteSelection],
   );
 
   const handleLoadPreset = useCallback(
@@ -3335,6 +3362,9 @@ export default function App() {
               onCreateSection={handleCreateSection}
               onCreateTextBox={handleCreateTextBox}
               onCreateInk={handleCreateInk}
+              onEraseInk={handleEraseInk}
+              penSettings={penSettings}
+              eraserWidth={penSettings.eraserWidth}
               onEditNote={handleEditNote}
               onEditSectionLabel={handleEditSectionLabel}
               onEditTextBox={handleEditTextBox}
@@ -3370,6 +3400,19 @@ export default function App() {
               </aside>
             )}
 
+            {/* Pen island: settings for the armed pen or eraser, floating
+              bottom-centre above the simulation dock. Switching tools here
+              re-arms without disarming, so one tap moves between drawing
+              and cleaning up; Esc or the close button puts it away. */}
+            {(armedTool === 'ink' || armedTool === 'eraser') && (
+              <PenToolbar
+                tool={armedTool}
+                settings={penSettings}
+                onToolChange={handlePaletteAnnotation}
+                onSettingsChange={handlePenSettingsChange}
+                onClose={() => handlePaletteAnnotation(armedTool)}
+              />
+            )}
             <button
               type="button"
               className="btn btn-sm btn-icon stage-toggle stage-toggle-library"

@@ -1,0 +1,151 @@
+/* ==========================================================================
+   Pen toolbar: a floating island for the armed pen or eraser.
+
+   Bottom-centre of the canvas, above the simulation dock when it is
+   showing. One pill, horizontally scrollable on narrow screens, with
+   touch-sized targets throughout: drawing is a pointer-first activity
+   and the toolbar must not demand a mouse.
+   ========================================================================== */
+
+.app-pen-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 26;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: max-content;
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--dock-bg, rgba(255, 253, 250, 0.94));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-strong);
+  border-radius: 9999px;
+  box-shadow: var(
+    --dock-shadow,
+    0 16px 36px -4px rgba(43, 40, 35, 0.16),
+    0 4px 14px rgba(43, 40, 35, 0.08)
+  );
+  animation: app-sim-dock-in var(--dur-base) var(--ease-out);
+}
+
+.app-pen-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* In Simulate mode the control deck owns bottom-centre, so the island
+   floats above it rather than covering the traffic slider. */
+.app-body.is-sim .app-pen-toolbar {
+  bottom: 112px;
+}
+
+.pen-tool-switch {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  flex: none;
+  background: var(--surface-2);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-btn);
+}
+
+.pen-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  min-height: 40px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pen-tool-btn.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.pen-tones {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: none;
+}
+
+.pen-tone {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pen-tone.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--surface);
+}
+
+.pen-slider {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+  min-height: 40px;
+}
+
+.pen-slider .slider {
+  width: 110px;
+}
+
+.pen-slider-narrow .slider {
+  width: 80px;
+}
+
+.pen-slider-wide .slider {
+  width: 140px;
+}
+
+.pen-preview {
+  flex: none;
+}
+
+.pen-eraser-preview {
+  flex: none;
+  border: 2px dashed var(--text-dim);
+  border-radius: var(--r-pill);
+}
+
+.pen-close {
+  flex: none;
+}
+
+/* Phone: the island spans the width as a sheet row above the tab bar,
+   still one scrollable strip rather than a wrapped stack. */
+@media (max-width: 720px) {
+  .app-pen-toolbar {
+    left: var(--sp-3);
+    right: var(--sp-3);
+    transform: none;
+    width: auto;
+    max-width: none;
+    border-radius: 20px;
+  }
+
+  .app-body.is-sim .app-pen-toolbar {
+    bottom: 112px;
+  }
+}

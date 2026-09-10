@@ -208,7 +208,7 @@ function PaletteItem({
   );
 }
 
-export type AnnotationTool = 'note' | 'section' | 'textbox' | 'ink';
+export type AnnotationTool = 'note' | 'section' | 'textbox' | 'ink' | 'eraser';
 
 /**
  * The annotation rows. Not components: they carry no traffic, have no
@@ -248,6 +248,17 @@ const ANN_ROWS: {
     hint: 'Draw freehand on the canvas: click or drag to sketch (P)',
     // Lucide "pencil": the mark it leaves.
     icon: ['M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'],
+  },
+  {
+    tool: 'eraser',
+    name: 'Eraser',
+    hint: 'Drag across ink strokes to erase them (E)',
+    // Lucide "eraser": the block that takes marks away.
+    icon: [
+      'm7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21',
+      'M22 21H7',
+      'm5 11 9 9',
+    ],
   },
   {
     tool: 'section',

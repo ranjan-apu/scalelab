@@ -89,6 +89,7 @@ const GROUPS: Group[] = [
       { keys: ['Double-click canvas'], does: 'Add a box or note right at the cursor (draw.io style)' },
       { keys: ['B'], does: 'Section tool: drag to frame an architectural tier' },
       { keys: ['P'], does: 'Pen tool: draw freehand on the canvas with smoothed ink' },
+      { keys: ['E'], does: 'Eraser tool: drag across ink strokes to erase them' },
       { keys: ['Double-click a note'], does: 'Edit its text in place' },
       { keys: ['Double-click a text box'], does: 'Edit its title and text in place' },
       { keys: ['Double-click a section'], does: 'Rename its label' },
