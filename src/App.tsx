@@ -650,7 +650,13 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(() => {
+    try {
+      return localStorage.getItem('scalelab.guide-dismissed') !== 'true';
+    } catch {
+      return true; // If storage is unavailable, show the guide anyway.
+    }
+  });
 
   /**
    * Whether the canvas has reached storage yet.
@@ -2925,6 +2931,31 @@ export default function App() {
         </div>
 
         <div className="app-island app-island-menu">
+          <button
+            type="button"
+            className="app-guide-btn"
+            title="Help: Interactive guide & manual"
+            aria-label="Help: How to use ScaleLab"
+            onClick={() => setGuideOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span className="app-guide-label">Help</span>
+          </button>
+
           <button
             type="button"
             className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
