@@ -3061,7 +3061,8 @@ export default function App() {
           'app-body' +
           (layout.library ? ' has-library' : '') +
           (inspectorVisible ? ' has-inspector' : '') +
-          (metricsVisible ? ' has-metrics' : '')
+          (metricsVisible ? ' has-metrics' : '') +
+          (!cleanCanvas ? ' is-sim' : ' is-clean')
         }
         /* The three panel sizes, written here because .app-body is where the
            slots and the strip's insets all read them from. A drag rewrites

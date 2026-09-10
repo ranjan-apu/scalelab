@@ -647,6 +647,33 @@
   animation: app-sim-dock-in var(--dur-base) var(--ease);
 }
 
+@media (min-width: 721px) {
+  .app-sim-dock {
+    transition: left var(--dur-base) var(--ease), bottom var(--dur-base) var(--ease), max-width var(--dur-base) var(--ease);
+  }
+
+  /* Center dock relative to remaining visible canvas when side panels are open */
+  .app-body.has-library .app-sim-dock {
+    left: calc(50% + var(--rail-w) / 2);
+    max-width: calc(100vw - var(--rail-w) - 48px);
+  }
+
+  .app-body.has-inspector .app-sim-dock {
+    left: calc(50% - var(--ins-w) / 2);
+    max-width: calc(100vw - var(--ins-w) - 48px);
+  }
+
+  .app-body.has-library.has-inspector .app-sim-dock {
+    left: calc(50% + (var(--rail-w) - var(--ins-w)) / 2);
+    max-width: calc(100vw - var(--rail-w) - var(--ins-w) - 48px);
+  }
+
+  /* Lift dock above the charts strip when metrics panel is open */
+  .app-body.has-metrics .app-sim-dock {
+    bottom: calc(var(--strip-h) + var(--sp-3));
+  }
+}
+
 @keyframes app-sim-dock-in {
   from {
     opacity: 0;
@@ -726,6 +753,39 @@
 
 .app-sim-dock .traffic-metric .num-hero {
   font-weight: 700;
+}
+
+/* Compact viewports & laptops with panels open: hide secondary metrics to prevent collisions */
+@media (min-width: 721px) and (max-width: 1400px) {
+  .app-body.has-library .app-sim-dock .traffic-metric-group,
+  .app-body.has-inspector .app-sim-dock .traffic-metric-group {
+    display: none;
+  }
+}
+
+/* Tablet & compact viewports: ensure dock never clips, collides, or overlaps zoom controls */
+@media (min-width: 721px) and (max-width: 1050px) {
+  .app-sim-dock {
+    padding: 6px 14px;
+  }
+
+  .app-sim-dock .traffic {
+    gap: var(--sp-3);
+  }
+
+  .app-sim-dock .traffic-load {
+    flex: 0 1 240px;
+    min-width: 160px;
+  }
+
+  /* Elevate zoom cluster above the floating simulation dock to prevent overlap */
+  .app-body.is-sim .cv-zoom {
+    bottom: calc(var(--sp-4) + 76px + var(--sp-2));
+  }
+
+  .app-body.is-sim.has-metrics .cv-zoom {
+    bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1380,21 +1440,14 @@
     display: none;
   }
 
-  /* --- Simulation Dock on Mobile ---------------------------------- */
+  /* --- Simulation Dock on Phones (Positioning & Sheet Collision) --- */
 
-  /* Position safely above the bottom tab bar */
   .app-sim-dock {
     position: fixed;
     bottom: calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100vw - 20px);
-    max-width: 440px;
-    padding: 8px 12px;
-    border-radius: var(--r-xl);
-    box-shadow: var(--shadow-lg);
     z-index: 20;
-    box-sizing: border-box;
   }
 
   /* Automatically hide the dock when any bottom sheet is open so it NEVER overlaps or obstructs the sheet */
@@ -1402,6 +1455,17 @@
   .app-body.has-inspector .app-sim-dock,
   .app-body.has-metrics .app-sim-dock {
     display: none !important;
+  }
+
+  /* --- Compact Simulation Dock on Phones --- */
+
+  .app-sim-dock {
+    width: calc(100vw - 20px);
+    max-width: 380px;
+    padding: 8px 12px;
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg);
+    box-sizing: border-box;
   }
 
   .app-sim-dock .traffic {
@@ -1496,7 +1560,7 @@
     line-height: 1;
   }
 
-  /* CRITICAL: Secondary metrics are available in the Charts sheet, hide in mobile dock */
+  /* CRITICAL: Secondary metrics are available in the Charts sheet, hide in compact dock */
   .app-sim-dock .traffic-metric-group {
     display: none !important;
   }
