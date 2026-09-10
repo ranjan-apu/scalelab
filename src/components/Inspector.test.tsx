@@ -261,3 +261,88 @@ describe('TextBoxInspector in Inspector', () => {
     expect(onDeleteTextBox).toHaveBeenCalledWith('tb1');
   });
 });
+
+describe('Clean Canvas mode conditional rendering in Inspector', () => {
+  const dummyStats = {
+    inFlight: 5,
+    queued: 2,
+    throughput: 100,
+    arrivalRate: 100,
+    utilization: 0.5,
+    p50: 12,
+    p95: 25,
+    p99: 45,
+    errorRate: 0,
+    shedRate: 0,
+    timeoutRate: 0,
+    hitRate: 0,
+    totalCompleted: 1000,
+    totalFailed: 0,
+    queueLimit: 100,
+    staleReadRate: 0,
+    maxShardUtilization: 0,
+    minShardUtilization: 0,
+    shardUtilization: [],
+  };
+
+  it('hides offered load slider and right now section when cleanCanvas is true for producer', async () => {
+    const { makeNode } = await import('../sim/presets');
+    const producerNode = makeNode('producer', 100, 100);
+
+    render(
+      <Inspector
+        node={producerNode}
+        stats={dummyStats}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onRename={vi.fn()}
+        cleanCanvas={true}
+      />,
+    );
+
+    expect(container.textContent).not.toContain('Offered load');
+    expect(container.textContent).not.toContain('Right now');
+    expect(container.textContent).toContain('Delete component');
+  });
+
+  it('shows offered load slider and right now section when cleanCanvas is false for producer', async () => {
+    const { makeNode } = await import('../sim/presets');
+    const producerNode = makeNode('producer', 100, 100);
+
+    render(
+      <Inspector
+        node={producerNode}
+        stats={dummyStats}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onRename={vi.fn()}
+        cleanCanvas={false}
+      />,
+    );
+
+    expect(container.textContent).toContain('Offered load');
+    expect(container.textContent).toContain('Right now');
+  });
+
+  it('hides telemetry and live calculations for service nodes when cleanCanvas is true', async () => {
+    const { makeNode } = await import('../sim/presets');
+    const serviceNode = makeNode('service', 100, 100);
+
+    render(
+      <Inspector
+        node={serviceNode}
+        stats={dummyStats}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onRename={vi.fn()}
+        cleanCanvas={true}
+      />,
+    );
+
+    expect(container.textContent).not.toContain('Right now');
+    expect(container.textContent).not.toContain('What that works out to');
+    // Architectural knobs like capacity and service time should remain
+    expect(container.textContent).toContain('Slots per instance');
+    expect(container.textContent).toContain('Service time');
+  });
+});

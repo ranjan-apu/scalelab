@@ -3246,6 +3246,7 @@ export default function App() {
             onSetInkTone={handleSetInkTone}
             onInkStyle={handleInkStyle}
             onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
+            cleanCanvas={cleanCanvas}
           />
           <PanelResizer
             edge="right"
