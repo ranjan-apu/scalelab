@@ -85,6 +85,8 @@ import {
   resizeRect,
 } from './annotationLayout';
 import type { ResizeDir } from './annotationLayout';
+import { inkPathD, inkWorldBounds } from './sketchGeometry';
+import { INK_MAX_POINTS, INK_MIN_SAMPLES, INK_MIN_SPACING } from '../sim/sketch';
 import type { AnnotationTool } from './Palette';
 import {
   SECTION_MIN_HEIGHT,
@@ -98,11 +100,12 @@ import {
   NOTE_MIN_SCALE,
   NOTE_MIN_WIDTH,
   SECTION_TONE_COUNT,
+  isInk,
   isNote,
   isSection,
   isTextBox,
 } from '../sim/annotations';
-import type { Annotation, AnnotationFont, Note, Section, TextBox } from '../sim/annotations';
+import type { Annotation, AnnotationFont, Ink, Note, Section, TextBox } from '../sim/annotations';
 import { usePreference } from '../content/preferences';
 import { Minimap } from './Minimap';
 import { serialiseSvg } from '../imageExport';
@@ -443,6 +446,12 @@ export interface CanvasProps {
     title?: string,
     text?: string,
   ) => string | null;
+  /**
+   * Commit a finished ink stroke. `points` are already decimated and relative
+   * to (x, y), which is the stroke's first sample; the shell owns creation
+   * (id, tone, width) and the history entry.
+   */
+  onCreateInk?: (x: number, y: number, points: number[]) => void;
   /**
    * Commit a note text edit. Called ONCE when the editor closes; the shell
    * removes the note outright when the text is emptied.
@@ -2323,13 +2332,17 @@ const TextBoxView = memo(function TextBoxView({
     [box.text, box.title, box.width, box.size, box.font, box.bold, box.italic, box.scale],
   );
 
+  const cardStyle = box.cardStyle ?? 'card';
+  const rx = cardStyle === 'sticky' ? 2 : cardStyle === 'outline' ? 4 : 8;
+  const font = box.font ?? (cardStyle === 'sticky' ? 'hand' : 'sans');
   const height = Math.max(box.height, layout.contentH);
   const toneClass = box.tone !== undefined ? ` cv-tone-${box.tone}` : '';
   const selClass = selected ? ' is-selected' : '';
+  const styleClass = ` is-style-${cardStyle}`;
 
   return (
     <g
-      className={`cv-textbox${toneClass}${selClass}`}
+      className={`cv-textbox${toneClass}${selClass}${styleClass}`}
       data-tone={
         box.tone !== undefined
           ? ((box.tone % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) % SECTION_TONE_COUNT
@@ -2343,7 +2356,7 @@ const TextBoxView = memo(function TextBoxView({
         y={0}
         width={box.width}
         height={height}
-        rx={8}
+        rx={rx}
       />
       {layout.headerH > 0 && (
         <g className="cv-textbox-header">
@@ -2353,7 +2366,7 @@ const TextBoxView = memo(function TextBoxView({
             y={0}
             width={box.width}
             height={layout.headerH}
-            rx={8}
+            rx={rx}
           />
           <line
             className="cv-textbox-header-line"
@@ -2368,6 +2381,10 @@ const TextBoxView = memo(function TextBoxView({
               x={TEXTBOX_PAD_X}
               y={layout.headerH / 2}
               dominantBaseline="central"
+              style={{
+                fontFamily: `var(--${font})`,
+                ...(box.scale ? { fontSize: Math.round(13 * (box.scale ?? 1)) } : {}),
+              }}
             >
               {box.title}
             </text>
@@ -2379,7 +2396,12 @@ const TextBoxView = memo(function TextBoxView({
           className="cv-textbox-text"
           x={TEXTBOX_PAD_X}
           y={0}
-          style={box.scale ? { fontSize: layout.font } : undefined}
+          style={{
+            fontFamily: `var(--${font})`,
+            ...(box.scale ? { fontSize: layout.font } : {}),
+            ...(box.bold ? { fontWeight: 'bold' } : {}),
+            ...(box.italic ? { fontStyle: 'italic' } : {}),
+          }}
         >
           {layout.lines.map((line, i) => (
             <tspan
@@ -2400,7 +2422,7 @@ const TextBoxView = memo(function TextBoxView({
         y={0}
         width={box.width}
         height={height}
-        rx={8}
+        rx={rx}
       />
     </g>
   );
@@ -2429,6 +2451,8 @@ function TextBoxChrome({
       ),
     [box.text, box.title, box.width, box.size, box.font, box.bold, box.italic, box.scale],
   );
+  const cardStyle = box.cardStyle ?? 'card';
+  const rx = (cardStyle === 'sticky' ? 2 : cardStyle === 'outline' ? 4 : 8) + 3 * ui;
   const height = Math.max(box.height, layout.contentH);
   const rect = { x: box.x, y: box.y, w: box.width, h: height };
   const hs = 9 * ui;
@@ -2447,7 +2471,7 @@ function TextBoxChrome({
         y={box.y - 3 * ui}
         width={box.width + 6 * ui}
         height={height + 6 * ui}
-        rx={8 + 3 * ui}
+        rx={rx}
       />
 
       <g className="cv-sec-tones">
@@ -2499,6 +2523,58 @@ function TextBoxChrome({
 }
 
 const EMPTY_ANNOTATIONS: readonly Annotation[] = [];
+
+/**
+ * A committed ink stroke: the painted line plus an invisible wide hit path.
+ *
+ * The hit path carries the data attributes the pointer router reads, not
+ * the visible one: its stroke width is the painted width plus a fat-finger
+ * allowance, and `pointer-events: stroke` (Canvas.css) means only the band
+ * around the line captures presses — the rest of the group's bounding box
+ * falls through to whatever is underneath. That is what lets a stroke cross
+ * a node without swallowing the node's clicks off the line itself.
+ */
+interface InkViewProps {
+  ink: Ink;
+  selected: boolean;
+}
+
+const InkView = memo(function InkView({ ink, selected }: InkViewProps) {
+  const d = useMemo(() => inkPathD(ink.points), [ink.points]);
+  return (
+    <g
+      className={`cv-ink cv-ink-tone-${ink.tone}${selected ? ' is-selected' : ''}`}
+      transform={`translate(${ink.x},${ink.y})`}
+      style={{ opacity: ink.opacity, '--ink-w': `${ink.width}px` } as CSSProperties}
+    >
+      <path className="cv-ink-line" d={d} />
+      <path className="cv-ink-hit" d={d} data-hit="ink" data-id={ink.id} />
+    </g>
+  );
+});
+
+/**
+ * Selection chrome for an ink stroke: a dashed bounding box in the same
+ * language as the other annotation chrome. `ui` scales the dash and the
+ * padding by 1/zoom so the ring reads the same at any magnification.
+ */
+function InkChrome({ ink, ui }: { ink: Ink; ui: number }) {
+  const b = inkWorldBounds(0, 0, ink.points, ink.width);
+  const pad = 6 * ui;
+  return (
+    <g transform={`translate(${ink.x},${ink.y})`} className="cv-ink-chrome">
+      <rect
+        className="cv-ink-ring"
+        x={b.x - pad}
+        y={b.y - pad}
+        width={b.w + pad * 2}
+        height={b.h + pad * 2}
+        strokeDasharray={`${6 * ui} ${4 * ui}`}
+        strokeWidth={1.5 * ui}
+      />
+    </g>
+  );
+}
 
 /* ================================================================== *
  * What a node is MADE OF
@@ -3361,6 +3437,7 @@ type HitKind =
   | 'note'
   | 'section'
   | 'textbox'
+  | 'ink'
   | 'section-resize'
   | 'textbox-resize'
   | 'note-resize'
@@ -3424,6 +3501,7 @@ interface Pending {
     | 'link'
     | 'marquee'
     | 'ann'
+    | 'ink'
     | 'ann-resize'
     | 'textbox-resize'
     | 'note-resize'
@@ -3444,6 +3522,13 @@ interface Pending {
   annRect: { x: number; y: number; w: number; h: number } | null;
   /** The armed annotation tool latched at press time, if any. */
   tool: AnnotationTool | null;
+  /**
+   * Samples of an in-flight ink stroke, in ABSOLUTE world coords, decimated
+   * as they arrive. Normalised to relative coords against the first sample
+   * only at commit, so the live preview and the stored stroke share one
+   * source of truth.
+   */
+  ink: number[] | null;
 }
 
 /** Live marquee rectangle, in world units. */
@@ -3487,6 +3572,7 @@ export default function Canvas({
   onCreateNote,
   onCreateSection,
   onCreateTextBox,
+  onCreateInk,
   onEditNote,
   onEditSectionLabel,
   onEditTextBox,
@@ -3597,6 +3683,13 @@ export default function Canvas({
    */
   const [pendingLink, setPendingLink] = useState<string | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
+  /**
+   * Live samples of the stroke in progress, in absolute world coords — a
+   * render-only mirror of Pending.ink. The gesture reads its own samples
+   * back from the pending record; this state exists only so the preview
+   * path repaints as the hand moves.
+   */
+  const [inkDraft, setInkDraft] = useState<number[] | null>(null);
   const [dropHint, setDropHint] = useState(false);
 
   /* ---------------- annotation tools & editors ---------------- */
@@ -3745,34 +3838,57 @@ export default function Canvas({
       // Annotations sit outside the node bounds by design, so a frame drawn
       // from the nodes alone would crop the notes explaining them.
       for (const a of topoRef.current.annotations ?? []) {
-        // A note's height is derived from its wrapped text, so it has to be
-        // laid out to be measured. Taking zero here cropped every note that
-        // ran past the lowest node, which is most of them.
-        const h = isSection(a)
-          ? a.height
-          : isTextBox(a)
-            ? Math.max(
-                a.height,
-                layoutTextBox(
-                  a.text,
-                  a.title,
-                  a.width,
-                  a.size,
-                  a.font,
-                  a.bold,
-                  a.italic,
-                  a.scale,
-                ).contentH,
-              )
-            : layoutNote(a.text, a.width, a.size, a.font, a.bold, a.italic, a.scale)
-                .height;
-        if (a.x < minX) minX = a.x;
-        // A section's label plate paints ABOVE its frame.
-        if ((isSection(a) ? a.y - 28 : a.y) < minY) {
-          minY = isSection(a) ? a.y - 28 : a.y;
+        // Every annotation kind reports its own painted extent: a note's
+        // height is derived from its wrapped text (laid out to measure —
+        // taking zero cropped every note that ran past the lowest node), a
+        // textbox's from the greater of its stored frame and its text, a
+        // section's label plate paints ABOVE its frame, and an ink stroke's
+        // from its samples padded by half its width.
+        let ax: number;
+        let ay: number;
+        let aright: number;
+        let abottom: number;
+        if (isSection(a)) {
+          ax = a.x;
+          ay = a.y - 28;
+          aright = a.x + a.width;
+          abottom = a.y + a.height;
+        } else if (isInk(a)) {
+          const b = inkWorldBounds(a.x, a.y, a.points, a.width);
+          ax = b.x;
+          ay = b.y;
+          aright = b.x + b.w;
+          abottom = b.y + b.h;
+        } else if (isTextBox(a)) {
+          const h = Math.max(
+            a.height,
+            layoutTextBox(
+              a.text,
+              a.title,
+              a.width,
+              a.size,
+              a.font,
+              a.bold,
+              a.italic,
+              a.scale,
+            ).contentH,
+          );
+          ax = a.x;
+          ay = a.y;
+          aright = a.x + a.width;
+          abottom = a.y + h;
+        } else {
+          const h = layoutNote(a.text, a.width, a.size, a.font, a.bold, a.italic, a.scale)
+            .height;
+          ax = a.x;
+          ay = a.y;
+          aright = a.x + a.width;
+          abottom = a.y + h;
         }
-        if (a.x + a.width > maxX) maxX = a.x + a.width;
-        if (a.y + h > maxY) maxY = a.y + h;
+        if (ax < minX) minX = ax;
+        if (ay < minY) minY = ay;
+        if (aright > maxX) maxX = aright;
+        if (abottom > maxY) maxY = abottom;
       }
       const bg = getComputedStyle(document.documentElement)
         .getPropertyValue('--bg')
@@ -4113,7 +4229,30 @@ export default function Canvas({
         groupAnnOrigins: new Map(),
         annRect: null,
         tool: armedTool,
+        ink: null,
       };
+
+      /*
+       * (B0) THE PEN IS THE ONE TOOL THAT CAPTURES AT PRESS. Every other
+       * gesture defers capture to promotion so a plain click on an overlay
+       * button still synthesises its `click`; a stroke has no such duty —
+       * it owns the gesture from first contact, and a sample missed at the
+       * tip of a slow line reads as a stroke that starts a few pixels late.
+       */
+      if (armedTool === 'ink') {
+        pendingRef.current.active = true;
+        pendingRef.current.mode = 'ink';
+        pendingRef.current.ink = [w.x, w.y];
+        setInkDraft([w.x, w.y]);
+        setCursor('crosshair');
+        try {
+          surfaceRef.current?.setPointerCapture(e.pointerId);
+        } catch {
+          // Optional, never a precondition: the draft still tracks the
+          // pointer while it is over the surface.
+        }
+        return;
+      }
 
       // (B) NO setPointerCapture here. That single line was the whole bug:
       // capturing on press retargets the subsequent pointerup to this
@@ -4234,7 +4373,8 @@ export default function Canvas({
 
         case 'note':
         case 'section':
-        case 'textbox': {
+        case 'textbox':
+        case 'ink': {
           const id = p.hit.id;
           const ann = id
             ? (topoRef.current.annotations ?? []).find((a) => a.id === id)
@@ -4489,6 +4629,30 @@ export default function Canvas({
       }
 
       const w = toWorld(e.clientX, e.clientY);
+
+      if (p.mode === 'ink' && p.ink) {
+        // Distance-gated sampling: a stroke keeps a sample only when the
+        // hand has travelled INK_MIN_SPACING world px, so a slow line and a
+        // fast scribble store the same order of magnitude either way. The
+        // gate is against the LAST KEPT sample, which is what keeps spacing
+        // honest in world units (and therefore zoom-stable) rather than in
+        // whatever pixel density the pointer event happened to arrive at.
+        const pts = p.ink;
+        const dx = w.x - pts[pts.length - 2]!;
+        const dy = w.y - pts[pts.length - 1]!;
+        if (dx * dx + dy * dy < INK_MIN_SPACING * INK_MIN_SPACING) return;
+        // The cap freezes the FIRST part of the stroke rather than dropping
+        // its end: a stroke that stops recording mid-gesture still ends
+        // where the hand did (the final sample is appended on release by
+        // the same spacing rule, and if it is inside the spacing of the
+        // last kept sample the tail is simply a hair shorter — the
+        // alternative, dropping the head, would make the stroke start
+        // away from where it began).
+        if (pts.length >= INK_MAX_POINTS * 2) return;
+        pts.push(w.x, w.y);
+        setInkDraft(pts.slice());
+        return;
+      }
 
       if (p.mode === 'node') {
         const id = p.hit.id!;
@@ -4903,6 +5067,11 @@ export default function Canvas({
             if (a.x <= x1 && a.x + a.width >= x0 && a.y <= y1 && a.y + h >= y0) {
               next.add(a.id);
             }
+          } else if (isInk(a)) {
+            const b = inkWorldBounds(a.x, a.y, a.points, a.width);
+            if (b.x <= x1 && b.x + b.w >= x0 && b.y <= y1 && b.y + b.h >= y0) {
+              next.add(a.id);
+            }
           } else {
             const h = layoutNote(a.text, a.width, a.size, a.font, a.bold, a.italic, a.scale).height;
             if (a.x <= x1 && a.x + a.width >= x0 && a.y <= y1 && a.y + h >= y0) {
@@ -4927,6 +5096,42 @@ export default function Canvas({
         );
         setDraft(null);
         setTool(null);
+      } else if (p.mode === 'ink') {
+        // The tip of the stroke: the release point, appended under the same
+        // spacing rule the moves use, so a short final segment is never lost
+        // and a stroke ends where the hand lifted.
+        const pts = p.ink;
+        setInkDraft(null);
+        if (pts) {
+          const w = toWorld(e.clientX, e.clientY);
+          const dx = w.x - pts[pts.length - 2]!;
+          const dy = w.y - pts[pts.length - 1]!;
+          if (
+            dx * dx + dy * dy >= INK_MIN_SPACING * INK_MIN_SPACING &&
+            pts.length < INK_MAX_POINTS * 2
+          ) {
+            pts.push(w.x, w.y);
+          }
+          // A tap left one sample: a dot of noise under the pen tool, not a
+          // mark, so it is dropped rather than committed.
+          if (pts.length >= INK_MIN_SAMPLES * 2) {
+            const ox = pts[0]!;
+            const oy = pts[1]!;
+            // Normalise now: the origin becomes the stroke's (x, y) and the
+            // samples go relative to it, which is what lets the generic
+            // annotation move, marquee and history treat ink like anything
+            // else placed on the canvas.
+            const rel: number[] = new Array(pts.length);
+            for (let i = 0; i < pts.length; i += 2) {
+              rel[i] = pts[i]! - ox;
+              rel[i + 1] = pts[i + 1]! - oy;
+            }
+            onCreateInk?.(ox, oy, rel);
+          }
+        }
+        // The pen stays armed: a diagram gets annotated one mark at a time,
+        // and disarming after every stroke would cost an extra keypress per
+        // line. P (or Escape) puts the pen away.
       }
 
       cancelGesture();
@@ -4940,6 +5145,7 @@ export default function Canvas({
       onCreateNote,
       onCreateSection,
       onCreateTextBox,
+      onCreateInk,
       onSetNoteSize,
       onSetSectionTone,
       onResizeNote,
@@ -5122,6 +5328,12 @@ export default function Canvas({
           e.preventDefault();
           setPendingLink(null);
           setTool((t) => (t === 'textbox' ? null : 'textbox'));
+          return;
+        }
+        if (e.key === 'p' || e.key === 'P') {
+          e.preventDefault();
+          setPendingLink(null);
+          setTool((t) => (t === 'ink' ? null : 'ink'));
           return;
         }
         if (e.key === 'b' || e.key === 'B') {
@@ -5472,8 +5684,16 @@ export default function Canvas({
       // An annotation dragged off the palette. A dropped note opens its
       // editor immediately, matching the tool-armed click path.
       const ann = e.dataTransfer.getData(ANN_DND_MIME);
-      if (ann === 'note' || ann === 'section' || ann === 'textbox') {
+      if (ann === 'note' || ann === 'section' || ann === 'textbox' || ann === 'ink') {
         e.preventDefault();
+        // A dropped pen arms the tool rather than placing anything: a stroke
+        // is a gesture, and the drop point is where the student wants to
+        // START drawing, not where a mark should appear.
+        if (ann === 'ink') {
+          setPendingLink(null);
+          setTool((t) => (t === 'ink' ? null : 'ink'));
+          return;
+        }
         const w = toWorld(e.clientX, e.clientY);
         if (ann === 'note') {
           const id = onCreateNote?.(snap(w.x), snap(w.y)) ?? null;
@@ -6223,6 +6443,19 @@ export default function Canvas({
               </g>
             )}
 
+            {/* Notes LAST among content: commentary is never hidden by the
+                diagram it comments on. Ink paints above notes: a hand-drawn
+                mark is the topmost thing on the board, exactly as it is in
+                draw.io, and its hit path (stroke-only pointer events) never
+                blocks a press on the diagram beneath. */}
+            {annotations.length > 0 && (
+              <g className="cv-inks">
+                {annotations.filter(isInk).map((b) => (
+                  <InkView key={b.id} ink={b} selected={selectedIds.has(b.id)} />
+                ))}
+              </g>
+            )}
+
             {/* Selection chrome for annotations, in its own TOP layer so a
                 section's resize handles are never buried under a node that
                 happens to sit on the border. */}
@@ -6249,6 +6482,8 @@ export default function Canvas({
                         ui={1 / view.k}
                         flipTones={toneRowWouldClip(a)}
                       />
+                    ) : isInk(a) ? (
+                      <InkChrome key={a.id} ink={a} ui={1 / view.k} />
                     ) : (
                       <NoteChrome key={a.id} note={a} ui={1 / view.k} />
                     ),
@@ -6265,6 +6500,18 @@ export default function Canvas({
                 width={draft.w}
                 height={draft.h}
                 rx={8}
+              />
+            )}
+
+            {/* Live ink preview: the stroke in progress, painted at the
+                default pen width in the neutral tone. It is outside every
+                annotation group, so it repaints freely as samples land
+                without touching the memoised committed strokes. */}
+            {inkDraft && inkDraft.length >= 2 && (
+              <path
+                className="cv-ink-line cv-ink-tone-0"
+                d={inkPathD(inkDraft)}
+                style={{ opacity: 1, '--ink-w': '4px' } as CSSProperties}
               />
             )}
 

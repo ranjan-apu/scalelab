@@ -81,12 +81,13 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    title: 'Notes, text boxes and sections',
+    title: 'Notes, text boxes, sections and ink',
     rows: [
       { keys: ['N'], does: 'Note tool: click the canvas to place text' },
       { keys: ['T'], does: 'Text box tool: click to place a requirements card' },
       { keys: ['Double-click canvas'], does: 'Add a text box right at the cursor (draw.io style)' },
       { keys: ['B'], does: 'Section tool: drag to frame a group' },
+      { keys: ['P'], does: 'Pen tool: draw freehand on the canvas' },
       { keys: ['Double-click a note'], does: 'Edit its text in place' },
       { keys: ['Double-click a text box'], does: 'Edit its title and requirements' },
       { keys: ['Double-click a section'], does: 'Rename its label' },
