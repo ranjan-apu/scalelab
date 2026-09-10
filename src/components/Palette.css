@@ -158,17 +158,28 @@
    sentence that ran out. */
 .pal-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4) var(--sp-2);
+  padding: 14px 16px 10px;
   margin: 0;
-  color: var(--text-dim);
+  border-bottom: var(--bw) solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .pal-heading-count {
   font-variant-numeric: tabular-nums;
-  color: var(--text-faint);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: var(--bw) solid var(--border);
+  color: var(--text-dim);
 }
 
 /* --------------------------------------------------------------------------
@@ -183,7 +194,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  margin: 0 var(--sp-4) var(--sp-2);
+  margin: 10px 14px 8px;
 }
 
 .pal-search-icon {

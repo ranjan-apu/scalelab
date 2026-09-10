@@ -2099,10 +2099,11 @@ const NoteView = memo(function NoteView({ note, selected, editing }: NoteViewPro
         className="cv-note-hit"
         data-hit="note"
         data-id={note.id}
-        x={-6}
-        y={-4}
-        width={note.width + 12}
-        height={layout.height + 8}
+        x={-8}
+        y={-6}
+        width={note.width + 16}
+        height={layout.height + 12}
+        rx={6}
       />
       {!editing && (
         <text
@@ -3094,9 +3095,18 @@ const NodeView = memo(function NodeView({
             y2={HEAD_H}
           />
 
+          <rect
+            className="cv-node-icon-bg"
+            x={PAD_X}
+            y={HEAD_CENTER_Y - 11}
+            width={22}
+            height={22}
+            rx={5}
+          />
+
           <g
             className="cv-node-icon"
-            transform={`translate(${PAD_X},${GLYPH_Y}) scale(${GLYPH_SCALE})`}
+            transform={`translate(${PAD_X + 3},${GLYPH_Y}) scale(${GLYPH_SCALE})`}
           >
             <Glyph kind={node.kind} />
           </g>
@@ -3105,26 +3115,27 @@ const NodeView = memo(function NodeView({
 
       {/*
         The node name, truncated to the width actually available.
-
-        SVG <text> has no text-overflow: it simply paints past its container,
-        so a long label used to run straight out of the node and across the
-        canvas (measured: 125px of overhang on a 36-character label, over open
-        background and neighbouring wires). Since the student types this
-        label, "nobody would do that" is not a defence.
-
-        The budget is derived from the real geometry rather than hardcoded, so
-        it stays correct if the glyph size or insets ever change. The full
-        label is always available: it is in the accessible name, and <title>
-        gives it a native hover tooltip.
       */}
       <text
         className="cv-node-name"
-        x={showHeader ? PAD_X + GLYPH_PX + NAME_GAP : PAD_X}
+        x={showHeader ? PAD_X + 28 : PAD_X}
         y={showHeader ? HEAD_CENTER_Y : 24}
       >
         {shownName}
         {shownName !== node.label && <title>{node.label}</title>}
       </text>
+
+      {/*
+        Active Status LED Dot: Top right corner, pulses smoothly.
+      */}
+      {showHeader && (
+        <circle
+          className={`cv-node-led is-${health}`}
+          cx={NODE_W - PAD_X - 2}
+          cy={HEAD_CENTER_Y}
+          r={3}
+        />
+      )}
 
       {/*
         Status mark, top right. Redundant with colour by SHAPE, which is the
@@ -3142,7 +3153,7 @@ const NodeView = memo(function NodeView({
       {showHeader && fault && (
         <rect
           className="cv-node-mark is-fault"
-          x={NODE_W - PAD_X - MARK_SIZE}
+          x={NODE_W - PAD_X - MARK_SIZE - 8}
           y={HEAD_CENTER_Y - MARK_SIZE / 2}
           width={MARK_SIZE}
           height={MARK_SIZE}
@@ -3151,7 +3162,7 @@ const NodeView = memo(function NodeView({
       {showHeader && !fault && health === 'danger' && (
         <circle
           className="cv-node-mark is-danger"
-          cx={NODE_W - PAD_X - MARK_SIZE / 2}
+          cx={NODE_W - PAD_X - MARK_SIZE / 2 - 8}
           cy={HEAD_CENTER_Y}
           r={MARK_SIZE / 2}
         />
@@ -3159,28 +3170,19 @@ const NodeView = memo(function NodeView({
       {showHeader && !fault && health === 'warn' && (
         <circle
           className="cv-node-mark is-warn"
-          cx={NODE_W - PAD_X - MARK_SIZE / 2}
+          cx={NODE_W - PAD_X - MARK_SIZE / 2 - 8}
           cy={HEAD_CENTER_Y}
           r={MARK_SIZE / 2 - 1}
         />
       )}
 
       {/*
-        Unit count. The PRECISE channel for how many things this node is,
-        where the stack behind it is only the approximate one — past five
-        instances the stack stops growing and this is what still tells the
-        truth. Sits left of the status mark so the two never overlap, and is
-        suppressed entirely at one unit (see stackBadge).
-
-        `+n` is appended while units are warming up. That is a different claim
-        from the count itself — "5 running, 3 on the way" — and keeping it in
-        one label rather than two stops a scaling node from gaining and losing
-        a whole separate element every few seconds.
+        Unit count.
       */}
       {showHeader && badgeText && (
         <text
           className={pending > 0 ? 'cv-node-badge is-warming' : 'cv-node-badge'}
-          x={NODE_W - PAD_X - (fault || health !== 'ok' ? MARK_RESERVE : 0)}
+          x={NODE_W - PAD_X - 10 - (fault || health !== 'ok' ? MARK_RESERVE : 0)}
           y={HEAD_CENTER_Y}
           textAnchor="end"
         >
@@ -3190,10 +3192,18 @@ const NodeView = memo(function NodeView({
 
       {cleanCanvas ? (
         <g className="cv-node-clean-body">
-          <text className="cv-node-clean-group" x={PAD_X} y={54}>
+          <rect
+            className="cv-node-clean-badge-bg"
+            x={PAD_X}
+            y={44}
+            width={NODE_W - PAD_X * 2}
+            height={18}
+            rx={4}
+          />
+          <text className="cv-node-clean-group" x={PAD_X + 6} y={57}>
             {(groupOfKind(node.kind)?.title ?? 'COMPONENT').toUpperCase()}
           </text>
-          <text className="cv-node-clean-kind" x={PAD_X} y={72}>
+          <text className="cv-node-clean-kind" x={PAD_X} y={77}>
             {KIND_NAME[node.kind]}
             {stats?.instances && stats.instances > 1 ? ` · ${stats.instances}x` : ''}
           </text>

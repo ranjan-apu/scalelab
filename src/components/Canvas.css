@@ -364,7 +364,37 @@
   pointer-events: none;
 }
 
+/* Squircle icon container tile */
+.cv-node-icon-bg {
+  fill: var(--k-fill, var(--surface-3));
+  stroke: var(--k-stroke, var(--border));
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* Status LED dot: active high-tech status indicator */
+.cv-node-led {
+  fill: var(--ok-mark);
+  pointer-events: none;
+}
+
+.cv-node-led.is-warn {
+  fill: var(--warn-mark);
+}
+
+.cv-node-led.is-danger {
+  fill: var(--danger-mark);
+}
+
 /* Clean Canvas Mode: Whiteboard / Architectural typography */
+.cv-node-clean-badge-bg {
+  fill: var(--k-fill, var(--surface-3));
+  stroke: var(--k-stroke, var(--border));
+  stroke-width: 1;
+  stroke-opacity: 0.35;
+  pointer-events: none;
+}
+
 .cv-node-clean-group {
   fill: var(--k-ink, var(--text-dim));
   font-family: var(--sans);
@@ -373,7 +403,7 @@
   letter-spacing: var(--tr-label);
   dominant-baseline: alphabetic;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0.95;
 }
 
 .cv-node-clean-kind {
@@ -1695,7 +1725,10 @@
    -------------------------------------------------------------------------- */
 
 .cv-note-hit {
-  fill: transparent;
+  fill: var(--surface);
+  fill-opacity: 0.72;
+  stroke: var(--border);
+  stroke-width: var(--bw);
   pointer-events: all;
   cursor: grab;
 }

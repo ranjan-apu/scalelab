@@ -119,8 +119,8 @@ const LAYOUT_KEY = 'scalelab.layout.v1';
  */
 const SHEET_DISMISS_PX = 64;
 
-/** The gap below the floating bar, before whatever clears it. Matches --sp-3. */
-const BAR_GAP_PX = 12;
+/** The gap below the studio bar. Set to 0 for docked studio layout. */
+const BAR_GAP_PX = 0;
 
 interface LayoutPrefs {
   /** The left component rail. */
@@ -2780,7 +2780,14 @@ export default function App() {
             </div>
             <div className="app-brand-text">
               <h1 className="app-title">ScaleLab</h1>
+              <span className="app-studio-badge">STUDIO</span>
             </div>
+          </div>
+
+          <div className="app-bar-sep" aria-hidden="true" />
+
+          <div className="app-doc-info" title="Current Workspace">
+            <span className="app-doc-title">System Architecture</span>
           </div>
 
           {/*
@@ -3108,6 +3115,12 @@ export default function App() {
             onDragOver={handleFileDragOver}
             onDrop={handleFileDrop}
           >
+            {/*
+              The uncovered-canvas sentinel. Inert and invisible; a sibling
+              of the Canvas, outside .cv-surface, so the gesture router can
+              never see it. Its rect is the canvas minus every open panel.
+            */}
+            <div ref={stageSafeRef} className="stage-safe" aria-hidden="true" />
             <Canvas
               topology={topology}
               snapshot={snapshot}
@@ -3145,12 +3158,6 @@ export default function App() {
               fitSignal={fitNonce}
               visibleRef={stageSafeRef}
             />
-            {/*
-              The uncovered-canvas sentinel. Inert and invisible; a sibling
-              of the Canvas, outside .cv-surface, so the gesture router can
-              never see it. Its rect is the canvas minus every open panel.
-            */}
-            <div ref={stageSafeRef} className="stage-safe" aria-hidden="true" />
             <button
               type="button"
               className="btn btn-sm btn-icon stage-toggle stage-toggle-library"

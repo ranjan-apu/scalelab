@@ -1052,7 +1052,7 @@ function note(
   text: string,
   width = 220,
   size: Note['size'] = 'md',
-  font: Note['font'] = 'hand',
+  font: Note['font'] = 'sans',
 ): Note {
   return { id, kind: 'note', text, x, y, width, size, font };
 }
