@@ -7,7 +7,7 @@ import {
   togglePreference,
   usePreferences,
 } from '../content/preferences';
-import type { Preferences, ThemeChoice } from '../content/preferences';
+import type { BooleanPreference, ThemeChoice } from '../content/preferences';
 import { resolveSystemTheme } from '../theme/applyTheme';
 import { VENDORS } from '../content/vendors';
 import './Settings.css';
@@ -32,9 +32,9 @@ import './Settings.css';
    ========================================================================== */
 
 interface ToggleRow {
-  /* Only the boolean preferences. Theme and vendor are choices among
-     several values and get their own controls below. */
-  key: keyof Omit<Preferences, 'theme' | 'vendor'>;
+  /* Only the boolean preferences. Theme, vendor, and palette groups are
+     handled separately. */
+  key: BooleanPreference;
   label: string;
   /** What turning it on actually does, in the reader's terms. */
   hint: string;

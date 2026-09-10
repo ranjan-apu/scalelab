@@ -9,10 +9,15 @@ import {
   KIND_NAME,
   KIND_TERM,
   NODE_DND_MIME,
+  groupOfKind,
 } from './nodeVisuals';
 import type { KindGroup } from './nodeVisuals';
 import { Term } from './Tooltip';
-import { usePreference } from '../content/preferences';
+import {
+  toggleGroupCollapsed,
+  togglePinnedKind,
+  usePreference,
+} from '../content/preferences';
 import { useVendor } from '../content/vendors/useVendor';
 import { nameFor } from '../content/vendors/lookup';
 import type { Vendor } from '../content/vendors/types';
@@ -105,6 +110,109 @@ function Glyph({ kind }: { kind: NodeKind }) {
         return createElement(tag, { key, ...rest });
       })}
     </svg>
+  );
+}
+
+function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+}
+
+interface PaletteItemProps {
+  kind: NodeKind;
+  isPinned: boolean;
+  hintsOn: boolean;
+  vendor: Vendor | null;
+  onAdd: (kind: NodeKind) => void;
+  onTogglePin: (kind: NodeKind) => void;
+  onKeyDown: (e: KeyboardEvent<HTMLButtonElement>, kind: NodeKind) => void;
+  onDragStart: (e: DragEvent<HTMLButtonElement>, kind: NodeKind) => void;
+  onDragEnd: () => void;
+}
+
+function PaletteItem({
+  kind,
+  isPinned,
+  hintsOn,
+  vendor,
+  onAdd,
+  onTogglePin,
+  onKeyDown,
+  onDragStart,
+  onDragEnd,
+}: PaletteItemProps) {
+  return (
+    <li className="pal-item">
+      <button
+        type="button"
+        className="pal-row"
+        data-kind={kind}
+        draggable
+        onDragStart={(e) => onDragStart(e, kind)}
+        onDragEnd={onDragEnd}
+        onClick={() => onAdd(kind)}
+        onKeyDown={(e) => onKeyDown(e, kind)}
+        title={KIND_HINT[kind]}
+      >
+        <span className="pal-glyph">
+          <Glyph kind={kind} />
+        </span>
+        <span className="pal-names">
+          <span className="pal-name">{KIND_NAME[kind]}</span>
+          {vendor && nameFor(kind, vendor) !== KIND_NAME[kind] && (
+            <span className="pal-vendor">{nameFor(kind, vendor)}</span>
+          )}
+        </span>
+      </button>
+      <div className="pal-item-actions">
+        <button
+          type="button"
+          className={`pal-pin-btn${isPinned ? ' is-pinned' : ''}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin(kind);
+          }}
+          title={isPinned ? `Unpin ${KIND_NAME[kind]}` : `Pin ${KIND_NAME[kind]} to top`}
+          aria-label={isPinned ? `Unpin ${KIND_NAME[kind]}` : `Pin ${KIND_NAME[kind]} to top`}
+          aria-pressed={isPinned}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill={isPinned ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="17" x2="12" y2="22" />
+            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1.5 1.5 0 0 0 1.5-1.5v-.5a1 1 0 0 0-1-1H7.5a1 1 0 0 0-1 1v.5A1.5 1.5 0 0 0 8 6a1 1 0 0 1 1 1v3.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+          </svg>
+        </button>
+        {hintsOn && (
+          <Term id={KIND_TERM[kind]} className="pal-explain" bare>
+            <span aria-hidden="true">?</span>
+            <span className="sr-only">What is a {KIND_NAME[kind]}?</span>
+          </Term>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -354,6 +462,8 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
    */
   const hintsOn = usePreference('tooltips');
   const vendor = useVendor();
+  const collapsedGroups = usePreference('collapsedGroups');
+  const pinnedKinds = usePreference('pinnedKinds');
 
   const totalKinds = useMemo(
     () => KIND_GROUPS.reduce((n, g) => n + g.kinds.length, 0),
@@ -363,6 +473,18 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
   const needle = query.trim().toLowerCase();
+
+  const matchingPinned = useMemo(() => {
+    const valid = pinnedKinds.filter((k) => k in KIND_NAME);
+    if (!needle) return valid;
+    return valid.filter((k) => {
+      const g = groupOfKind(k) ?? { id: 'pinned', title: 'Pinned', kinds: [] };
+      return matchesKind(k, g, needle, vendor);
+    });
+  }, [pinnedKinds, needle, vendor]);
+
+  const isPinnedCollapsed = !needle && collapsedGroups.includes('pinned');
+  const isAnnCollapsed = !needle && collapsedGroups.includes('annotate');
 
   /**
    * The groups with non-matching kinds removed, and empty groups dropped.
@@ -508,77 +630,93 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
             </p>
           )}
 
-          {groups.map((group) => (
-            <div className="pal-group" key={group.id}>
-              <p className="label pal-group-title">{group.title}</p>
-              <ul className="pal-list">
-                {group.kinds.map((kind) => (
-                  /*
-                    WHY THE EXPLANATION IS NOT ON THE ROW ITSELF.
-
-                    Every other surface in the app wraps the label in <Term>.
-                    Here that is wrong, and the reason is what the row DOES:
-                    clicking it puts a component on the canvas. Making the
-                    name a tooltip trigger would nest one interactive element
-                    inside another, and worse, it would mean the gesture for
-                    "what IS a circuit breaker?" and the gesture for "give me
-                    a circuit breaker" are the same click. A student browsing
-                    to learn would litter the canvas doing it.
-
-                    So the trigger is a SIBLING of the button, not a child.
-                    The row keeps its click, its drag and its keyboard
-                    activation exactly as they were; the mark beside it
-                    explains. Hovering anywhere on the row reveals the mark,
-                    so it is discoverable without being 33 permanent dots.
-                  */
-                  <li key={kind} className="pal-item">
-                    <button
-                      type="button"
-                      className="pal-row"
-                      /* Drives the chip's colour trio in Palette.css. This
-                         is the same `data-kind` contract the canvas uses,
-                         so a kind is coloured by one rule per surface
-                         rather than by an inline style computed in JS. */
-                      data-kind={kind}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, kind)}
+          {matchingPinned.length > 0 && (
+            <div className="pal-group pal-group-pinned">
+              <button
+                type="button"
+                className="pal-group-toggle"
+                onClick={() => toggleGroupCollapsed('pinned')}
+                aria-expanded={!isPinnedCollapsed}
+                aria-controls="pal-group-list-pinned"
+              >
+                <ChevronIcon className="pal-group-chev" />
+                <span className="pal-group-title">
+                  <svg
+                    className="pal-pinned-title-icon"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <line x1="12" y1="17" x2="12" y2="22" />
+                    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 1.5 1.5 0 0 0 1.5-1.5v-.5a1 1 0 0 0-1-1H7.5a1 1 0 0 0-1 1v.5A1.5 1.5 0 0 0 8 6a1 1 0 0 1 1 1v3.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+                  </svg>
+                  Pinned
+                </span>
+                <span className="pal-group-count">{matchingPinned.length}</span>
+              </button>
+              {!isPinnedCollapsed && (
+                <ul id="pal-group-list-pinned" className="pal-list">
+                  {matchingPinned.map((kind) => (
+                    <PaletteItem
+                      key={`pinned-${kind}`}
+                      kind={kind}
+                      isPinned={true}
+                      hintsOn={hintsOn}
+                      vendor={vendor}
+                      onAdd={onAdd}
+                      onTogglePin={togglePinnedKind}
+                      onKeyDown={onRowKeyDown}
+                      onDragStart={handleDragStart}
                       onDragEnd={endCarry}
-                      onClick={() => onAdd(kind)}
-                      onKeyDown={(e) => onRowKeyDown(e, kind)}
-                      title={KIND_HINT[kind]}
-                    >
-                      <span className="pal-glyph">
-                        <Glyph kind={kind} />
-                      </span>
-                      {/* The generic name stays the heading and the vendor's
-                          product goes beneath it. Swapping them outright made
-                          two rows read "Amazon EC2" (a service and a worker
-                          are both an instance) and truncated the longer
-                          names, which is worse than useless in a rail whose
-                          job is telling components apart. */}
-                      <span className="pal-names">
-                        <span className="pal-name">{KIND_NAME[kind]}</span>
-                        {vendor && nameFor(kind, vendor) !== KIND_NAME[kind] && (
-                          <span className="pal-vendor">{nameFor(kind, vendor)}</span>
-                        )}
-                      </span>
-                    </button>
-                    {/*
-                      `bare` because the row is already a strong affordance
-                      and a dotted underline on a lone question mark would be
-                      noise on top of noise. The tooltip itself is unchanged.
-                    */}
-                    {hintsOn && (
-                      <Term id={KIND_TERM[kind]} className="pal-explain" bare>
-                        <span aria-hidden="true">?</span>
-                        <span className="sr-only">What is a {KIND_NAME[kind]}?</span>
-                      </Term>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                    />
+                  ))}
+                </ul>
+              )}
             </div>
-          ))}
+          )}
+
+          {groups.map((group) => {
+            const isCollapsed = !needle && collapsedGroups.includes(group.id);
+            return (
+              <div className="pal-group" key={group.id}>
+                <button
+                  type="button"
+                  className="pal-group-toggle"
+                  onClick={() => toggleGroupCollapsed(group.id)}
+                  aria-expanded={!isCollapsed}
+                  aria-controls={`pal-group-list-${group.id}`}
+                >
+                  <ChevronIcon className="pal-group-chev" />
+                  <span className="pal-group-title">{group.title}</span>
+                  <span className="pal-group-count">{group.kinds.length}</span>
+                </button>
+                {!isCollapsed && (
+                  <ul id={`pal-group-list-${group.id}`} className="pal-list">
+                    {group.kinds.map((kind) => (
+                      <PaletteItem
+                        key={kind}
+                        kind={kind}
+                        isPinned={pinnedKinds.includes(kind)}
+                        hintsOn={hintsOn}
+                        vendor={vendor}
+                        onAdd={onAdd}
+                        onTogglePin={togglePinnedKind}
+                        onKeyDown={onRowKeyDown}
+                        onDragStart={handleDragStart}
+                        onDragEnd={endCarry}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
 
           {/*
             Annotation rows: the documentation layer. Same affordances as a
@@ -589,49 +727,61 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
           */}
           {onAddAnnotation && (
             <div className="pal-group">
-              <p className="label pal-group-title">Annotate</p>
-              <ul className="pal-list">
-                {ANN_ROWS.map((row) => (
-                  <li key={row.tool} className="pal-item">
-                    <button
-                      type="button"
-                      className={`pal-row${armedTool === row.tool ? ' is-armed' : ''}`}
-                      aria-pressed={armedTool === row.tool}
-                      draggable
-                      onDragStart={(e) => handleAnnDragStart(e, row.tool)}
-                      onDragEnd={endCarry}
-                      onClick={() => onAddAnnotation(row.tool)}
-                      onKeyDown={(e) => {
-                        if (e.key === ' ' || e.key === 'Spacebar') {
-                          e.preventDefault();
-                          onAddAnnotation(row.tool);
-                        }
-                      }}
-                      title={row.hint}
-                    >
-                      <span className="pal-glyph">
-                        <svg
-                          width="1.1em"
-                          height="1.1em"
-                          viewBox={`0 0 ${ICON_BOX} ${ICON_BOX}`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth={ICON_STROKE}
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          role="presentation"
-                          aria-hidden="true"
-                        >
-                          {row.icon.map((d) => (
-                            <path key={d} d={d} />
-                          ))}
-                        </svg>
-                      </span>
-                      <span className="pal-name">{row.name}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <button
+                type="button"
+                className="pal-group-toggle"
+                onClick={() => toggleGroupCollapsed('annotate')}
+                aria-expanded={!isAnnCollapsed}
+                aria-controls="pal-group-list-annotate"
+              >
+                <ChevronIcon className="pal-group-chev" />
+                <span className="pal-group-title">Annotate</span>
+                <span className="pal-group-count">{ANN_ROWS.length}</span>
+              </button>
+              {!isAnnCollapsed && (
+                <ul id="pal-group-list-annotate" className="pal-list">
+                  {ANN_ROWS.map((row) => (
+                    <li key={row.tool} className="pal-item">
+                      <button
+                        type="button"
+                        className={`pal-row${armedTool === row.tool ? ' is-armed' : ''}`}
+                        aria-pressed={armedTool === row.tool}
+                        draggable
+                        onDragStart={(e) => handleAnnDragStart(e, row.tool)}
+                        onDragEnd={endCarry}
+                        onClick={() => onAddAnnotation(row.tool)}
+                        onKeyDown={(e) => {
+                          if (e.key === ' ' || e.key === 'Spacebar') {
+                            e.preventDefault();
+                            onAddAnnotation(row.tool);
+                          }
+                        }}
+                        title={row.hint}
+                      >
+                        <span className="pal-glyph">
+                          <svg
+                            width="1.1em"
+                            height="1.1em"
+                            viewBox={`0 0 ${ICON_BOX} ${ICON_BOX}`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={ICON_STROKE}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            role="presentation"
+                            aria-hidden="true"
+                          >
+                            {row.icon.map((d) => (
+                              <path key={d} d={d} />
+                            ))}
+                          </svg>
+                        </span>
+                        <span className="pal-name">{row.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </div>

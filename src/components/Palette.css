@@ -271,9 +271,84 @@
   color: var(--text-dim);
 }
 
-.pal-group-title {
-  padding: var(--sp-2) var(--sp-4) var(--sp-1) calc(var(--sp-4) + 22px + var(--sp-3));
+.pal-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--sp-4);
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.pal-group-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.pal-group-toggle:active {
+  background: var(--surface-3);
+}
+
+.pal-group-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.pal-group-chev {
+  flex: none;
   color: var(--text-faint);
+  transition:
+    transform var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.pal-group-toggle:hover .pal-group-chev {
+  color: var(--text-dim);
+}
+
+.pal-group-toggle[aria-expanded='true'] .pal-group-chev {
+  transform: rotate(90deg);
+}
+
+.pal-group-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: inherit;
+  font-size: var(--fs-label);
+  font-weight: var(--fw-med);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+}
+
+.pal-group-count {
+  flex: none;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-body);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pal-pinned-title-icon {
+  color: var(--accent);
+  flex: none;
+}
+
+.pal-group-pinned {
+  margin-bottom: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: var(--bw) solid var(--border);
 }
 
 .pal-list {
@@ -311,6 +386,62 @@
 
    `opacity`, not `display`, so the space is always reserved: the names must
    not shift sideways when a row is hovered. */
+.pal-item-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: var(--sp-2);
+}
+
+.pal-item-actions .pal-explain {
+  margin-right: 0;
+}
+
+.pal-pin-btn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.pal-item:hover .pal-pin-btn,
+.pal-pin-btn:focus-visible,
+.pal-pin-btn.is-pinned {
+  opacity: 1;
+}
+
+.pal-pin-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.pal-pin-btn.is-pinned {
+  color: var(--accent);
+}
+
+.pal-pin-btn.is-pinned:hover {
+  background: var(--surface-3);
+  color: var(--accent-ink);
+}
+
+.pal-pin-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .pal-explain {
   flex: none;
   display: grid;

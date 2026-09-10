@@ -2,9 +2,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DEFAULT_PREFERENCES,
+  __reloadPreferencesForTesting,
   __resetPreferences,
   getPreferences,
   setPreference,
+  toggleGroupCollapsed,
+  togglePinnedKind,
   togglePreference,
 } from './preferences';
 
@@ -111,5 +114,72 @@ describe('the tooltips preference gates the Term component', () => {
     expect(DEFAULT_PREFERENCES.tooltips).toBe(false);
     expect(DEFAULT_PREFERENCES.sparklines).toBe(true);
     expect(DEFAULT_PREFERENCES.snapToGrid).toBe(true);
+    expect(DEFAULT_PREFERENCES.collapsedGroups).toEqual([]);
+    expect(DEFAULT_PREFERENCES.pinnedKinds).toEqual([]);
+  });
+});
+
+describe('collapsedGroups and pinnedKinds', () => {
+  beforeEach(() => __resetPreferences());
+
+  it('toggles collapsed groups', () => {
+    expect(getPreferences().collapsedGroups).toEqual([]);
+    toggleGroupCollapsed('traffic');
+    expect(getPreferences().collapsedGroups).toEqual(['traffic']);
+    toggleGroupCollapsed('compute');
+    expect(getPreferences().collapsedGroups).toEqual(['traffic', 'compute']);
+    toggleGroupCollapsed('traffic');
+    expect(getPreferences().collapsedGroups).toEqual(['compute']);
+  });
+
+  it('toggles pinned kinds', () => {
+    expect(getPreferences().pinnedKinds).toEqual([]);
+    togglePinnedKind('cache');
+    expect(getPreferences().pinnedKinds).toEqual(['cache']);
+    togglePinnedKind('db');
+    expect(getPreferences().pinnedKinds).toEqual(['cache', 'db']);
+    togglePinnedKind('cache');
+    expect(getPreferences().pinnedKinds).toEqual(['db']);
+  });
+
+  it('persists and reloads collapsedGroups and pinnedKinds', () => {
+    toggleGroupCollapsed('data');
+    togglePinnedKind('worker');
+    const raw = localStorage.getItem('scalelab.preferences.v1');
+    expect(raw).toBeTruthy();
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.collapsedGroups).toEqual(['data']);
+    expect(parsed.pinnedKinds).toEqual(['worker']);
+
+    __reloadPreferencesForTesting();
+    expect(getPreferences().collapsedGroups).toEqual(['data']);
+    expect(getPreferences().pinnedKinds).toEqual(['worker']);
+  });
+
+  it('sanitizes invalid or malicious kinds and groups from storage', () => {
+    localStorage.setItem(
+      'scalelab.preferences.v1',
+      JSON.stringify({
+        collapsedGroups: ['validGroup', 123, null, 'anotherGroup'],
+        pinnedKinds: ['cache', 'fake-node-kind', 42, null, 'service', 'cache'],
+      }),
+    );
+    __reloadPreferencesForTesting();
+    expect(getPreferences().collapsedGroups).toEqual(['validGroup', 'anotherGroup']);
+    // 'fake-node-kind', numbers, and duplicates should be filtered out
+    expect(getPreferences().pinnedKinds).toEqual(['cache', 'service']);
+  });
+
+  it('falls back safely if collapsedGroups or pinnedKinds is not an array', () => {
+    localStorage.setItem(
+      'scalelab.preferences.v1',
+      JSON.stringify({
+        collapsedGroups: 'not an array',
+        pinnedKinds: { kind: 'cache' },
+      }),
+    );
+    __reloadPreferencesForTesting();
+    expect(getPreferences().collapsedGroups).toEqual([]);
+    expect(getPreferences().pinnedKinds).toEqual([]);
   });
 });
