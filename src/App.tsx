@@ -34,6 +34,8 @@ import { Palette } from './components/Palette';
 import { Glossary } from './components/Glossary';
 import { Shortcuts } from './components/Shortcuts';
 import { Examples } from './components/Examples';
+import { InterviewPractice } from './components/InterviewPractice';
+import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { Guide } from './components/guide';
 import { cloneSubgraph, isTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
@@ -672,6 +674,7 @@ export default function App() {
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
 
   const [examplesOpen, setExamplesOpen] = useState(false);
+  const [interviewOpen, setInterviewOpen] = useState(false);
 
   /**
    * Cmd+K landing ping for the library search. Incremented, never reset:
@@ -2158,6 +2161,21 @@ export default function App() {
     });
   }, []);
 
+  /**
+   * Pin an interview section onto the canvas as a textbox, centred on the
+   * current view. Practice notes live beside the diagram they describe.
+   */
+  const handlePinSection = useCallback(
+    (title: string, text: string) => {
+      const centre = viewCenterRef.current?.() ?? { x: 240, y: 200 };
+      const gx = (v: number) => Math.round(v / GRID) * GRID;
+      handleCreateTextBox(gx(centre.x - TEXTBOX_DEFAULT_WIDTH / 2), gx(centre.y), title, text);
+      toastSeq.current += 1;
+      setToast({ text: 'Pinned section to canvas', id: toastSeq.current });
+    },
+    [handleCreateTextBox],
+  );
+
   const handleLoadPreset = useCallback(
     (preset: Preset) => {
       // Deep copy: presets are module-level constants and must never be
@@ -2212,6 +2230,11 @@ export default function App() {
         label: 'Examples',
         icon: 'M3 4a1 1 0 0 1 1-1h6v7H3zM14 3h6a1 1 0 0 1 1 1v5h-7zM3 13h7v8H4a1 1 0 0 1-1-1zM14 13h7v7a1 1 0 0 1-1 1h-6z',
         onSelect: () => setExamplesOpen(true),
+      },
+      {
+        label: 'Interview practice',
+        icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h6',
+        onSelect: () => setInterviewOpen(true),
       },
       {
         label: 'Glossary',
@@ -3518,6 +3541,7 @@ export default function App() {
           try { localStorage.setItem('scalelab.guide-dismissed', 'true'); } catch { /* quota / private browsing */ }
         }}
         onOpenExamples={() => setExamplesOpen(true)}
+        onOpenInterview={() => setInterviewOpen(true)}
       />
       {/* The real file input, kept off screen. A bare one cannot be styled,
           so the Settings row calls click() on this. It lives beside the
@@ -3558,6 +3582,15 @@ export default function App() {
         activePresetId={presetId}
         onLoad={handleLoadPreset}
         onNewCanvas={handleNewCanvas}
+      />
+      <InterviewPractice
+        open={interviewOpen}
+        onClose={() => setInterviewOpen(false)}
+        packs={INTERVIEW_PACKS}
+        presets={PRESETS}
+        activePresetId={presetId}
+        onLoadPreset={handleLoadPreset}
+        onPinSection={handlePinSection}
       />
     </div>
   );

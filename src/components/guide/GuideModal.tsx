@@ -48,6 +48,7 @@ export function GuideModal({
   open,
   onClose,
   onOpenExamples,
+  onOpenInterview,
 }: GuideProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -165,6 +166,7 @@ export function GuideModal({
             <PresetsPane
               onClose={onClose}
               onOpenExamples={onOpenExamples}
+              onOpenInterview={onOpenInterview}
             />
           )}
           {activeTab === 'shortcuts' && <ShortcutsPane />}

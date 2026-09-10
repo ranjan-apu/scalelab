@@ -1,11 +1,13 @@
 interface PresetsPaneProps {
   onClose: () => void;
   onOpenExamples?: () => void;
+  onOpenInterview?: () => void;
 }
 
 export function PresetsPane({
   onClose,
   onOpenExamples,
+  onOpenInterview,
 }: PresetsPaneProps) {
   return (
     <div className="gd-pane">
@@ -46,6 +48,18 @@ export function PresetsPane({
             }}
           >
             Browse Presets &amp; Examples
+          </button>
+        )}
+        {onOpenInterview && (
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => {
+              onClose();
+              onOpenInterview();
+            }}
+          >
+            Practice an Interview
           </button>
         )}
       </div>
