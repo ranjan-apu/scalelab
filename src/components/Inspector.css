@@ -898,6 +898,12 @@
     flex-direction: row;
     align-items: baseline;
     gap: var(--sp-2);
+    min-width: max-content;
+    flex-shrink: 0;
+  }
+
+  .traffic-metric-group {
+    display: none;
   }
 
   .traffic-metric .num-hero {
