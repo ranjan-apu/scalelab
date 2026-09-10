@@ -2341,7 +2341,7 @@ function TextBoxInspector({
               <button
                 key={f}
                 type="button"
-                className={`btn btn-ghost ins-font-btn${(textBox.font ?? (style === 'sticky' ? 'hand' : 'sans')) === f ? ' is-active' : ''}`}
+                className={`btn btn-ghost ins-font-btn${(textBox.font ?? 'sans') === f ? ' is-active' : ''}`}
                 style={{ fontFamily: `var(--${f})` }}
                 onClick={() => onSetTextBoxStyle?.(textBox.id, { font: f })}
               >

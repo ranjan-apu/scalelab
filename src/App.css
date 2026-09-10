@@ -580,6 +580,14 @@
     background: var(--border);
   }
 
+  /* The left slot is absolute, so it ignores the in-flow rail and would
+     paint over it. Re-anchor past the rail at this breakpoint. Doubled
+     specificity: the base slot rule later in this file would otherwise win
+     the tie. */
+  .app-body .app-slot-left {
+    left: 52px;
+  }
+
   .stage-toggle {
     display: none;
   }
@@ -684,6 +692,7 @@
   align-items: center;
   width: max-content;
   max-width: calc(100vw - 48px);
+  overflow: hidden;
   padding: 8px 22px;
   background: var(--dock-bg, rgba(255, 253, 250, 0.94));
   backdrop-filter: blur(20px);
@@ -742,6 +751,8 @@
   align-items: center;
   gap: var(--sp-4);
   width: auto;
+  max-width: 100%;
+  min-width: 0;
   container-type: normal;
 }
 
@@ -808,10 +819,28 @@
 }
 
 /* Compact viewports & laptops with panels open: hide secondary metrics to prevent collisions */
-@media (min-width: 721px) and (max-width: 1400px) {
+@media (min-width: 721px) and (max-width: 1600px) {
   .app-body.has-library .app-sim-dock .traffic-metric-group,
   .app-body.has-inspector .app-sim-dock .traffic-metric-group {
     display: none;
+  }
+  /* The dock's own box already shrinks past the open rails; its content
+     has to give way too. The slider narrows, the scenario tabs scroll
+     internally, and the long empty-state sentence yields to the note
+     already sitting under the slider. Without this the pill overflows
+     its max-width and slides underneath the right dock. */
+  .app-body.has-library .app-sim-dock .traffic-load,
+  .app-body.has-inspector .app-sim-dock .traffic-load {
+    flex: 0 1 240px;
+    min-width: 180px;
+  }
+  .app-body.has-library .app-sim-dock .traffic-empty,
+  .app-body.has-inspector .app-sim-dock .traffic-empty {
+    display: none;
+  }
+  .app-body.has-library .app-sim-dock .traffic-headline,
+  .app-body.has-inspector .app-sim-dock .traffic-headline {
+    min-width: 0;
   }
 }
 

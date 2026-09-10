@@ -65,7 +65,7 @@ const ANNOTATED: Topology = {
       y: 120,
       width: 220,
       size: 'md',
-      font: 'hand',
+      font: 'serif',
       bold: true,
     },
     {

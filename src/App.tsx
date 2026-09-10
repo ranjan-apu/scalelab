@@ -749,6 +749,8 @@ export default function App() {
    * Deliberately not persisted, for the same reason as before.
    */
   const [inspectorHidden, setInspectorHidden] = useState(true);
+  /** Manual-close veto for the auto-open effect below. */
+  const dismissRef = useRef(false);
 
   /* On a phone the three panels are SHEETS stacked over the canvas, so only
      one may be open: two of them cover the diagram they exist to explain,
@@ -787,10 +789,30 @@ export default function App() {
    */
 
   useEffect(() => {
-    if (selectedIds.size > 0) setInspectorHidden(false);
+    if (selectedIds.size > 0) {
+      // A new selection opens the dock, unless the reader explicitly
+      // closed it for this exact selection. Without the guard, closing
+      // the dock and then rubber-banding one more node would pop it
+      // straight back open.
+      if (!dismissRef.current) setInspectorHidden(false);
+    } else {
+      // Nothing selected means nothing to configure AND no review to
+      // push: the dock closes and stays closed until the reader opens
+      // it or selects something. The Studio review never appears
+      // uninvited, not on boot, not on preset load, not on deselect.
+      setInspectorHidden(true);
+      dismissRef.current = false;
+    }
   }, [selectedIds]);
 
-  const toggleInspector = useCallback(() => setInspectorHidden((h) => !h), []);
+  const toggleInspector = useCallback(() => {
+    setInspectorHidden((h) => {
+      // Closing by hand vetoes the auto-open above until the selection
+      // itself changes. Opening by hand clears the veto.
+      dismissRef.current = !h;
+      return !h;
+    });
+  }, []);
 
   /**
    * The selection, split into the three things it can hold. Node ids and

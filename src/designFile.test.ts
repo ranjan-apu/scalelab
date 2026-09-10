@@ -46,7 +46,7 @@ function makeTopology(): Topology {
         y: 180,
         width: 260,
         size: 'md',
-        font: 'hand',
+        font: 'serif',
         bold: true,
       },
     ],

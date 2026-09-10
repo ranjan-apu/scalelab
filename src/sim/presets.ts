@@ -1040,9 +1040,8 @@ function sectionOver(
 /**
  * A note at an explicit world point.
  *
- * Presets set `font: 'hand'` on their commentary so it reads as something
- * written in the margin rather than as another label belonging to the
- * diagram. Colour is left unset: a note with no colour follows the theme,
+ * Preset commentary renders in the studio sans so it reads as a typed
+ * review note rather than as another label belonging to the diagram. Colour is left unset: a note with no colour follows the theme,
  * which is what keeps the examples legible when the palette changes.
  */
 function note(

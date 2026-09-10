@@ -2340,7 +2340,7 @@ const TextBoxView = memo(function TextBoxView({
 
   const cardStyle = box.cardStyle ?? 'card';
   const rx = cardStyle === 'sticky' ? 2 : cardStyle === 'outline' ? 4 : 8;
-  const font = box.font ?? (cardStyle === 'sticky' ? 'hand' : 'sans');
+  const font = box.font ?? 'sans';
   const height = Math.max(box.height, layout.contentH);
   const toneClass = box.tone !== undefined ? ` cv-tone-${box.tone}` : '';
   const selClass = selected ? ' is-selected' : '';
@@ -6875,7 +6875,10 @@ export default function Canvas({
         </div>
       )}
 
-      {topology.nodes.length === 0 && (
+      {/* The empty canvas hint shows only on a truly empty canvas. Pinned
+        practice notes count as content: the hint used to sit underneath a
+        freshly pinned textbox, stacking two texts on top of each other. */}
+      {topology.nodes.length === 0 && (topology.annotations ?? []).length === 0 && (
         <div className="cv-empty">
           <p className="cv-empty-lead">Start with an empty canvas</p>
           <p className="cv-empty-body">

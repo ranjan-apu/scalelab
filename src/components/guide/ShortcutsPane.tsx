@@ -49,6 +49,14 @@ export function ShortcutsPane() {
           <div className="gd-sc-desc">Open full keyboard shortcuts dialog</div>
         </div>
         <div className="gd-sc-row">
+          <div className="gd-sc-keys"><kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>K</kbd></div>
+          <div className="gd-sc-desc">Jump to the library search</div>
+        </div>
+        <div className="gd-sc-row">
+          <div className="gd-sc-keys"><kbd>C</kbd> / <kbd>I</kbd> / <kbd>M</kbd></div>
+          <div className="gd-sc-desc">Toggle the library, the review dock, and the charts</div>
+        </div>
+        <div className="gd-sc-row">
           <div className="gd-sc-keys"><kbd>?</kbd></div>
           <div className="gd-sc-desc">Toggle distributed systems Glossary &amp; definitions</div>
         </div>

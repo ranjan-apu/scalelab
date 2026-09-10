@@ -74,7 +74,7 @@ export function BuildingPane() {
               <span className="badge">Inspector</span>
             </div>
             <p>
-              Format text in Interface (Sans), Handwritten, Serif, or Monospace typefaces. Scale font sizes (S/M/L) and toggle Bold or Italic formatting.
+              Format text in Interface (Sans), Serif, or Monospace typefaces. Scale font sizes (S/M/L) and toggle Bold or Italic formatting.
             </p>
           </div>
           <div className="gd-draw-item">

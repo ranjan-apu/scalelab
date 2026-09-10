@@ -39,6 +39,10 @@ export function OverviewPane() {
       </div>
 
       <div className="gd-callout">
+        <strong>Studio review:</strong> press <strong>I</strong> with an empty canvas to estimate this design in monthly cloud cost. Open <strong>Interview practice</strong> from the menu to walk requirements, API, and deep dives for classic problems, then pin each section onto the canvas and load its starter system.
+      </div>
+
+      <div className="gd-callout">
         <strong>💡 Pro Tip:</strong> Use the <strong>Share</strong> button on the top right
         header to instantly copy a self-contained, shareable link carrying your entire design in the URL.
       </div>

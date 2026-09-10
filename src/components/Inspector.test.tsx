@@ -33,7 +33,7 @@ describe('NoteInspector in Inspector', () => {
     y: 200,
     width: 300,
     size: 'md',
-    font: 'hand',
+    font: 'serif',
     tone: 2,
     bold: true,
   };
@@ -51,7 +51,7 @@ describe('NoteInspector in Inspector', () => {
     );
 
     expect(container.textContent).toContain('Canvas Note');
-    expect(container.textContent).toContain('Handwritten');
+    expect(container.textContent).not.toContain('Handwritten');
     expect(container.textContent).toContain('Interface (Sans)');
     expect(container.textContent).toContain('Serif');
     expect(container.textContent).toContain('Monospace');
@@ -170,7 +170,7 @@ describe('TextBoxInspector in Inspector', () => {
     expect(container.textContent).toContain('Sticky');
     expect(container.textContent).toContain('Box (Outline)');
     expect(container.textContent).toContain('Interface (Sans)');
-    expect(container.textContent).toContain('Handwritten');
+    expect(container.textContent).not.toContain('Handwritten');
     expect(container.textContent).toContain('Interview Templates');
 
     const titleInput = container.querySelector('input.ins-title') as HTMLInputElement;
@@ -218,14 +218,20 @@ describe('TextBoxInspector in Inspector', () => {
       />,
     );
 
-    const handBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Handwritten'),
+    const serifBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Serif'),
     );
-    expect(handBtn).toBeDefined();
+    expect(serifBtn).toBeDefined();
     act(() => {
-      handBtn?.click();
+      serifBtn?.click();
     });
-    expect(onSetTextBoxStyle).toHaveBeenCalledWith('tb1', { font: 'hand' });
+    expect(onSetTextBoxStyle).toHaveBeenCalledWith('tb1', { font: 'serif' });
+    // The handwriting face is gone: one button per visible choice.
+    expect(
+      Array.from(container.querySelectorAll('button')).some((b) =>
+        b.textContent?.includes('Handwritten'),
+      ),
+    ).toBe(false);
 
     const boldBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.getAttribute('title') === 'Bold',

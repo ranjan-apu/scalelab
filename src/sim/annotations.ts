@@ -162,19 +162,19 @@ export type NoteTone = number;
  * be measured against a fallback and wrap wrongly.
  */
 /**
- * Four, not five. A "marker" face was offered and dropped: no marker font is
- * installed on a typical Linux or Windows box, so its stack fell through to
- * the same serif the serif button selects, and the picker showed two buttons
- * that were visibly identical and did the same thing. A choice the reader
- * cannot see is not a choice.
+ * Three studio faces. A handwriting face was offered once and removed: its
+ * webfont is gone, so the button previewed in the same sans the Interface
+ * button selects, and the picker showed two buttons that were visibly
+ * identical and did the same thing. A choice the reader cannot see is not
+ * a choice. Designs saved while it existed sanitize back to the default,
+ * exactly like the marker face before it.
  */
-export const ANNOTATION_FONTS = ['sans', 'hand', 'serif', 'mono'] as const;
+export const ANNOTATION_FONTS = ['sans', 'serif', 'mono'] as const;
 
 export type AnnotationFont = (typeof ANNOTATION_FONTS)[number];
 
 export const FONT_LABEL: Record<AnnotationFont, string> = {
   sans: 'Interface (Sans)',
-  hand: 'Handwritten',
   serif: 'Serif',
   mono: 'Monospace',
 };
