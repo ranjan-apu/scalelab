@@ -633,15 +633,16 @@
   width: max-content;
   max-width: calc(100vw - 48px);
   padding: 8px 22px;
-  background: rgba(18, 20, 28, 0.92);
+  background: var(--dock-bg, rgba(255, 253, 250, 0.94));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-strong);
   border-radius: 9999px;
-  box-shadow:
-    0 16px 36px -4px rgba(0, 0, 0, 0.65),
-    0 4px 14px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
+  box-shadow: var(
+    --dock-shadow,
+    0 16px 36px -4px rgba(43, 40, 35, 0.16),
+    0 4px 14px rgba(43, 40, 35, 0.08)
+  );
   pointer-events: auto;
   animation: app-sim-dock-in var(--dur-base) var(--ease);
 }
@@ -670,10 +671,37 @@
   min-width: 240px;
 }
 
+.app-sim-dock .traffic-load-caption {
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.app-sim-dock .traffic-load-val {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.app-sim-dock .traffic-scale-mark {
+  color: var(--text-dim);
+  font-weight: 550;
+  font-size: 10px;
+}
+
 .app-sim-dock .traffic-actions {
   order: -1;
   padding-right: var(--sp-3);
   border-right: 1px solid var(--border);
+}
+
+.app-sim-dock .traffic-actions .btn {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.app-sim-dock .traffic-actions .btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--line-2);
 }
 
 .app-sim-dock .traffic-spacer {
@@ -683,6 +711,21 @@
 .app-sim-dock .traffic-headline {
   padding-left: var(--sp-3);
   border-left: 1px solid var(--border);
+}
+
+.app-sim-dock .traffic-metric .label {
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.app-sim-dock .traffic-metric .num {
+  font-weight: 650;
+}
+
+.app-sim-dock .traffic-metric .num-hero {
+  font-weight: 700;
 }
 
 /* --------------------------------------------------------------------------
