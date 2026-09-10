@@ -40,6 +40,7 @@ import {
 import type { Ink, InkTone } from '../sim/sketch';
 import { INTERVIEW_TEMPLATES, applyTab } from './annotationLayout';
 import type { InterviewTemplate } from './annotationLayout';
+import { usePreference } from '../content/preferences';
 import './Inspector.css';
 
 /* ------------------------------------------------------------------ *
@@ -2746,6 +2747,7 @@ export interface InspectorProps {
   onSetInkTone?: (id: string, tone: InkTone) => void;
   onInkStyle?: (id: string, patch: { width?: number; opacity?: number }) => void;
   onDeleteInk?: (id: string) => void;
+  cleanCanvas?: boolean;
 }
 
 export function Inspector({
@@ -2774,7 +2776,11 @@ export function Inspector({
   onSetInkTone,
   onInkStyle,
   onDeleteInk,
+  cleanCanvas,
 }: InspectorProps) {
+  const cleanCanvasPref = usePreference('cleanCanvas');
+  const isClean = cleanCanvas ?? cleanCanvasPref;
+
   /**
    * The selection this panel is actually describing. `selectedNodes` wins
    * when it carries a real multi-selection; otherwise the panel falls back
@@ -2856,6 +2862,7 @@ export function Inspector({
         onChangeMany={onChangeMany}
         onDelete={onDelete}
         onDeleteMany={onDeleteMany}
+        cleanCanvas={isClean}
       />
     );
   }
@@ -2868,6 +2875,7 @@ export function Inspector({
       onDelete={onDelete}
       onRename={onRename}
       lockedFields={lockedFields}
+      cleanCanvas={isClean}
     />
   );
 }
@@ -3158,6 +3166,7 @@ function SingleInspector({
   onDelete,
   onRename,
   lockedFields,
+  cleanCanvas = false,
 }: {
   node: SimNode;
   stats: NodeStats | null;
@@ -3165,8 +3174,10 @@ function SingleInspector({
   onDelete: (id: string) => void;
   onRename: (id: string, label: string) => void;
   lockedFields?: readonly string[];
+  cleanCanvas?: boolean;
 }) {
-  const fields = FIELDS_BY_KIND[node.kind];
+  const rawFields = FIELDS_BY_KIND[node.kind];
+  const fields = cleanCanvas ? rawFields.filter((f) => f !== 'rps') : rawFields;
   const cfg = node.config;
 
   /** The node's name when the title field took focus; Escape restores it. */
@@ -3266,24 +3277,15 @@ function SingleInspector({
           {KIND_BLURB[node.kind]}
         </p>
 
-        {/* The headline meter, chosen per kind: utilisation where slots are
-            real, tokens for a bucket, pool fill for a bulkhead, lag against
-            retention for a broker, held connections for a websocket gateway,
-            and nothing at all for the kinds whose own panel below carries
-            the reading. See VitalsMeter. */}
-        {stats ? <VitalsMeter kind={node.kind} stats={stats} cfg={cfg} /> : null}
+        {/* The headline meter: hidden in Clean Canvas mode */}
+        {!cleanCanvas && stats ? <VitalsMeter kind={node.kind} stats={stats} cfg={cfg} /> : null}
 
-        {/* WHAT THIS COMPONENT IS MADE OF.
-
-            Placed directly under the busy-meter and above the knobs, because
-            it is the reading that explains the meter. A shard's 17% average
-            means something completely different once you can see one
-            partition pinned at 100% underneath it. */}
-        {stats && node.kind === 'autoscaler' && <AutoscalerPanel stats={stats} />}
-        {stats && node.kind === 'queue' && <QueuePanel stats={stats} />}
-        {stats && node.kind === 'cron' && <CronPanel stats={stats} />}
-        {stats && node.kind === 'region' && <RegionPanel stats={stats} />}
-        {stats && node.kind !== 'queue' && node.kind !== 'autoscaler' && (
+        {/* Live Subsystem Panels: hidden in Clean Canvas mode */}
+        {!cleanCanvas && stats && node.kind === 'autoscaler' && <AutoscalerPanel stats={stats} />}
+        {!cleanCanvas && stats && node.kind === 'queue' && <QueuePanel stats={stats} />}
+        {!cleanCanvas && stats && node.kind === 'cron' && <CronPanel stats={stats} />}
+        {!cleanCanvas && stats && node.kind === 'region' && <RegionPanel stats={stats} />}
+        {!cleanCanvas && stats && node.kind !== 'queue' && node.kind !== 'autoscaler' && (
           <UnitsPanel node={node} stats={stats} />
         )}
 
@@ -3321,7 +3323,7 @@ function SingleInspector({
           </Section>
         ))}
 
-        {showCeiling && (
+        {!cleanCanvas && showCeiling && (
           <Section title="What that works out to">
             <div className="ins-stats">
               <StatRow
@@ -3346,11 +3348,8 @@ function SingleInspector({
           </Section>
         )}
 
-        {/* Controllers (cron, autoscaler) serve nothing, ever: every generic
-            row here is a hardwired zero for them, and ten rows of zeros are
-            what made them read as broken. Their "What it is doing" panels
-            above are their whole live story. */}
-        {node.kind !== 'cron' && node.kind !== 'autoscaler' && (
+        {/* Right now live stats: hidden in Clean Canvas mode */}
+        {!cleanCanvas && node.kind !== 'cron' && node.kind !== 'autoscaler' && (
           <Section title="Right now">
             {stats ? (
               <div className="ins-stats">
@@ -3471,6 +3470,7 @@ function MultiInspector({
   onChangeMany,
   onDelete,
   onDeleteMany,
+  cleanCanvas = false,
 }: {
   nodes: readonly SimNode[];
   edgeCount: number;
@@ -3478,6 +3478,7 @@ function MultiInspector({
   onChangeMany?: (ids: readonly string[], patch: Partial<NodeConfig>) => void;
   onDelete: (id: string) => void;
   onDeleteMany?: (ids: readonly string[]) => void;
+  cleanCanvas?: boolean;
 }) {
   const ids = useMemo(() => nodes.map((n) => n.id), [nodes]);
 
@@ -3515,7 +3516,8 @@ function MultiInspector({
     for (const id of ids) onDelete(id);
   }, [ids, onDelete, onDeleteMany]);
 
-  const fields = kind ? FIELDS_BY_KIND[kind] : [];
+  const rawFields = kind ? FIELDS_BY_KIND[kind] : [];
+  const fields = cleanCanvas ? rawFields.filter((f) => f !== 'rps') : rawFields;
   const grouped = FIELD_GROUPS.map((g) => ({
     title: g.title,
     fields: fields.filter((f) => g.fields.has(f)),

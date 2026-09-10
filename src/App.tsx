@@ -119,8 +119,8 @@ const LAYOUT_KEY = 'scalelab.layout.v1';
  */
 const SHEET_DISMISS_PX = 64;
 
-/** The gap below the floating bar, before whatever clears it. Matches --sp-3. */
-const BAR_GAP_PX = 12;
+/** The gap below the studio bar. Set to 0 for docked studio layout. */
+const BAR_GAP_PX = 0;
 
 interface LayoutPrefs {
   /** The left component rail. */
@@ -650,7 +650,13 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(() => {
+    try {
+      return localStorage.getItem('scalelab.guide-dismissed') !== 'true';
+    } catch {
+      return true; // If storage is unavailable, show the guide anyway.
+    }
+  });
 
   /**
    * Whether the canvas has reached storage yet.
@@ -2780,7 +2786,14 @@ export default function App() {
             </div>
             <div className="app-brand-text">
               <h1 className="app-title">ScaleLab</h1>
+              <span className="app-studio-badge">STUDIO</span>
             </div>
+          </div>
+
+          <div className="app-bar-sep" aria-hidden="true" />
+
+          <div className="app-doc-info" title="Current Workspace">
+            <span className="app-doc-title">System Architecture</span>
           </div>
 
           {/*
@@ -2863,7 +2876,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Workspace Mode Switcher: Clean Canvas (HLD/Design) vs Simulation */}
+        {/* Center: Mode Switcher */}
         <div className="app-mode-switch" role="group" aria-label="Workspace mode">
           <button
             type="button"
@@ -2917,37 +2930,32 @@ export default function App() {
           </button>
         </div>
 
-        <div className={`app-island app-island-load${cleanCanvas ? ' is-clean' : ''}`}>
-          {cleanCanvas ? (
-            <div className="app-clean-banner">
-              <span className="app-clean-badge">Clean Canvas</span>
-              <span className="app-clean-hint">Architecture & High-Level Design Mode</span>
-              <button
-                type="button"
-                className="btn btn-sm btn-subtle app-clean-sim-btn"
-                title="Switch to simulation to test traffic load and bottlenecks"
-                onClick={() => togglePreference('cleanCanvas')}
-              >
-                <span>Run Load Test →</span>
-              </button>
-            </div>
-          ) : (
-            <TrafficControl
-              rps={offeredRps}
-              onRpsChange={handleRpsChange}
-              running={running}
-              onToggleRun={handleToggleRun}
-              onStep={handleStep}
-              onReset={handleReset}
-              system={snapshot?.system ?? EMPTY_SYSTEM}
-              lost={lostRps}
-              empty={topology.nodes.length === 0}
-              noTrafficSource={findTrafficSources(topology).length === 0}
-            />
-          )}
-        </div>
-
         <div className="app-island app-island-menu">
+          <button
+            type="button"
+            className="app-guide-btn"
+            title="Help: Interactive guide & manual"
+            aria-label="Help: How to use ScaleLab"
+            onClick={() => setGuideOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span className="app-guide-label">Help</span>
+          </button>
+
           <button
             type="button"
             className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
@@ -3108,6 +3116,12 @@ export default function App() {
             onDragOver={handleFileDragOver}
             onDrop={handleFileDrop}
           >
+            {/*
+              The uncovered-canvas sentinel. Inert and invisible; a sibling
+              of the Canvas, outside .cv-surface, so the gesture router can
+              never see it. Its rect is the canvas minus every open panel.
+            */}
+            <div ref={stageSafeRef} className="stage-safe" aria-hidden="true" />
             <Canvas
               topology={topology}
               snapshot={snapshot}
@@ -3145,12 +3159,25 @@ export default function App() {
               fitSignal={fitNonce}
               visibleRef={stageSafeRef}
             />
-            {/*
-              The uncovered-canvas sentinel. Inert and invisible; a sibling
-              of the Canvas, outside .cv-surface, so the gesture router can
-              never see it. Its rect is the canvas minus every open panel.
-            */}
-            <div ref={stageSafeRef} className="stage-safe" aria-hidden="true" />
+
+            {/* Floating Simulation Control Deck (Only in Simulation Mode) */}
+            {!cleanCanvas && (
+              <aside className="app-sim-dock" aria-label="Simulation control deck">
+                <TrafficControl
+                  rps={offeredRps}
+                  onRpsChange={handleRpsChange}
+                  running={running}
+                  onToggleRun={handleToggleRun}
+                  onStep={handleStep}
+                  onReset={handleReset}
+                  system={snapshot?.system ?? EMPTY_SYSTEM}
+                  lost={lostRps}
+                  empty={topology.nodes.length === 0}
+                  noTrafficSource={findTrafficSources(topology).length === 0}
+                />
+              </aside>
+            )}
+
             <button
               type="button"
               className="btn btn-sm btn-icon stage-toggle stage-toggle-library"
@@ -3250,6 +3277,7 @@ export default function App() {
             onSetInkTone={handleSetInkTone}
             onInkStyle={handleInkStyle}
             onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
+            cleanCanvas={cleanCanvas}
           />
           <PanelResizer
             edge="right"

@@ -350,48 +350,81 @@
    the outline at 1.5px. Measured: --text on every one of the 14 fills is
    13.69-13.94, and every fill's stroke is 3.49-3.95 on --bg (AA graphical). */
 .cv-node-body {
-  fill: var(--k-fill, var(--surface-2));
-  stroke: var(--k-stroke, var(--border-strong));
-  stroke-width: var(--bw-strong);
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
   transition:
     stroke var(--dur-fast) var(--ease),
     fill var(--dur-fast) var(--ease);
 }
 
-/* Category accent spine along the left edge of each node */
-.cv-node-spine {
-  fill: var(--k-stroke, var(--accent));
+/* Distinct top header band with category background tint */
+.cv-node-header-band {
+  fill: var(--k-fill, var(--surface-2));
+  fill-opacity: 0.85;
   pointer-events: none;
 }
 
+/* Category accent spine along the left edge of each node - replaced by header band */
+.cv-node-spine {
+  display: none;
+}
+
+/* Squircle icon container tile */
+.cv-node-icon-bg {
+  fill: var(--surface-2);
+  stroke: var(--k-stroke, var(--border));
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* Status LED dot: active high-tech status indicator */
+.cv-node-led {
+  fill: var(--ok-mark);
+  pointer-events: none;
+}
+
+.cv-node-led.is-warn {
+  fill: var(--warn-mark);
+}
+
+.cv-node-led.is-danger {
+  fill: var(--danger-mark);
+}
+
 /* Clean Canvas Mode: Whiteboard / Architectural typography */
+.cv-node-clean-badge-bg {
+  fill: var(--surface-2);
+  stroke: var(--k-stroke, var(--border));
+  stroke-width: 1;
+  stroke-opacity: 0.45;
+  pointer-events: none;
+}
+
 .cv-node-clean-group {
   fill: var(--k-ink, var(--text-dim));
   font-family: var(--sans);
-  font-size: var(--fs-label);
-  font-weight: var(--fw-med);
-  letter-spacing: var(--tr-label);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   dominant-baseline: alphabetic;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0.95;
 }
 
 .cv-node-clean-kind {
   fill: var(--text);
   font-family: var(--sans);
   font-size: var(--fs-sm);
-  font-weight: var(--fw-med);
+  font-weight: 500;
   dominant-baseline: alphabetic;
   pointer-events: none;
 }
 
-/* The hairline under the header is drawn in the kind's own stroke, held well
-   back with opacity. A neutral --border line across a tinted body reads as a
-   foreign object sitting on top of the colour; the same hue at low alpha
-   reads as part of the component. */
+/* The hairline under the header is drawn as a crisp divider */
 .cv-node-hair {
-  stroke: var(--k-stroke);
-  stroke-opacity: 0.28;
+  stroke: var(--border);
+  stroke-opacity: 0.65;
   stroke-width: 1;
   shape-rendering: crispEdges;
 }
@@ -1109,37 +1142,15 @@
   pointer-events: none;
 }
 
-/* Status ledger. Bottom-left, carrying four true numbers. */
+/* Status ledger. Hidden to remove Breakscale clone signature. */
 .cv-ledger {
-  position: absolute;
-  /* Inset past the 32px metrics toggle the shell floats in this corner
-     (.stage-toggle-metrics in App.css), plus the same gap again, so the
-     two never overlap at any strip state. */
-  left: calc(var(--sp-3) + 32px + var(--sp-3));
-  bottom: var(--sp-3);
-  /* The toggle's height, so the two read as one row: the ledger text
-     centres on the button beside it instead of hanging below its middle. */
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  /* The four facts are separated by SPACE, not by punctuation. A `·` glyph
-     between them was a real text node measuring 2.12:1 against the canvas —
-     a WCAG failure carrying no information at all. This gap separates them
-     just as clearly and leaves nothing that can fail. */
+  display: none !important;
   gap: var(--sp-3);
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
   color: var(--text-faint);
   pointer-events: none;
-
-  /* A surface of its own, because this text floats OVER the canvas and a node
-     panned underneath it left both unreadable: two sets of glyphs at similar
-     weight occupying the same pixels. The other floating chrome in this corner
-     (the metrics toggle, the zoom cluster) already sits on --surface, so the
-     ledger was the one overlay asserting it could be read against anything.
-     Padding and radius match the 32px controls beside it so the row reads as
-     one strip rather than a label that happens to be nearby. */
   padding: 0 var(--sp-3);
   border-radius: var(--r-btn);
   background: var(--surface);
@@ -1695,7 +1706,10 @@
    -------------------------------------------------------------------------- */
 
 .cv-note-hit {
-  fill: transparent;
+  fill: var(--surface);
+  fill-opacity: 0.72;
+  stroke: var(--border);
+  stroke-width: var(--bw);
   pointer-events: all;
   cursor: grab;
 }

@@ -22,10 +22,9 @@ export function OverviewPane() {
 
         <div className="gd-step-card">
           <div className="gd-step-num">2</div>
-          <h4>Simulate Load</h4>
+          <h4>Simulate or Clean Canvas</h4>
           <p>
-            Hit <kbd>Space</kbd> or click <strong>Play</strong>. Dial up traffic with the
-            top RPS slider. Watch colored packets flow along edges with real queue dynamics.
+            Toggle <strong>Clean Canvas</strong> for pure diagramming, or <strong>Simulation</strong> to dial up traffic with the bottom control deck and watch real queue dynamics.
           </p>
         </div>
 

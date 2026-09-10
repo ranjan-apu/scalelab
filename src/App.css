@@ -45,50 +45,84 @@
    and the readouts is canvas you can actually drag through. */
 .app-bar {
   position: absolute;
-  top: var(--sp-3);
-  left: var(--sp-3);
-  right: var(--sp-3);
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52px;
   z-index: 40;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--sp-3);
-  /* The BAR itself is only a positioning strip: it paints nothing and
-     catches nothing, so the canvas between its islands is draggable. Each
-     island below carries its own surface. */
-  background: none;
-  pointer-events: none;
+  padding: 0 var(--sp-4);
+  background: var(--surface);
+  border-bottom: var(--bw) solid var(--border);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
 }
 
-/* An island. Three of them: the wordmark and history on the left, the load
-   control in the middle, the readouts and the menu on the right. Grouping
-   them this way rather than as one long bar is what leaves canvas visible
-   between them, which is the whole point of floating over it. */
+/* Studio header groups */
 .app-island {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  /* One height for all three, so they read as a row of islands rather than
-     as three unrelated boxes. The load control is the tallest thing here
-     (a slider over its scale row), so it sets the number and the others
-     match it instead of each sizing to its own contents. */
-  min-height: 56px;
-  padding: 0 var(--sp-3);
-  border: var(--bw) solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-md);
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: auto;
 }
 
-/* The load control takes the slack, but only up to a point: allowed to grow
-   without limit it spans the window and the three islands read as one solid
-   bar again, which is the thing this layout exists to stop. Capped, the
-   canvas shows between them on a wide screen and the island shrinks
-   gracefully on a narrow one. */
+.app-studio-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: var(--bw) solid var(--border);
+  color: var(--accent);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.app-bar-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 var(--sp-1);
+}
+
+.app-doc-info {
+  display: flex;
+  align-items: center;
+}
+
+.app-doc-title {
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .app-bar-sep,
+  .app-doc-info {
+    display: none;
+  }
+}
+
 .app-island-load {
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 940px;
+  max-width: 780px;
+  justify-content: center;
 }
 
 /* Mode switcher: Clean Canvas vs Simulation */
@@ -328,6 +362,7 @@
   flex: none;
 }
 
+.app-guide-btn,
 .app-share-btn {
   display: inline-flex;
   align-items: center;
@@ -344,6 +379,7 @@
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
+.app-guide-btn:hover,
 .app-share-btn:hover {
   background: var(--surface-hover, var(--border));
 }
@@ -353,11 +389,13 @@
   border-color: rgba(34, 197, 94, 0.4);
 }
 
+.app-guide-label,
 .app-share-label {
   display: inline;
 }
 
 @media (max-width: 1100px) {
+  .app-guide-label,
   .app-share-label {
     display: none;
   }
@@ -481,54 +519,22 @@
 
 .app-body {
   position: absolute;
-  inset: 0;
+  top: 52px;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   min-height: 0;
   overflow: hidden;
 
-  /* Where the floating bar ends, plus a gap: its 12px offset, its 56px
-     height, and 12px below it. Everything that must clear the bar reads this
-     one number rather than restating the arithmetic.
-
-     App.tsx MEASURES the bar and overwrites this inline. The constant is the
-     value used for the first paint, before the observer has run, and it is
-     the one-row desktop height. It stopped being correct on its own once the
-     bar could wrap: on a phone the bar stands over 200px tall and a constant
-     put the components toggle underneath it. */
-  --bar-clear: 80px;
-
+  --bar-clear: 0px;
   --rail-w: 224px;
   --ins-w: 320px;
-  /* The strip's height is a FIXED clamp, not content-sized. As an overlay
-     its height is part of the shell's geometry contract (the sentinel, the
-     toggles and the ledger all need the same number), and its charts
-     already scroll internally when they want more. 26vh capped at 260px
-     keeps the diagram the dominant half of the screen at every window. */
-  --strip-h: clamp(196px, 26vh, 260px);
-  /* dvh for the same reason .app uses it: on a phone the charts sheet reads
-     this, and vh would size it against a window taller than the visible
-     one. Harmless on a desktop, where the two are identical. */
   --strip-h: clamp(196px, 26dvh, 260px);
 }
 
 /* --------------------------------------------------------------------------
    Panel slots.
-
-   Each collapsible panel sits inside a slot div owned by PanelSlot in
-   App.tsx. The SLOT is absolutely positioned OVER the stage and owns the
-   panel's geometry; the panel fills it and paints its own OPAQUE surface
-   (no translucency: a panel is a place to read, not a window). Motion is a
-   TRANSFORM on the slot, sliding it in from the edge it lives on, so the
-   slide invalidates no layout, and because the slot is out of flow even its
-   mount and unmount leave the canvas's rect untouched.
-
-   A slot translated off its edge is clipped by .app-body (overflow:
-   hidden), so no state of this animation can make the page scrollable.
-
-   z-index: the rails sit above the strip only as a tie-break; the strip is
-   inset past any open rail (below) so the three never actually overlap and
-   no chart is ever hidden behind a rail. All of it stays under the toast
-   (300) and the tooltip layer (400).
    -------------------------------------------------------------------------- */
 
 .app-slot {
@@ -538,38 +544,34 @@
 }
 
 /* Both rails scroll internally via the shared .scroll primitive and paint
-   their own surface. The slot only supplies geometry; the hairline that
-   separates a panel from the canvas is the panel's own border. */
+   their own surface. Docked directly to screen borders in the studio shell. */
 .app-slot-left {
   position: absolute;
-  /* Below the floating bar rather than behind it, and inset from the window
-     edges so the rounded corners are visible on all four sides. */
-  top: var(--bar-clear);
-  bottom: var(--sp-3);
-  left: var(--sp-3);
+  top: 0;
+  bottom: 0;
+  left: 0;
   width: var(--rail-w);
   z-index: 10;
 }
 
-/* The rail is an island too, now that it no longer runs to the top of the
-   window. A full-height panel could end flat against the frame; one that
-   starts partway down cannot, because the cut edge reads as clipped rather
-   than as designed. */
 .app-slot-left > .pal {
   flex: 1 1 auto;
   min-width: 0;
-  border: var(--bw) solid var(--border);
-  border-radius: var(--r-lg);
+  border-right: var(--bw) solid var(--border);
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
+  border-radius: 0;
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: none;
   overflow: hidden;
 }
 
 .app-slot-right {
   position: absolute;
-  top: var(--bar-clear);
-  bottom: var(--sp-3);
-  right: var(--sp-3);
+  top: 0;
+  bottom: 0;
+  right: 0;
   width: var(--ins-w);
   z-index: 10;
 }
@@ -577,9 +579,13 @@
 .app-slot-right > .ins {
   flex: 1 1 auto;
   min-width: 0;
-  border: var(--bw) solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
+  border-left: var(--bw) solid var(--border);
+  border-top: none;
+  border-bottom: none;
+  border-right: none;
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -610,6 +616,73 @@
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Floating Simulation Control Deck (Only in Simulation Mode)
+   -------------------------------------------------------------------------- */
+
+.app-sim-dock {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: calc(100vw - 48px);
+  padding: 8px 22px;
+  background: rgba(18, 20, 28, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-strong);
+  border-radius: 9999px;
+  box-shadow:
+    0 16px 36px -4px rgba(0, 0, 0, 0.65),
+    0 4px 14px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  pointer-events: auto;
+  animation: app-sim-dock-in var(--dur-base) var(--ease);
+}
+
+@keyframes app-sim-dock-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.app-sim-dock .traffic {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  width: auto;
+  container-type: normal;
+}
+
+.app-sim-dock .traffic-load {
+  flex: 0 0 320px;
+  min-width: 240px;
+}
+
+.app-sim-dock .traffic-actions {
+  order: -1;
+  padding-right: var(--sp-3);
+  border-right: 1px solid var(--border);
+}
+
+.app-sim-dock .traffic-spacer {
+  display: none;
+}
+
+.app-sim-dock .traffic-headline {
+  padding-left: var(--sp-3);
+  border-left: 1px solid var(--border);
 }
 
 /* --------------------------------------------------------------------------
@@ -650,13 +723,12 @@
 }
 
 .stage-toggle-library {
-  /* Below the floating bar, not under it. */
-  top: var(--bar-clear);
+  top: var(--sp-3);
   left: var(--sp-3);
 }
 
 .stage-toggle-inspector {
-  top: var(--bar-clear);
+  top: var(--sp-3);
   right: var(--sp-3);
 }
 
@@ -668,68 +740,45 @@
 }
 
 /* --------------------------------------------------------------------------
-   Chrome vs. floating panels.
-
-   With the panels overlaying the canvas, anything pinned to a canvas edge
-   would land UNDER an open panel. Each piece of edge chrome therefore
-   shifts past the panel on its edge, keyed off the same has-* classes and
-   width tokens the slots use, so the two can never disagree about where a
-   panel ends. The toggles keep their rule of living where their panel
-   lives, in both states: the button that closed a panel is the button that
-   reopens it, now sitting flush against the panel's edge.
-
-   The .cv-ledger / .cv-zoom overrides reach into the canvas's chrome from
-   here on purpose: only the shell knows the panel state, and the offsets
-   are the shell's own geometry tokens. Canvas.css still owns their look.
+   Chrome vs. docked panels.
    -------------------------------------------------------------------------- */
 
-/* Clears the rail plus BOTH gaps: the rail is inset from the window edge
-   now, so the old single gap left the toggle sitting on the panel. */
 .app-body.has-library .stage-toggle-library {
-  left: calc(var(--rail-w) + var(--sp-3) * 2);
+  left: calc(var(--rail-w) + var(--sp-2));
 }
 
 .app-body.has-inspector .stage-toggle-inspector {
-  right: calc(var(--ins-w) + var(--sp-3) * 2);
+  right: calc(var(--ins-w) + var(--sp-2));
 }
 
-/* Clears the rail plus BOTH gaps, like the other toggles: the rail is inset
-   from the window edge now, so a single gap leaves this touching it. */
 .app-body.has-library .stage-toggle-metrics {
-  left: calc(var(--rail-w) + var(--sp-3) * 2);
+  left: calc(var(--rail-w) + var(--sp-2));
 }
 
 .app-body.has-metrics .stage-toggle-metrics {
-  bottom: calc(var(--strip-h) + var(--sp-3) * 2);
+  bottom: calc(var(--strip-h) + var(--sp-2));
 }
 
-/* The ledger sits to the right of the metrics toggle (32px + two gaps, the
-   same sum Canvas.css documents on .cv-ledger) and follows it past an open
-   rail; both it and the zoom cluster ride up over the open strip. */
 .app-body.has-library .cv-ledger {
-  left: calc(var(--rail-w) + var(--sp-3) * 2 + 32px + var(--sp-3));
+  left: calc(var(--rail-w) + var(--sp-2) + 32px + var(--sp-2));
 }
 
 .app-body.has-metrics .cv-ledger,
 .app-body.has-metrics .cv-zoom {
-  bottom: calc(var(--strip-h) + var(--sp-3) * 2);
+  bottom: calc(var(--strip-h) + var(--sp-2));
 }
 
-/* The format bar rides the same lift, one row higher so it clears the
-   ledger and the zoom cluster it shares the foot of the canvas with. */
 .app-body.has-metrics .cv-format {
-  bottom: calc(var(--strip-h) + var(--sp-3) * 2 + 32px + var(--sp-3));
+  bottom: calc(var(--strip-h) + var(--sp-2) + 32px + var(--sp-2));
 }
 
 .app-body.has-inspector .cv-zoom,
 .app-body.has-inspector .mm {
-  right: calc(var(--ins-w) + var(--sp-3) * 2);
+  right: calc(var(--ins-w) + var(--sp-2));
 }
 
-/* The inspector toggle sits at the top right of the canvas, so the map drops
-   below it rather than starting level with it. */
 .app-body .mm {
-  top: calc(var(--bar-clear) + 32px + var(--sp-2));
+  top: calc(32px + var(--sp-2));
 }
 
 .cv-ledger,
