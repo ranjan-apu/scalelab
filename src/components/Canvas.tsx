@@ -2332,13 +2332,17 @@ const TextBoxView = memo(function TextBoxView({
     [box.text, box.title, box.width, box.size, box.font, box.bold, box.italic, box.scale],
   );
 
+  const cardStyle = box.cardStyle ?? 'card';
+  const rx = cardStyle === 'sticky' ? 2 : cardStyle === 'outline' ? 4 : 8;
+  const font = box.font ?? (cardStyle === 'sticky' ? 'hand' : 'sans');
   const height = Math.max(box.height, layout.contentH);
   const toneClass = box.tone !== undefined ? ` cv-tone-${box.tone}` : '';
   const selClass = selected ? ' is-selected' : '';
+  const styleClass = ` is-style-${cardStyle}`;
 
   return (
     <g
-      className={`cv-textbox${toneClass}${selClass}`}
+      className={`cv-textbox${toneClass}${selClass}${styleClass}`}
       data-tone={
         box.tone !== undefined
           ? ((box.tone % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) % SECTION_TONE_COUNT
@@ -2352,7 +2356,7 @@ const TextBoxView = memo(function TextBoxView({
         y={0}
         width={box.width}
         height={height}
-        rx={8}
+        rx={rx}
       />
       {layout.headerH > 0 && (
         <g className="cv-textbox-header">
@@ -2362,7 +2366,7 @@ const TextBoxView = memo(function TextBoxView({
             y={0}
             width={box.width}
             height={layout.headerH}
-            rx={8}
+            rx={rx}
           />
           <line
             className="cv-textbox-header-line"
@@ -2377,6 +2381,10 @@ const TextBoxView = memo(function TextBoxView({
               x={TEXTBOX_PAD_X}
               y={layout.headerH / 2}
               dominantBaseline="central"
+              style={{
+                fontFamily: `var(--${font})`,
+                ...(box.scale ? { fontSize: Math.round(13 * (box.scale ?? 1)) } : {}),
+              }}
             >
               {box.title}
             </text>
@@ -2388,7 +2396,12 @@ const TextBoxView = memo(function TextBoxView({
           className="cv-textbox-text"
           x={TEXTBOX_PAD_X}
           y={0}
-          style={box.scale ? { fontSize: layout.font } : undefined}
+          style={{
+            fontFamily: `var(--${font})`,
+            ...(box.scale ? { fontSize: layout.font } : {}),
+            ...(box.bold ? { fontWeight: 'bold' } : {}),
+            ...(box.italic ? { fontStyle: 'italic' } : {}),
+          }}
         >
           {layout.lines.map((line, i) => (
             <tspan
@@ -2409,7 +2422,7 @@ const TextBoxView = memo(function TextBoxView({
         y={0}
         width={box.width}
         height={height}
-        rx={8}
+        rx={rx}
       />
     </g>
   );
@@ -2438,6 +2451,8 @@ function TextBoxChrome({
       ),
     [box.text, box.title, box.width, box.size, box.font, box.bold, box.italic, box.scale],
   );
+  const cardStyle = box.cardStyle ?? 'card';
+  const rx = (cardStyle === 'sticky' ? 2 : cardStyle === 'outline' ? 4 : 8) + 3 * ui;
   const height = Math.max(box.height, layout.contentH);
   const rect = { x: box.x, y: box.y, w: box.width, h: height };
   const hs = 9 * ui;
@@ -2456,7 +2471,7 @@ function TextBoxChrome({
         y={box.y - 3 * ui}
         width={box.width + 6 * ui}
         height={height + 6 * ui}
-        rx={8 + 3 * ui}
+        rx={rx}
       />
 
       <g className="cv-sec-tones">

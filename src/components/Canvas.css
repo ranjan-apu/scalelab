@@ -2170,6 +2170,46 @@
   cursor: grab;
 }
 
+/* Normal Box (outline) style */
+.cv-textbox.is-style-outline .cv-textbox-bg {
+  fill: var(--surface-1, rgba(255, 255, 255, 0.03));
+  stroke: var(--box-line);
+  stroke-width: 1.5;
+  filter: none;
+}
+
+.cv-textbox.is-style-outline .cv-textbox-header-bg {
+  fill: transparent;
+}
+
+.cv-textbox.is-style-outline .cv-textbox-header-line {
+  stroke: var(--box-line);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+/* Sticky note style */
+.cv-textbox.is-style-sticky .cv-textbox-bg {
+  fill: var(--box-fill);
+  stroke: var(--box-line);
+  stroke-width: 1;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.12));
+}
+
+.cv-textbox.is-style-sticky .cv-textbox-header-bg {
+  fill: transparent;
+}
+
+.cv-textbox.is-style-sticky .cv-textbox-header-line {
+  stroke: var(--box-line);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.cv-textbox.is-style-sticky .cv-textbox-text {
+  fill: var(--box-ink);
+}
+
 /* ---------- Ink strokes ----------
  *
  * The painted line is pointer-inert; the invisible hit path beside it is

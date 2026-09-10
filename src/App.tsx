@@ -60,7 +60,7 @@ import {
   isTextBox,
   sanitizeAnnotations,
 } from './sim/annotations';
-import type { Annotation, AnnotationFont, Note, TextBox } from './sim/annotations';
+import type { Annotation, AnnotationFont, Note, TextBox, TextBoxStyle } from './sim/annotations';
 import {
   INK_DEFAULT_OPACITY,
   INK_DEFAULT_WIDTH,
@@ -1462,9 +1462,10 @@ export default function App() {
       if (!cur || cur.kind !== 'textbox') return;
       const nextText = text.slice(0, 5000);
       const nextTitle = title !== undefined ? title.slice(0, 200) : cur.title;
-      if (!nextText.trim() && !nextTitle?.trim()) {
+      if (!nextText.trim() && !nextTitle?.trim() && cur.cardStyle !== 'outline') {
         // An emptied or unedited blank text box is removed outright: invisible and unselectable,
-        // it would otherwise be litter the user cannot find to delete.
+        // it would otherwise be litter the user cannot find to delete. Outline boxes have a visible border
+        // so they can remain as clean empty bounding frames.
         history.commit('delete text box', snapRef.current);
         setAnnotations(anns.filter((a) => a.id !== id));
         setSelectedIds((sel) => {
@@ -1482,6 +1483,36 @@ export default function App() {
           a.id === id ? { ...a, text: nextText, title: nextTitle } : a,
         ),
       );
+    },
+    [history, setAnnotations],
+  );
+
+  const handleSetTextBoxStyle = useCallback(
+    (
+      id: string,
+      change: {
+        cardStyle?: TextBoxStyle;
+        font?: AnnotationFont;
+        size?: TextBox['size'];
+        bold?: 'toggle';
+        italic?: 'toggle';
+      },
+    ) => {
+      const anns = topoLiveRef.current.annotations ?? [];
+      const cur = anns.find((a) => a.id === id);
+      if (!cur || cur.kind !== 'textbox') return;
+
+      const next: TextBox = { ...cur };
+      if (change.cardStyle) next.cardStyle = change.cardStyle;
+      if (change.font) next.font = change.font;
+      if (change.size) next.size = change.size;
+      for (const flag of ['bold', 'italic'] as const) {
+        if (change[flag] !== 'toggle') continue;
+        if (cur[flag]) delete next[flag];
+        else next[flag] = true;
+      }
+      history.commit('box style', snapRef.current);
+      setAnnotations(anns.map((a) => (a.id === id ? next : a)));
     },
     [history, setAnnotations],
   );
@@ -3356,6 +3387,7 @@ export default function App() {
             textBox={selectedTextBox}
             onEditTextBox={handleEditTextBox}
             onSetTextBoxTone={handleSetSectionTone}
+            onSetTextBoxStyle={handleSetTextBoxStyle}
             onApplyTextBoxTemplate={handleApplyTextBoxTemplate}
             onDeleteTextBox={handleDeleteTextBox}
             note={selectedNote}

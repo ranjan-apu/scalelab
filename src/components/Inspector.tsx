@@ -31,7 +31,7 @@ import {
 import { Term } from './Tooltip';
 import { VendorPanel } from './VendorPanel';
 import { SECTION_TONE_COUNT, ANNOTATION_FONTS, FONT_LABEL } from '../sim/annotations';
-import type { TextBox, Note, AnnotationFont } from '../sim/annotations';
+import type { TextBox, Note, AnnotationFont, TextBoxStyle } from '../sim/annotations';
 import {
   INK_MAX_WIDTH,
   INK_MIN_OPACITY,
@@ -2221,6 +2221,16 @@ interface TextBoxInspectorProps {
   textBox: TextBox;
   onEditTextBox?: (id: string, text: string, title?: string) => void;
   onSetTextBoxTone?: (id: string, tone: number) => void;
+  onSetTextBoxStyle?: (
+    id: string,
+    change: {
+      cardStyle?: TextBoxStyle;
+      font?: AnnotationFont;
+      size?: TextBox['size'];
+      bold?: 'toggle';
+      italic?: 'toggle';
+    },
+  ) => void;
   onApplyTextBoxTemplate?: (id: string, template: InterviewTemplate) => void;
   onDeleteTextBox?: (id: string) => void;
 }
@@ -2229,6 +2239,7 @@ function TextBoxInspector({
   textBox,
   onEditTextBox,
   onSetTextBoxTone,
+  onSetTextBoxStyle,
   onApplyTextBoxTemplate,
   onDeleteTextBox,
 }: TextBoxInspectorProps) {
@@ -2253,6 +2264,8 @@ function TextBoxInspector({
     onEditTextBox?.(textBox.id, val, textBox.title);
   };
 
+  const style = textBox.cardStyle ?? 'card';
+
   return (
     <aside className="ins" aria-label="Requirements Card Inspector">
       <div className="ins-scroll scroll">
@@ -2261,49 +2274,158 @@ function TextBoxInspector({
             className="ins-title"
             type="text"
             value={draftTitle}
-            placeholder="Card Title (e.g. Functional Requirements)"
+            placeholder={
+              style === 'outline'
+                ? 'Box Label (e.g. Ingestion Tier)'
+                : style === 'sticky'
+                ? 'Note Title (e.g. Key Takeaway)'
+                : 'Card Title (e.g. Functional Requirements)'
+            }
             spellCheck={false}
-            aria-label="Card Title"
+            aria-label="Box Title"
             onChange={(e) => handleTitleChange(e.target.value)}
           />
           <p className="ins-kind">
-            <span>Requirements Card</span>
-            <span className="badge">Text Box</span>
+            <span>
+              {style === 'outline'
+                ? 'Normal Box'
+                : style === 'sticky'
+                ? 'Sticky Note'
+                : 'Requirements Card'}
+            </span>
+            <span className="badge">
+              {style === 'outline'
+                ? 'Box'
+                : style === 'sticky'
+                ? 'Sticky'
+                : 'Card'}
+            </span>
           </p>
         </header>
 
         <section className="ins-group">
-          <h4 className="ins-group-title">Interview Templates</h4>
-          <p className="ins-empty-hint" style={{ margin: '0 0 8px' }}>
-            Quick-start with standard system design sections:
-          </p>
-          <div className="ins-templates-grid">
-            {INTERVIEW_TEMPLATES.map((tmpl) => (
+          <h4 className="ins-group-title">Box Style</h4>
+          <div className="btn-group" role="group" aria-label="Box style">
+            <button
+              type="button"
+              className={`btn btn-ghost${style === 'card' ? ' is-active' : ''}`}
+              onClick={() => onSetTextBoxStyle?.(textBox.id, { cardStyle: 'card' })}
+            >
+              Card
+            </button>
+            <button
+              type="button"
+              className={`btn btn-ghost${style === 'sticky' ? ' is-active' : ''}`}
+              onClick={() => onSetTextBoxStyle?.(textBox.id, { cardStyle: 'sticky' })}
+            >
+              Sticky
+            </button>
+            <button
+              type="button"
+              className={`btn btn-ghost${style === 'outline' ? ' is-active' : ''}`}
+              onClick={() => onSetTextBoxStyle?.(textBox.id, { cardStyle: 'outline' })}
+            >
+              Box (Outline)
+            </button>
+          </div>
+        </section>
+
+        <section className="ins-group">
+          <h4 className="ins-group-title">Typeface</h4>
+          <div className="ins-note-fonts-grid">
+            {ANNOTATION_FONTS.map((f) => (
               <button
-                key={tmpl.id}
+                key={f}
                 type="button"
-                className="btn btn-ghost ins-template-btn"
-                onClick={() => onApplyTextBoxTemplate?.(textBox.id, tmpl)}
+                className={`btn btn-ghost ins-font-btn${(textBox.font ?? (style === 'sticky' ? 'hand' : 'sans')) === f ? ' is-active' : ''}`}
+                style={{ fontFamily: `var(--${f})` }}
+                onClick={() => onSetTextBoxStyle?.(textBox.id, { font: f })}
               >
-                <span
-                  className="ins-template-dot"
-                  style={{
-                    backgroundColor: `var(--ann-${tmpl.tone}-line, var(--accent))`,
-                  }}
-                />
-                {tmpl.name}
+                {FONT_LABEL[f]}
               </button>
             ))}
           </div>
         </section>
 
         <section className="ins-group">
+          <h4 className="ins-group-title">Text Size & Style</h4>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="btn-group" role="group" aria-label="Text size">
+              {(['sm', 'md', 'lg'] as const).map((sz) => (
+                <button
+                  key={sz}
+                  type="button"
+                  className={`btn btn-ghost${(textBox.size ?? 'md') === sz ? ' is-active' : ''}`}
+                  onClick={() => onSetTextBoxStyle?.(textBox.id, { size: sz })}
+                >
+                  {sz.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <div className="btn-group" role="group" aria-label="Text styles">
+              <button
+                type="button"
+                className={`btn btn-ghost${textBox.bold ? ' is-active' : ''}`}
+                style={{ fontWeight: 'bold' }}
+                title="Bold"
+                aria-pressed={Boolean(textBox.bold)}
+                onClick={() => onSetTextBoxStyle?.(textBox.id, { bold: 'toggle' })}
+              >
+                B
+              </button>
+              <button
+                type="button"
+                className={`btn btn-ghost${textBox.italic ? ' is-active' : ''}`}
+                style={{ fontStyle: 'italic' }}
+                title="Italic"
+                aria-pressed={Boolean(textBox.italic)}
+                onClick={() => onSetTextBoxStyle?.(textBox.id, { italic: 'toggle' })}
+              >
+                I
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {style === 'card' && (
+          <section className="ins-group">
+            <h4 className="ins-group-title">Interview Templates</h4>
+            <p className="ins-empty-hint" style={{ margin: '0 0 8px' }}>
+              Quick-start with standard system design sections:
+            </p>
+            <div className="ins-templates-grid">
+              {INTERVIEW_TEMPLATES.map((tmpl) => (
+                <button
+                  key={tmpl.id}
+                  type="button"
+                  className="btn btn-ghost ins-template-btn"
+                  onClick={() => onApplyTextBoxTemplate?.(textBox.id, tmpl)}
+                >
+                  <span
+                    className="ins-template-dot"
+                    style={{
+                      backgroundColor: `var(--ann-${tmpl.tone}-line, var(--accent))`,
+                    }}
+                  />
+                  {tmpl.name}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="ins-group">
           <h4 className="ins-group-title">Requirements & Notes</h4>
           <textarea
             className="ins-textbox-body-field"
             value={draftText}
-            rows={10}
-            placeholder="Type bullet points, capacity estimations, or assumptions..."
+            rows={style === 'card' ? 8 : 6}
+            placeholder={
+              style === 'outline'
+                ? 'Type notes or commentary inside box...'
+                : 'Type bullet points, capacity estimations, or assumptions...'
+            }
             spellCheck={false}
             aria-label="Requirements card body text"
             onChange={(e) => handleTextChange(e.target.value)}
@@ -2325,7 +2447,7 @@ function TextBoxInspector({
         </section>
 
         <section className="ins-group">
-          <h4 className="ins-group-title">Card Shade</h4>
+          <h4 className="ins-group-title">Shade & Tone</h4>
           <div className="ins-tone-swatches" role="group" aria-label="Card shades">
             {Array.from({ length: SECTION_TONE_COUNT }, (_, i) => (
               <button
@@ -2350,7 +2472,7 @@ function TextBoxInspector({
           className="btn btn-danger ins-delete"
           onClick={() => onDeleteTextBox?.(textBox.id)}
         >
-          Delete Text Box
+          Delete Box
         </button>
       </div>
     </aside>
@@ -2591,6 +2713,16 @@ export interface InspectorProps {
   textBox?: TextBox | null;
   onEditTextBox?: (id: string, text: string, title?: string) => void;
   onSetTextBoxTone?: (id: string, tone: number) => void;
+  onSetTextBoxStyle?: (
+    id: string,
+    change: {
+      cardStyle?: TextBoxStyle;
+      font?: AnnotationFont;
+      size?: TextBox['size'];
+      bold?: 'toggle';
+      italic?: 'toggle';
+    },
+  ) => void;
   onApplyTextBoxTemplate?: (id: string, template: InterviewTemplate) => void;
   onDeleteTextBox?: (id: string) => void;
   /**
@@ -2631,6 +2763,7 @@ export function Inspector({
   textBox,
   onEditTextBox,
   onSetTextBoxTone,
+  onSetTextBoxStyle,
   onApplyTextBoxTemplate,
   onDeleteTextBox,
   note,
@@ -2664,6 +2797,7 @@ export function Inspector({
           textBox={textBox}
           onEditTextBox={onEditTextBox}
           onSetTextBoxTone={onSetTextBoxTone}
+          onSetTextBoxStyle={onSetTextBoxStyle}
           onApplyTextBoxTemplate={onApplyTextBoxTemplate}
           onDeleteTextBox={onDeleteTextBox}
         />

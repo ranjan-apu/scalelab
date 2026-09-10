@@ -165,4 +165,48 @@ describe('textbox sanitization and helpers', () => {
     expect(tb.x).toBe(150);
     expect(tb.y).toBe(250);
   });
+
+  it('makeTextBox supports cardStyle and sanitizeAnnotations preserves it', () => {
+    const outlineBox = makeTextBox(100, 100, 'Box Title', 'Content', 2, 'outline');
+    expect(outlineBox.cardStyle).toBe('outline');
+
+    const sanitized = sanitizeAnnotations([
+      {
+        id: 'tb-1',
+        kind: 'textbox',
+        x: 10,
+        y: 20,
+        width: 250,
+        height: 150,
+        text: 'Outline box notes',
+        cardStyle: 'outline',
+      },
+      {
+        id: 'tb-2',
+        kind: 'textbox',
+        x: 30,
+        y: 40,
+        width: 200,
+        height: 120,
+        text: 'Sticky notes',
+        cardStyle: 'sticky',
+      },
+      {
+        id: 'tb-3',
+        kind: 'textbox',
+        x: 50,
+        y: 60,
+        width: 200,
+        height: 120,
+        text: 'Invalid style box',
+        cardStyle: 'unrecognized-style',
+      },
+    ]);
+
+    expect(sanitized).toHaveLength(3);
+    const [b1, b2, b3] = sanitized as any[];
+    expect(b1.cardStyle).toBe('outline');
+    expect(b2.cardStyle).toBe('sticky');
+    expect(b3.cardStyle).toBeUndefined();
+  });
 });

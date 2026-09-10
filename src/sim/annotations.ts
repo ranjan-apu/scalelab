@@ -121,6 +121,9 @@ export interface Section {
  * Estimations, Assumptions). Has a visible container, optional title bar,
  * formatted bullet text, and 8-direction resize.
  */
+export type TextBoxStyle = 'card' | 'sticky' | 'outline';
+export const TEXTBOX_STYLES: readonly TextBoxStyle[] = ['card', 'sticky', 'outline'] as const;
+
 export interface TextBox {
   id: string;
   kind: 'textbox';
@@ -137,7 +140,7 @@ export interface TextBox {
   tone?: number;
   bold?: boolean;
   italic?: boolean;
-  cardStyle?: 'card' | 'sticky' | 'outline';
+  cardStyle?: TextBoxStyle;
 }
 
 /**
@@ -278,6 +281,7 @@ export function makeTextBox(
   title = 'Functional Requirements',
   text = '• Core user action 1\n• Core user action 2\n• Data input & validation\n• Query & view flows',
   tone = 1,
+  cardStyle?: TextBoxStyle,
 ): TextBox {
   counter += 1;
   return {
@@ -291,6 +295,7 @@ export function makeTextBox(
     height: TEXTBOX_DEFAULT_HEIGHT,
     size: 'md',
     tone,
+    ...(cardStyle ? { cardStyle } : {}),
   };
 }
 
@@ -366,6 +371,10 @@ export function sanitizeAnnotations(input: unknown): Annotation[] {
       const title = typeof a.title === 'string' ? a.title.slice(0, 200) : undefined;
       const width = num(a.width);
       const height = num(a.height);
+      const cardStyle: TextBoxStyle | undefined =
+        a.cardStyle === 'sticky' || a.cardStyle === 'outline' || a.cardStyle === 'card'
+          ? a.cardStyle
+          : undefined;
       out.push({
         id,
         kind: 'textbox',
@@ -382,6 +391,7 @@ export function sanitizeAnnotations(input: unknown): Annotation[] {
         ...(a.bold === true ? { bold: true } : {}),
         ...(a.italic === true ? { italic: true } : {}),
         ...noteScale(a.scale),
+        ...(cardStyle ? { cardStyle } : {}),
       });
       seen.add(id);
     } else if (a.kind === 'ink') {
