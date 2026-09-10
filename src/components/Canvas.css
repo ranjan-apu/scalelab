@@ -1723,6 +1723,10 @@
   font-family: var(--sans);
   pointer-events: none;
   user-select: none;
+  letter-spacing: -0.012em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* The annotation faces. A hand-drawn face reads as a margin note rather than
@@ -2062,6 +2066,10 @@
   background: transparent;
   color: var(--text);
   font-family: var(--sans);
+  letter-spacing: -0.012em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   resize: none;
   overflow: hidden;
   white-space: pre-wrap;
@@ -2192,17 +2200,25 @@
   fill: var(--box-ink);
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.015em;
   user-select: none;
   pointer-events: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .cv-textbox-text {
   fill: var(--text);
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
   user-select: none;
   pointer-events: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .cv-textbox-hit {
@@ -2319,7 +2335,11 @@
   color: var(--text);
   font-family: var(--sans);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   outline: none;
   box-sizing: border-box;
 }
@@ -2337,8 +2357,12 @@
   border: none;
   color: var(--text);
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
+  letter-spacing: -0.01em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   resize: none;
   outline: none;
   box-sizing: border-box;
