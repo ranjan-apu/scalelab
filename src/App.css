@@ -1265,20 +1265,20 @@
     top: 0;
     left: 0;
     right: 0;
+    display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0;
     padding: 0;
-    /* It is a bar again, not three things floating: at this width the gaps
-       between islands were not canvas you could use, just holes. */
+    /* Clean bar spanning edge to edge */
     background: var(--surface);
     border-bottom: var(--bw) solid var(--border);
     pointer-events: auto;
+    z-index: 40;
   }
 
   .app-island {
     min-height: 0;
-    gap: var(--sp-2);
-    padding: var(--sp-2) var(--sp-3);
     border: 0;
     border-radius: 0;
     background: none;
@@ -1288,22 +1288,91 @@
   .app-island-brand {
     order: 1;
     flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    min-height: 44px;
+  }
+
+  .app-brand {
+    gap: var(--sp-2);
+  }
+
+  .app-title {
+    font-size: var(--fs-md);
+  }
+
+  .app-studio-badge {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .app-history {
+    margin-left: auto;
+    gap: 4px;
+    display: flex;
+    align-items: center;
+  }
+
+  .app-history .btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-color: var(--border-strong);
+    background: var(--surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .app-island-menu {
     order: 2;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     margin-left: 0;
-    padding-left: 0;
+    padding: var(--sp-2) var(--sp-3) var(--sp-2) 0;
+    min-height: 44px;
   }
 
-  /* The load control is the one thing a reader touches constantly, so it
-     gets its own full-width row under the identity row, with a rule
-     between them. */
-  .app-island-load {
+  .app-guide-btn,
+  .app-share-btn,
+  .app-menu-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Mode Switcher on Row 2 */
+  .app-mode-switch {
     order: 3;
     flex: 1 1 100%;
-    max-width: none;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px var(--sp-3) 6px var(--sp-3);
+    background: var(--surface-2);
     border-top: var(--bw) solid var(--border);
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: none;
+    box-sizing: border-box;
+  }
+
+  .app-mode-switch .app-mode-btn {
+    flex: 1 1 50%;
+    justify-content: center;
+    padding: 6px var(--sp-2);
+    font-size: var(--fs-xs);
+    border-radius: var(--r-sm);
   }
 
   .app-tagline,
@@ -1311,14 +1380,145 @@
     display: none;
   }
 
-  .app-history {
-    margin-left: auto;
-    gap: var(--sp-2);
+  /* --- Simulation Dock on Mobile ---------------------------------- */
+
+  /* Position safely above the bottom tab bar */
+  .app-sim-dock {
+    position: fixed;
+    bottom: calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 20px);
+    max-width: 440px;
+    padding: 8px 12px;
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-lg);
+    z-index: 20;
+    box-sizing: border-box;
   }
 
-  .app-history .btn {
-    border-color: var(--border-strong);
-    background: var(--surface);
+  /* Automatically hide the dock when any bottom sheet is open so it NEVER overlaps or obstructs the sheet */
+  .app-body.has-library .app-sim-dock,
+  .app-body.has-inspector .app-sim-dock,
+  .app-body.has-metrics .app-sim-dock {
+    display: none !important;
+  }
+
+  .app-sim-dock .traffic {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: var(--sp-1) var(--sp-2);
+  }
+
+  .app-sim-dock .traffic-actions {
+    order: 1;
+    flex: 0 0 auto;
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .app-sim-dock .traffic-load {
+    display: contents;
+    flex: none;
+    min-width: 0;
+  }
+
+  .app-sim-dock .traffic-load-head {
+    order: 2;
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-1);
+    min-width: 0;
+  }
+
+  .app-sim-dock .traffic-load-head > .label {
+    display: none;
+  }
+
+  .app-sim-dock .traffic-load-readout {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .app-sim-dock .traffic-load-readout .num-lg {
+    font-size: var(--fs-md);
+    font-weight: 700;
+  }
+
+  .app-sim-dock .traffic-load-unit {
+    display: inline;
+    font-size: var(--fs-xs);
+    color: var(--text-dim);
+  }
+
+  .app-sim-dock .traffic-load-none {
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+
+  .app-sim-dock .traffic-headline {
+    order: 3;
+    display: flex;
+    align-items: baseline;
+    border-left: none;
+    padding-left: 0;
+    margin-left: auto;
+    min-width: 0;
+    gap: var(--sp-1);
+  }
+
+  .app-sim-dock .traffic-empty {
+    font-size: var(--fs-xs);
+    margin: 0;
+  }
+
+  .app-sim-dock .traffic-metric {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 4px;
+    min-width: max-content;
+    flex-shrink: 0;
+  }
+
+  .app-sim-dock .traffic-metric .label {
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .app-sim-dock .traffic-metric .num-hero {
+    font-size: var(--fs-md);
+    line-height: 1;
+  }
+
+  /* CRITICAL: Secondary metrics are available in the Charts sheet, hide in mobile dock */
+  .app-sim-dock .traffic-metric-group {
+    display: none !important;
+  }
+
+  .app-sim-dock .traffic-spacer {
+    display: none;
+  }
+
+  .app-sim-dock .traffic-load-track {
+    order: 4;
+    width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
+    margin-top: 1px;
+  }
+
+  .app-sim-dock .traffic-scale {
+    margin-top: 1px;
+  }
+
+  .app-sim-dock .traffic-scale-mark {
+    font-size: 9px;
   }
 
   /* --- Stage: everything below the header ------------------------- */
@@ -1355,6 +1555,7 @@
   .app-slot-right,
   .app-slot-bottom {
     position: fixed;
+    z-index: 30;
     /* A floor as well as a ceiling. --bar-clear is measured in JS, so for a
        frame after the address bar collapses it can still describe the old
        window; without a hard top the sheet's own height would push its top
@@ -1544,7 +1745,7 @@
   .app-scrim {
     position: fixed;
     inset: 0;
-    z-index: 9;
+    z-index: 28;
     display: block;
     background: var(--scrim);
     animation: app-scrim-in var(--dur-base) var(--ease-out);
