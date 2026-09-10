@@ -560,6 +560,11 @@ export interface SimNode {
   x: number;
   y: number;
   config: NodeConfig;
+  /**
+   * User-provided description of what this component does in the architecture
+   * (responsibilities, contracts, functional role).
+   */
+  description?: string;
 }
 
 export interface SimEdge {

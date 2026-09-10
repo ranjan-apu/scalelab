@@ -1999,6 +1999,17 @@ export default function App() {
     [history],
   );
 
+  const handleDescriptionChange = useCallback(
+    (id: string, description: string) => {
+      history.touch('edit description', snapRef.current);
+      setTopology((t) => ({
+        ...t,
+        nodes: t.nodes.map((n) => (n.id === id ? { ...n, description } : n)),
+      }));
+    },
+    [history],
+  );
+
   /**
    * The top-bar slider sets the TOTAL offered load. One client gets the value
    * outright; several are scaled proportionally so a preset's deliberate
@@ -3258,6 +3269,7 @@ export default function App() {
             onChange={handleConfigChange}
             onDelete={handleDeleteNode}
             onRename={handleRename}
+            onDescribe={handleDescriptionChange}
             selectedNodes={selectedNodes}
             selectedEdgeCount={selectedEdgeCount}
             onChangeMany={handleConfigChangeMany}
