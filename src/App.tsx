@@ -517,7 +517,7 @@ interface Session {
 function loadSession(): Session {
   const fallback: Session = {
     topology: PRESETS[0]!.topology,
-    rps: clientRps(PRESETS[0]!.topology),
+    rps: offeredRpsFor(PRESETS[0]!.topology),
     presetId: PRESETS[0]!.id,
   };
 
@@ -528,7 +528,7 @@ function loadSession(): Session {
     if (typeof parsed !== 'object' || parsed === null) return fallback;
     const s = parsed as Partial<Session>;
     if (!isTopology(s.topology)) return fallback;
-    const rps = Number.isFinite(s.rps) ? (s.rps as number) : clientRps(s.topology);
+    const rps = Number.isFinite(s.rps) ? (s.rps as number) : offeredRpsFor(s.topology);
     // isTopology validates what the ENGINE dereferences; annotations are
     // presentation data it never sees, so they cross the trust boundary
     // through their own sanitizer. Anything malformed is dropped entry by
@@ -581,21 +581,21 @@ function shareHashPresent(): boolean {
 }
 
 /** Every traffic source on the canvas. Presets routinely have several. */
-function findClients(t: Topology): SimNode[] {
-  return t.nodes.filter((n) => n.kind === 'client');
+function findTrafficSources(t: Topology): SimNode[] {
+  return t.nodes.filter((n) => n.kind === 'client' || n.kind === 'producer');
 }
 
 /**
- * Total offered load: the SUM over every client node. The header used to
+ * Total offered load: the SUM over every traffic source. The header used to
  * mirror a separate `rps` state cell that only the slider wrote, which came
  * apart two ways — a multi-client preset offered more than the header
  * admitted (Spotify: goodput 5.7k/s under "Offered load 5k"), and deleting
  * then re-adding a client left the header frozen on the old value while the
  * new client sent 50/s. Deriving from the topology makes the number a fact.
  */
-function clientRps(t: Topology): number {
+function offeredRpsFor(t: Topology): number {
   let sum = 0;
-  for (const c of findClients(t)) sum += c.config.rps;
+  for (const source of findTrafficSources(t)) sum += source.config.rps;
   return sum;
 }
 
@@ -1997,24 +1997,26 @@ export default function App() {
   const handleRpsChange = useCallback(
     (next: number) => {
       setRps(next);
-      const clients = findClients(topology);
-      if (clients.length === 0) return;
-      if (clients.length === 1) {
-        handleConfigChange(clients[0]!.id, { rps: next });
+      const sources = findTrafficSources(topology);
+      if (sources.length === 0) return;
+      if (sources.length === 1) {
+        handleConfigChange(sources[0]!.id, { rps: next });
         return;
       }
-      const total = clients.reduce((s, c) => s + c.config.rps, 0);
-      const shares = clients.map((c) =>
+      const total = sources.reduce((s, source) => s + source.config.rps, 0);
+      const shares = sources.map((source) =>
         Math.max(
           0,
-          Math.round(next * (total > 0 ? c.config.rps / total : 1 / clients.length)),
+          Math.round(
+            next * (total > 0 ? source.config.rps / total : 1 / sources.length),
+          ),
         ),
       );
       const spread = shares.reduce((s, v) => s + v, 0);
       shares[0] = Math.max(0, shares[0]! + (next - spread));
       // One history baseline, one engine pass, one topology write.
       history.touch('setting change', snapRef.current);
-      const byId = new Map(clients.map((c, i) => [c.id, shares[i]!]));
+      const byId = new Map(sources.map((source, i) => [source.id, shares[i]!]));
       for (const [id, rps] of byId) engine.updateNodeConfig(id, { rps });
       setTopology((t) => ({
         ...t,
@@ -2068,7 +2070,7 @@ export default function App() {
       // half-built system can undo back to what they had.
       history.commit(label, snapRef.current);
       setTopology(fresh);
-      setRps(clientRps(fresh));
+      setRps(offeredRpsFor(fresh));
       setPresetId(nextPresetId);
       setSelectedIds(new Set<string>());
       topoLiveRef.current = fresh;
@@ -2493,7 +2495,7 @@ export default function App() {
       if (cancelled) return;
       if (result.status === 'ok') {
         setTopology(result.topology);
-        setRps(clientRps(result.topology));
+        setRps(offeredRpsFor(result.topology));
         setPresetId(null);
         setSelectedIds(new Set<string>());
         topoLiveRef.current = result.topology;
@@ -2757,7 +2759,7 @@ export default function App() {
    * state cell that add/delete paths forgot to reconcile. `rps` state remains
    * only as the persisted slider value for session restore.
    */
-  const offeredRps = useMemo(() => clientRps(topology), [topology]);
+  const offeredRps = useMemo(() => offeredRpsFor(topology), [topology]);
 
   /**
    * Requests actually lost PER SECOND, derived from the engine's per-reason
@@ -2998,7 +3000,7 @@ export default function App() {
             system={snapshot?.system ?? EMPTY_SYSTEM}
             lost={lostRps}
             empty={topology.nodes.length === 0}
-            noTrafficSource={offeredRps === 0 && findClients(topology).length === 0}
+            noTrafficSource={findTrafficSources(topology).length === 0}
           />
         </div>
 

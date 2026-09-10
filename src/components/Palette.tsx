@@ -45,6 +45,7 @@ import './Palette.css';
  */
 const KIND_HINT: Record<NodeKind, string> = {
   client: 'Sends requests at the rate you set',
+  producer: 'Sends events to another system at the rate you set',
   lb: 'Spreads requests across several servers',
   service: 'Handles a request, calls what it needs',
   cache: 'Answers repeat reads without the database',

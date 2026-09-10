@@ -114,7 +114,7 @@ describe.each(THEMES)('%s theme', (_name, tokens) => {
   });
 
   it('carries every component kind label on its own fill', () => {
-    // 33 kinds, one assertion each: the node label is the text a student
+    // One assertion per kind: the node label is the text a student
     // actually reads, and it sits on the kind's tinted plate rather than on
     // the page background.
     const kinds = [
@@ -124,7 +124,7 @@ describe.each(THEMES)('%s theme', (_name, tokens) => {
           .filter((k): k is string => Boolean(k)),
       ),
     ];
-    expect(kinds.length).toBe(33);
+    expect(kinds.length).toBe(34);
     for (const kind of kinds) {
       expect(
         ratio(

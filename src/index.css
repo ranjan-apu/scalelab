@@ -387,6 +387,10 @@
   --kind-client-line: #b09de9;
   --kind-client-stroke: #866fc2;
   --kind-client-ink: #534775;
+  --kind-producer-fill: var(--kind-pubsub-fill);
+  --kind-producer-line: var(--kind-pubsub-line);
+  --kind-producer-stroke: var(--kind-pubsub-stroke);
+  --kind-producer-ink: var(--kind-pubsub-ink);
 
   --kind-lb-fill: #e7f3ff;
   --kind-lb-line: #73b0ee;
@@ -778,6 +782,10 @@
   --kind-client-line: #7154b2;
   --kind-client-stroke: #ac8ff9;
   --kind-client-ink: #d4c7ff;
+  --kind-producer-fill: var(--kind-pubsub-fill);
+  --kind-producer-line: var(--kind-pubsub-line);
+  --kind-producer-stroke: var(--kind-pubsub-stroke);
+  --kind-producer-ink: var(--kind-pubsub-ink);
   --kind-lb-fill: #0d263c;
   --kind-lb-line: #056bb8;
   --kind-lb-stroke: #50a9ff;
