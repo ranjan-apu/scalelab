@@ -29,7 +29,6 @@ import {
   toneClass,
 } from './format';
 import { Term } from './Tooltip';
-import { VendorPanel } from './VendorPanel';
 import { SECTION_TONE_COUNT, ANNOTATION_FONTS, FONT_LABEL } from '../sim/annotations';
 import type { TextBox, Note, AnnotationFont, TextBoxStyle } from '../sim/annotations';
 import {
@@ -3434,16 +3433,6 @@ function SingleInspector({
             )}
           </Section>
         )}
-
-        {/* Last, because it is context rather than a knob. A student is here
-            to change capacity and service time; what the thing is called at
-            a cloud vendor is worth knowing and worth reading after. */}
-        <VendorPanel
-          nodeId={node.id}
-          kind={node.kind}
-          config={node.config}
-          onChange={(patch) => onChange(node.id, patch)}
-        />
       </div>
 
       <div className="ins-foot">

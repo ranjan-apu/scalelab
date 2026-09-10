@@ -237,9 +237,7 @@
   flex: none;
 }
 
-.app-advisor-btn,
-.app-share-btn,
-.app-guide-btn {
+.app-share-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
@@ -255,9 +253,7 @@
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.app-advisor-btn:hover,
-.app-share-btn:hover,
-.app-guide-btn:hover {
+.app-share-btn:hover {
   background: var(--surface-hover, var(--border));
 }
 
@@ -266,36 +262,15 @@
   border-color: rgba(34, 197, 94, 0.4);
 }
 
-.app-advisor-label,
-.app-share-label,
-.app-guide-label {
+.app-share-label {
   display: inline;
 }
 
 @media (max-width: 1100px) {
-  .app-advisor-label,
-  .app-share-label,
-  .app-guide-label {
+  .app-share-label {
     display: none;
   }
 }
-
-.adv-mini-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 2px 5px;
-  border-radius: 4px;
-}
-
-.adv-grade-A { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-.adv-grade-B { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.adv-grade-C { background: rgba(234, 179, 8, 0.2); color: #facc15; }
-.adv-grade-D { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
-.adv-grade-F { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
 .app-menu-btn {
   flex: none;

@@ -6902,28 +6902,6 @@ export default function Canvas({
           GAP rather than a "·" glyph, which measured 2.12:1 on the canvas
           (see .cv-ledger). aria-hidden: it repeats what titles and the
           shortcuts dialog already expose to assistive tech, and its churn on
-          selection would be noise there. */}
-      {pendingLink === null &&
-        tool === null &&
-        topology.nodes.length > 0 &&
-        !renameNode && (
-          <div className="cv-hint-idle label" aria-hidden="true">
-            {topology.nodes.some((n) => selectedIds.has(n.id)) ? (
-              <>
-                <span>Drag to move</span>
-                <span>Delete to remove</span>
-                <span>Double-click to rename</span>
-              </>
-            ) : (
-              <>
-                <span>Scroll to pan</span>
-                <span>Ctrl+scroll to zoom</span>
-                <span>Shift+drag to select</span>
-              </>
-            )}
-          </div>
-        )}
-
       {/*
         The note format bar. Chrome pinned to the bottom of the canvas, not
         drawn beside the note it edits: a toolbar anchored to a note is wider

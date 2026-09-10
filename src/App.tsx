@@ -19,10 +19,6 @@ import type { NodeConfig, NodeKind, SimNode, SimSnapshot, Topology } from './sim
 import { useCoarsePointer } from './useCoarsePointer';
 import { Engine } from './sim/engine';
 import { PRESETS, makeNode } from './sim/presets';
-import { CHALLENGES, challengeById } from './sim/challenges';
-import { FIXED_DURING_CHALLENGE, applyLoad, evaluate } from './sim/challenge';
-import { ChallengePanel } from './components/Challenge';
-import { Challenges } from './components/Challenges';
 import type { Preset } from './sim/presets';
 import Canvas, {
   GRID,
@@ -83,7 +79,6 @@ import { Settings } from './components/Settings';
 import { MainMenu } from './components/MainMenu';
 import { Designs } from './components/Designs';
 import { getDesign, saveDesign } from './savedDesigns';
-import { downloadBackup, restoreBackup } from './backup';
 import { PanelResizer } from './components/PanelResizer';
 import { applyTheme } from './theme/applyTheme';
 import { usePresence } from './components/presence';
@@ -92,8 +87,6 @@ import type { HistoryEntry, HistorySnapshot } from './history';
 import { buildShareUrl, decodeTopology, hasShareHash } from './share';
 import { DESIGN_FILE_ACCEPT, downloadDesign, readDesignFile } from './designFile';
 import { downloadBlob, svgToPng } from './imageExport';
-import { Advisor } from './components/Advisor';
-import { analyzeArchitecture } from './sim/advisor';
 import { exportToMermaid } from './exportFormats';
 import './App.css';
 
@@ -656,13 +649,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(() => {
-    try {
-      return localStorage.getItem('scalelab.guide-dismissed') !== 'true';
-    } catch {
-      return true; // If storage is unavailable, show the guide anyway.
-    }
-  });
+  const [guideOpen, setGuideOpen] = useState(false);
 
   /**
    * Whether the canvas has reached storage yet.
@@ -673,22 +660,8 @@ export default function App() {
    * came out of storage in the first place.
    */
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
-  const backupInputRef = useRef<HTMLInputElement | null>(null);
 
   const [examplesOpen, setExamplesOpen] = useState(false);
-  const [challengesOpen, setChallengesOpen] = useState(false);
-  const [advisorOpen, setAdvisorOpen] = useState(false);
-
-  /**
-   * The challenge being attempted, by id, or null for the free sandbox.
-   *
-   * Only the id is held: the brief itself is a module constant, and storing
-   * a copy would let a challenge edited in source drift from one already in
-   * progress. Not persisted, because a brief resumed days later with a
-   * half-finished design and no memory of the goal is worse than starting it
-   * again.
-   */
-  const [challengeId, setChallengeId] = useState<string | null>(null);
 
   /* ---------------- panel layout ---------------- */
 
@@ -2136,56 +2109,6 @@ export default function App() {
     [replaceDesign],
   );
 
-  const handleBackup = useCallback(() => {
-    downloadBackup();
-    toastSeq.current += 1;
-    setToast({ text: 'Downloaded everything', id: toastSeq.current });
-  }, []);
-
-  /**
-   * Restore replaces what this browser holds, so it asks first.
-   *
-   * A confirm() rather than a bespoke dialog: this is destructive and rare,
-   * the browser's own prompt is the one a reader already trusts for exactly
-   * this, and a custom modal here would be new furniture for a question
-   * asked once.
-   */
-  const handleRestorePick = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Cleared so choosing the SAME file twice fires again.
-    e.target.value = '';
-    if (!file) return;
-
-    let text: string;
-    try {
-      text = await file.text();
-    } catch {
-      toastSeq.current += 1;
-      setToast({ text: 'That file could not be read.', id: toastSeq.current });
-      return;
-    }
-
-    if (
-      !window.confirm(
-        'Restoring replaces every saved design and setting in this browser with the ones in the file. Continue?',
-      )
-    ) {
-      return;
-    }
-
-    const result = restoreBackup(text);
-    toastSeq.current += 1;
-    if (!result.ok) {
-      setToast({ text: result.error, id: toastSeq.current });
-      return;
-    }
-    // Reloaded rather than patched into the running app: preferences, the
-    // layout and the session are all read once at boot, so the only
-    // honest way to apply a wholesale replacement is to start again.
-    setToast({ text: 'Restored. Reloading...', id: toastSeq.current });
-    window.setTimeout(() => window.location.reload(), 400);
-  }, []);
-
   const handleSaveNamed = useCallback((name: string) => {
     const result = saveDesign(name, topoLiveRef.current);
     toastSeq.current += 1;
@@ -2208,10 +2131,6 @@ export default function App() {
       // Deep copy: presets are module-level constants and must never be
       // mutated by editing the loaded system.
       replaceDesign(structuredClone(preset.topology), preset.id, 'example load');
-      // Loading an example by hand leaves any brief behind: the design the
-      // brief was judging is gone, so continuing to score it would be
-      // scoring something else.
-      setChallengeId(null);
     },
     [replaceDesign],
   );
@@ -2227,67 +2146,9 @@ export default function App() {
       return;
     }
     replaceDesign({ nodes: [], edges: [], annotations: [] }, null, 'new canvas');
-    setChallengeId(null);
     toastSeq.current += 1;
     setToast({ text: 'Created a new empty canvas', id: toastSeq.current });
   }, [replaceDesign, presetId, topology.nodes.length]);
-
-  /**
-   * Start a brief: load its preset and set the load it is judged at.
-   *
-   * The load is applied to the topology rather than held beside it, so the
-   * slider shows the number the brief actually states and a reader can move
-   * it. Turning the traffic down until the goals are met is not a way to
-   * cheat, because the goals are only ever read at the stated load.
-   */
-  const handleStartChallenge = useCallback(
-    (id: string) => {
-      const challenge = challengeById(id);
-      if (!challenge) return;
-      const preset = PRESETS.find((p) => p.id === challenge.presetId);
-      if (!preset) return;
-
-      /*
-       * A brief replaces whatever is on the canvas, so it asks first when
-       * that is something the reader made.
-       *
-       * Undo already recovers it, which is the real safety net, but nobody
-       * who has just watched their diagram vanish thinks to press Ctrl+Z.
-       * The question is only worth asking when there is something to lose:
-       * an unmodified example or an empty canvas is not work, and a prompt
-       * on every start would train people to dismiss it before reading.
-       *
-       * A confirm() for the same reason the restore path uses one. It is
-       * destructive, it is rare, and a custom modal would be new furniture
-       * for a question asked once.
-       */
-      const madeSomething = presetId === null && topology.nodes.length > 0;
-      if (
-        madeSomething &&
-        !window.confirm(
-          'Starting a challenge replaces what is on the canvas. Your design is not saved anywhere else. Continue?',
-        )
-      ) {
-        return;
-      }
-
-      const topo = structuredClone(preset.topology);
-      applyLoad(topo, challenge.loadRps);
-      replaceDesign(topo, preset.id, 'challenge start');
-      setChallengeId(id);
-    },
-    [replaceDesign, presetId, topology.nodes.length],
-  );
-
-  /* The live verdict. Recomputed per snapshot rather than on a timer, so the
-     panel and the numbers it quotes always come from the same tick. */
-  const challenge = challengeId ? challengeById(challengeId) : undefined;
-  const challengeResult = useMemo(
-    () => (challenge && snapshot ? evaluate(challenge, snapshot) : null),
-    [challenge, snapshot],
-  );
-
-  const advisorAudit = useMemo(() => analyzeArchitecture(topology), [topology]);
 
   /**
    * What the menu offers.
@@ -2314,17 +2175,6 @@ export default function App() {
         label: 'Your designs',
         icon: 'M4 4a2 2 0 0 1 2-2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM13 2v5h5M9 13h6M9 17h6',
         onSelect: () => setDesignsOpen(true),
-      },
-      {
-        label: 'Architecture Advisor',
-        icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10M9 12l2 2 4-4',
-        hint: `Grade ${advisorAudit.grade}`,
-        onSelect: () => setAdvisorOpen(true),
-      },
-      {
-        label: 'Challenges',
-        icon: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0z',
-        onSelect: () => setChallengesOpen(true),
       },
       {
         label: 'Examples',
@@ -2936,7 +2786,6 @@ export default function App() {
             </div>
             <div className="app-brand-text">
               <h1 className="app-title">ScaleLab</h1>
-              <p className="app-tagline">Simulate, load test, and observe systems</p>
             </div>
           </div>
 
@@ -3038,33 +2887,6 @@ export default function App() {
         <div className="app-island app-island-menu">
           <button
             type="button"
-            className="app-advisor-btn"
-            title={`Architecture Advisor: Grade ${advisorAudit.grade} (${advisorAudit.score}/100)`}
-            aria-label="Architecture Advisor"
-            onClick={() => setAdvisorOpen(true)}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
-            <span className="app-advisor-label">Advisor</span>
-            <span className={`adv-mini-pill adv-grade-${advisorAudit.grade}`}>
-              {advisorAudit.grade}
-            </span>
-          </button>
-
-          <button
-            type="button"
             className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
             title="Share design: copy link to clipboard"
             aria-label="Share design"
@@ -3102,31 +2924,6 @@ export default function App() {
             <span className="app-share-label">
               {copiedLink ? 'Copied!' : 'Share'}
             </span>
-          </button>
-
-          <button
-            type="button"
-            className="app-guide-btn"
-            title="How to use ScaleLab: Interactive guide & manual"
-            aria-label="How to use ScaleLab"
-            onClick={() => setGuideOpen(true)}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span className="app-guide-label">Guide</span>
           </button>
 
           {/*
@@ -3291,13 +3088,6 @@ export default function App() {
               never see it. Its rect is the canvas minus every open panel.
             */}
             <div ref={stageSafeRef} className="stage-safe" aria-hidden="true" />
-            {challenge && challengeResult ? (
-              <ChallengePanel
-                challenge={challenge}
-                result={challengeResult}
-                onGiveUp={() => setChallengeId(null)}
-              />
-            ) : null}
             <button
               type="button"
               className="btn btn-sm btn-icon stage-toggle stage-toggle-library"
@@ -3350,7 +3140,6 @@ export default function App() {
               <Metrics
                 snapshot={snapshot}
                 nodeNames={nodeNames}
-                nodes={topology.nodes}
               />
             ) : null}
             <PanelResizer
@@ -3383,7 +3172,6 @@ export default function App() {
             selectedEdgeCount={selectedEdgeCount}
             onChangeMany={handleConfigChangeMany}
             onDeleteMany={handleDeleteMany}
-            lockedFields={challenge ? FIXED_DURING_CHALLENGE : undefined}
             textBox={selectedTextBox}
             onEditTextBox={handleEditTextBox}
             onSetTextBoxTone={handleSetSectionTone}
@@ -3499,7 +3287,6 @@ export default function App() {
           try { localStorage.setItem('scalelab.guide-dismissed', 'true'); } catch { /* quota / private browsing */ }
         }}
         onOpenExamples={() => setExamplesOpen(true)}
-        onOpenChallenges={() => setChallengesOpen(true)}
       />
       {/* The real file input, kept off screen. A bare one cannot be styled,
           so the Settings row calls click() on this. It lives beside the
@@ -3513,15 +3300,6 @@ export default function App() {
         tabIndex={-1}
         aria-hidden="true"
         onChange={handleImportPick}
-      />
-      <input
-        ref={backupInputRef}
-        type="file"
-        className="app-file-input"
-        accept=".json,application/json"
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={handleRestorePick}
       />
       <Designs
         open={designsOpen}
@@ -3540,18 +3318,6 @@ export default function App() {
         onImport={() => fileInputRef.current?.click()}
         onExportImage={handleExportImage}
         onExportMermaid={handleExportMermaid}
-        onBackup={handleBackup}
-        onRestore={() => backupInputRef.current?.click()}
-      />
-      <Advisor
-        open={advisorOpen}
-        onClose={() => setAdvisorOpen(false)}
-        topology={topology}
-        onSelectNode={(id) => setSelectedIds(new Set([id]))}
-        onNotify={(text) => {
-          toastSeq.current += 1;
-          setToast({ text, id: toastSeq.current });
-        }}
       />
 
       <Examples
@@ -3561,12 +3327,6 @@ export default function App() {
         activePresetId={presetId}
         onLoad={handleLoadPreset}
         onNewCanvas={handleNewCanvas}
-      />
-      <Challenges
-        open={challengesOpen}
-        onClose={() => setChallengesOpen(false)}
-        challenges={CHALLENGES}
-        onStart={handleStartChallenge}
       />
     </div>
   );

@@ -1,5 +1,4 @@
 import { useSyncExternalStore } from 'react';
-import type { VendorId } from './vendors/types';
 import type { NodeKind } from '../sim/types';
 
 /**
@@ -40,14 +39,6 @@ export interface Preferences {
    */
   minimap: boolean;
   /**
-   * Name components after a cloud vendor's products.
-   *
-   * `generic` by default and deliberately so: a student meets "load
-   * balancer" first and "ALB" second, and the concept outlives the product
-   * name. A vendor is something to switch on once the idea has landed.
-   */
-  vendor: VendorId;
-  /**
    * Colour theme.
    *
    * Three states rather than a boolean, because "follow the system" is a real
@@ -73,7 +64,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   sparklines: true,
   snapToGrid: true,
   minimap: false,
-  vendor: 'generic',
   // Follow the OS until told otherwise. Picking light as the default would
   // flash a bright page at someone whose machine is set to dark.
   theme: 'system',
@@ -144,7 +134,6 @@ function load(): Preferences {
       sparklines: bool(p.sparklines, DEFAULT_PREFERENCES.sparklines),
       snapToGrid: bool(p.snapToGrid, DEFAULT_PREFERENCES.snapToGrid),
       minimap: bool(p.minimap, DEFAULT_PREFERENCES.minimap),
-      vendor: vendor(p.vendor),
       theme: theme(p.theme),
       collapsedGroups: stringArray(p.collapsedGroups, DEFAULT_PREFERENCES.collapsedGroups),
       pinnedKinds: nodeKindArray(p.pinnedKinds, DEFAULT_PREFERENCES.pinnedKinds),
@@ -172,12 +161,6 @@ function nodeKindArray(v: unknown, fallback: NodeKind[]): NodeKind[] {
     }
   }
   return result;
-}
-
-function vendor(v: unknown): VendorId {
-  return v === 'aws' || v === 'gcp' || v === 'azure' || v === 'generic'
-    ? v
-    : DEFAULT_PREFERENCES.vendor;
 }
 
 function theme(v: unknown): ThemeChoice {
