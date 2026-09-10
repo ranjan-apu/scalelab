@@ -54,6 +54,24 @@ describe('Guide component', () => {
     expect(document.body.textContent).toContain('Normal Boxes & Cards');
   });
 
+  it('switches to Health & Resilience tab and displays architectural advisor info', () => {
+    render(<Guide open={true} onClose={() => {}} />);
+    const buttons = Array.from(document.querySelectorAll('.gd-tab'));
+    const healthTab = buttons.find((b) => b.textContent?.includes('Health & Resilience'));
+    expect(healthTab).toBeDefined();
+
+    act(() => {
+      healthTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(healthTab?.classList.contains('is-active')).toBe(true);
+    expect(healthTab?.getAttribute('aria-selected')).toBe('true');
+    expect(document.body.textContent).toContain('Architectural Health & Resilience Advisor');
+    expect(document.body.textContent).toContain('Single Point of Failure (SPOF)');
+    expect(document.body.textContent).toContain('Unbuffered Write Floods');
+    expect(document.body.textContent).toContain('1-Click Focus & Mitigate');
+  });
+
   it('triggers onClose when close button clicked', () => {
     const onClose = vi.fn();
     render(<Guide open={true} onClose={onClose} />);

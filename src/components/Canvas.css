@@ -82,10 +82,10 @@
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px);
+    radial-gradient(circle, var(--grid-dot) 1.2px, transparent 1.2px),
+    radial-gradient(circle, transparent 1.2px, transparent 1.2px),
+    radial-gradient(circle, var(--grid-major) 1.8px, transparent 1.8px),
+    radial-gradient(circle, transparent 1.8px, transparent 1.8px);
   background-repeat: repeat;
   pointer-events: none;
   transition: opacity var(--dur-slow) var(--ease);
@@ -230,6 +230,71 @@
 
 .cv-edge.is-active:hover .cv-edge-label {
   fill: var(--text-dim);
+}
+
+/* Edge protocol badge & contract label styling */
+.cv-edge-badge-group {
+  pointer-events: none;
+}
+
+.cv-edge-pill-bg {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1px;
+}
+
+.cv-edge-protocol-pill.is-grpc .cv-edge-pill-bg {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+}
+
+.cv-edge-protocol-pill.is-grpc .cv-edge-pill-text {
+  fill: var(--accent-ink);
+}
+
+.cv-edge-protocol-pill.is-kafka .cv-edge-pill-bg {
+  fill: var(--warn-soft);
+  stroke: var(--warn);
+}
+
+.cv-edge-protocol-pill.is-kafka .cv-edge-pill-text {
+  fill: var(--warn);
+}
+
+.cv-edge-protocol-pill.is-ws .cv-edge-pill-bg {
+  fill: var(--ok-soft);
+  stroke: var(--ok);
+}
+
+.cv-edge-protocol-pill.is-ws .cv-edge-pill-text {
+  fill: var(--ok);
+}
+
+.cv-edge-pill-text {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: var(--fw-num);
+  letter-spacing: 0.05em;
+  fill: var(--text);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.cv-edge-custom-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 550;
+  fill: var(--text-dim);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.cv-edge-line.is-async {
+  stroke-dasharray: 6 4;
 }
 
 /* Delete affordance on a selected edge. Explicitly re-enabled: it carries its

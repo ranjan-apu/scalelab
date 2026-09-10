@@ -1819,7 +1819,12 @@ const EdgeView = memo(function EdgeView({
           no handler is attached here, so nothing can be swallowed before the
           router sees it. */}
       <path d={d} className="cv-edge-hit" data-hit="edge" data-id={edge.id} />
-      <path d={d} className="cv-edge-line" strokeWidth={width} />
+      <path
+        d={d}
+        className={`cv-edge-line${edge.sync === false ? ' is-async' : ''}`}
+        strokeWidth={width}
+        strokeDasharray={edge.sync === false ? '6 4' : undefined}
+      />
       {active && !cleanCanvas && (
         <path d={d} className="cv-edge-flow" strokeWidth={width * 0.75} style={style} />
       )}
@@ -1863,8 +1868,37 @@ const EdgeView = memo(function EdgeView({
         </text>
       )}
 
+      {/* Edge Protocol Badge and Contract Route Label */}
+      {showLabel && (edge.protocol || edge.edgeLabel) && (
+        <g
+          className="cv-edge-badge-group"
+          transform={`translate(${midX},${midY - (selected ? 24 : 14) + labelDy})`}
+        >
+          {edge.protocol && (
+            <g className={`cv-edge-protocol-pill is-${edge.protocol}`}>
+              <rect
+                x={-24}
+                y={-9}
+                width={48}
+                height={16}
+                rx={8}
+                className="cv-edge-pill-bg"
+              />
+              <text x={0} y={2} className="cv-edge-pill-text">
+                {edge.protocol.toUpperCase()}
+              </text>
+            </g>
+          )}
+          {edge.edgeLabel && (
+            <text x={0} y={edge.protocol ? 16 : 2} className="cv-edge-custom-label">
+              {edge.edgeLabel}
+            </text>
+          )}
+        </g>
+      )}
+
       {/* How traffic splits at a fan-out. Invisible before this change. */}
-      {showLabel && active && !cleanCanvas && (
+      {showLabel && active && !cleanCanvas && !edge.protocol && (
         <text className="cv-edge-label" x={midX} y={midY - 6 + labelDy}>
           {formatRate(flow)}
         </text>
