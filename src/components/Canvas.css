@@ -2347,6 +2347,11 @@
 .cv-ink-tone-3 { --ink-c: var(--ann-3-ink); }
 .cv-ink-tone-4 { --ink-c: var(--ann-4-ink); }
 
+/* A stroke condemned by the eraser sweep: danger ink at its own width, so
+   the reader sees WHICH line dies rather than a restyled stranger. Higher
+   specificity than the tone rules above, so it wins regardless of order. */
+.cv-ink.is-condemned { --ink-c: var(--danger); }
+
 .cv-ink-line {
   fill: none;
   stroke: var(--ink-c, var(--ann-0-ink));

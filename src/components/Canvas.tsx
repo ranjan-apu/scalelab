@@ -85,8 +85,9 @@ import {
   resizeRect,
 } from './annotationLayout';
 import type { ResizeDir } from './annotationLayout';
-import { inkPathD, inkWorldBounds } from './sketchGeometry';
-import { INK_MAX_POINTS, INK_MIN_SAMPLES, INK_MIN_SPACING } from '../sim/sketch';
+import { inkHitTest, inkPathD, inkWorldBounds } from './sketchGeometry';
+import { INK_MAX_POINTS, INK_MIN_SAMPLES, INK_MIN_SPACING, ERASER_DEFAULT_WIDTH } from '../sim/sketch';
+import type { PenSettings } from '../sim/sketch';
 import type { AnnotationTool } from './Palette';
 import {
   SECTION_MIN_HEIGHT,
@@ -454,6 +455,19 @@ export interface CanvasProps {
    * (id, tone, width) and the history entry.
    */
   onCreateInk?: (x: number, y: number, points: number[]) => void;
+  /**
+   * Erase the given ink strokes in one history entry. The canvas collects
+   * ids during the eraser drag and commits once, on release; an empty drag
+   * never calls this.
+   */
+  onEraseInk?: (ids: readonly string[]) => void;
+  /**
+   * The pen as currently held: tone, width and opacity paint the live
+   * draft preview, so what the reader sees mid-stroke is what commits.
+   */
+  penSettings?: PenSettings;
+  /** Nib width for eraser hit-testing, in world px. */
+  eraserWidth?: number;
   /**
    * Commit a note text edit. Called ONCE when the editor closes; the shell
    * removes the note outright when the text is emptied.
@@ -2577,13 +2591,14 @@ const EMPTY_ANNOTATIONS: readonly Annotation[] = [];
 interface InkViewProps {
   ink: Ink;
   selected: boolean;
+  condemned?: boolean;
 }
 
-const InkView = memo(function InkView({ ink, selected }: InkViewProps) {
+const InkView = memo(function InkView({ ink, selected, condemned }: InkViewProps) {
   const d = useMemo(() => inkPathD(ink.points), [ink.points]);
   return (
     <g
-      className={`cv-ink cv-ink-tone-${ink.tone}${selected ? ' is-selected' : ''}`}
+      className={`cv-ink cv-ink-tone-${ink.tone}${selected ? ' is-selected' : ''}${condemned ? ' is-condemned' : ''}`}
       transform={`translate(${ink.x},${ink.y})`}
       style={{ opacity: ink.opacity, '--ink-w': `${ink.width}px` } as CSSProperties}
     >
@@ -3582,6 +3597,7 @@ interface Pending {
     | 'marquee'
     | 'ann'
     | 'ink'
+    | 'erase'
     | 'ann-resize'
     | 'textbox-resize'
     | 'note-resize'
@@ -3609,6 +3625,12 @@ interface Pending {
    * source of truth.
    */
   ink: number[] | null;
+  /**
+   * Ink ids condemned by the in-flight eraser drag. Render-only mirror of
+   * the sweep: the gesture owns the authoritative list on the pending
+   * record, this state repaints the highlight as it grows.
+   */
+  erase: string[];
 }
 
 /** Live marquee rectangle, in world units. */
@@ -3653,6 +3675,9 @@ export default function Canvas({
   onCreateSection,
   onCreateTextBox,
   onCreateInk,
+  onEraseInk,
+  penSettings,
+  eraserWidth,
   onEditNote,
   onEditSectionLabel,
   onEditTextBox,
@@ -3771,6 +3796,12 @@ export default function Canvas({
    */
   const [inkDraft, setInkDraft] = useState<number[] | null>(null);
   const [dropHint, setDropHint] = useState(false);
+  /**
+   * Ids condemned by the in-flight eraser sweep. Render-only mirror of
+   * Pending.erase; cleared on release or cancel.
+   */
+  const [erasePreview, setErasePreview] = useState<readonly string[]>([]);
+  const eraseSet = useMemo(() => new Set(erasePreview), [erasePreview]);
 
   /* ---------------- annotation tools & editors ---------------- */
 
@@ -4181,9 +4212,32 @@ export default function Canvas({
     setLink(null);
     setMarquee(null);
     setDraft(null);
+    setErasePreview([]);
     setDropSection(null);
     setCursor(spaceRef.current ? 'grab' : 'default');
   }, [onMoveEnd]);
+
+  /**
+   * Eraser sweep: every ink stroke within a nib of (wx, wy) joins `into`.
+   * Bounds precheck first (cheap), exact segment test second. The nib adds
+   * to the stroke's own half-width, so thin lines die under a wide eraser
+   * and a narrow nib still catches fat markers.
+   */
+  const collectEraseIds = useCallback(
+    (wx: number, wy: number, into: Set<string>) => {
+      const nib = eraserWidth ?? ERASER_DEFAULT_WIDTH;
+      for (const a of topoRef.current.annotations ?? []) {
+        if (!isInk(a) || into.has(a.id)) continue;
+        const b = inkWorldBounds(a.x, a.y, a.points, a.width);
+        const pad = nib / 2 + 4;
+        if (wx < b.x - pad || wx > b.x + b.w + pad || wy < b.y - pad || wy > b.y + b.h + pad) {
+          continue;
+        }
+        if (inkHitTest(a.x, a.y, a.points, a.width + nib, wx, wy)) into.add(a.id);
+      }
+    },
+    [eraserWidth],
+  );
 
   /* ---------------- pointerdown: route, do not capture ---------------- */
 
@@ -4310,6 +4364,7 @@ export default function Canvas({
         annRect: null,
         tool: armedTool,
         ink: null,
+        erase: [],
       };
 
       /*
@@ -4334,6 +4389,27 @@ export default function Canvas({
         return;
       }
 
+      /*
+       * (B0b) THE ERASER CAPTURES AT PRESS like the pen: the sweep owns
+       * the gesture from first contact, condemning strokes on every move
+       * and committing once on release. An empty sweep commits nothing.
+       */
+      if (armedTool === 'eraser') {
+        pendingRef.current.active = true;
+        pendingRef.current.mode = 'erase';
+        const condemned = new Set<string>();
+        collectEraseIds(w.x, w.y, condemned);
+        pendingRef.current.erase = [...condemned];
+        setErasePreview([...condemned]);
+        setCursor('crosshair');
+        try {
+          surfaceRef.current?.setPointerCapture(e.pointerId);
+        } catch {
+          // Same as the pen above: capture is best-effort.
+        }
+        return;
+      }
+
       // (B) NO setPointerCapture here. That single line was the whole bug:
       // capturing on press retargets the subsequent pointerup to this
       // element, which suppresses the browser's synthesized `click` on any
@@ -4341,7 +4417,7 @@ export default function Canvas({
       // happens at promotion, in onSurfaceMove, once the gesture is known to
       // be a drag.
     },
-    [hitTest, toWorld, cancelGesture, onMoveNode],
+    [hitTest, toWorld, cancelGesture, onMoveNode, collectEraseIds],
   );
 
   /* ---------------- pointermove: promote, then drag ---------------- */
@@ -4734,6 +4810,20 @@ export default function Canvas({
         return;
       }
 
+      if (p.mode === 'erase') {
+        // Condemned-only growth: a stroke leaves the set only when the
+        // gesture is cancelled, never by sweeping away from it. Lifting a
+        // finger mid-swipe must not rescue a stroke the reader meant to kill.
+        const condemned = new Set(p.erase);
+        const before = condemned.size;
+        collectEraseIds(w.x, w.y, condemned);
+        if (condemned.size !== before) {
+          p.erase = [...condemned];
+          setErasePreview([...condemned]);
+        }
+        return;
+      }
+
       if (p.mode === 'node') {
         const id = p.hit.id!;
         /*
@@ -4912,6 +5002,7 @@ export default function Canvas({
       cancelGesture,
       zoomAt,
       snapOn,
+      collectEraseIds,
     ],
   );
 
@@ -5176,6 +5267,12 @@ export default function Canvas({
         );
         setDraft(null);
         setTool(null);
+      } else if (p.mode === 'erase') {
+        // One commit for the whole sweep, however many strokes it caught.
+        const condemned = p.erase;
+        p.erase = [];
+        setErasePreview([]);
+        if (condemned.length > 0) onEraseInk?.(condemned);
       } else if (p.mode === 'ink') {
         // The tip of the stroke: the release point, appended under the same
         // spacing rule the moves use, so a short final segment is never lost
@@ -5226,6 +5323,7 @@ export default function Canvas({
       onCreateSection,
       onCreateTextBox,
       onCreateInk,
+      onEraseInk,
       onSetNoteSize,
       onSetSectionTone,
       onResizeNote,
@@ -5414,6 +5512,12 @@ export default function Canvas({
           e.preventDefault();
           setPendingLink(null);
           setTool((t) => (t === 'ink' ? null : 'ink'));
+          return;
+        }
+        if (e.key === 'e' || e.key === 'E') {
+          e.preventDefault();
+          setPendingLink(null);
+          setTool((t) => (t === 'eraser' ? null : 'eraser'));
           return;
         }
         if (e.key === 'b' || e.key === 'B') {
@@ -5764,14 +5868,14 @@ export default function Canvas({
       // An annotation dragged off the palette. A dropped note opens its
       // editor immediately, matching the tool-armed click path.
       const ann = e.dataTransfer.getData(ANN_DND_MIME);
-      if (ann === 'note' || ann === 'section' || ann === 'textbox' || ann === 'ink') {
+      if (ann === 'note' || ann === 'section' || ann === 'textbox' || ann === 'ink' || ann === 'eraser') {
         e.preventDefault();
-        // A dropped pen arms the tool rather than placing anything: a stroke
-        // is a gesture, and the drop point is where the student wants to
-        // START drawing, not where a mark should appear.
-        if (ann === 'ink') {
+        // A dropped pen or eraser arms the tool rather than placing
+        // anything: a stroke is a gesture, and the drop point is where the
+        // student wants to START drawing, not where a mark should appear.
+        if (ann === 'ink' || ann === 'eraser') {
           setPendingLink(null);
-          setTool((t) => (t === 'ink' ? null : 'ink'));
+          setTool((t) => (t === ann ? null : ann));
           return;
         }
         const w = toWorld(e.clientX, e.clientY);
@@ -6531,7 +6635,7 @@ export default function Canvas({
             {annotations.length > 0 && (
               <g className="cv-inks">
                 {annotations.filter(isInk).map((b) => (
-                  <InkView key={b.id} ink={b} selected={selectedIds.has(b.id)} />
+                  <InkView key={b.id} ink={b} selected={selectedIds.has(b.id)} condemned={eraseSet.has(b.id)} />
                 ))}
               </g>
             )}
@@ -6583,15 +6687,15 @@ export default function Canvas({
               />
             )}
 
-            {/* Live ink preview: the stroke in progress, painted at the
-                default pen width in the neutral tone. It is outside every
-                annotation group, so it repaints freely as samples land
+            {/* Live ink preview: the stroke in progress, painted in the held
+                pen settings, so mid-stroke is what commits. It is outside
+                every annotation group, so it repaints freely as samples land
                 without touching the memoised committed strokes. */}
             {inkDraft && inkDraft.length >= 2 && (
               <path
-                className="cv-ink-line cv-ink-tone-0"
+                className={`cv-ink-line cv-ink-tone-${penSettings?.tone ?? 0}`}
                 d={inkPathD(inkDraft)}
-                style={{ opacity: 1, '--ink-w': '4px' } as CSSProperties}
+                style={{ opacity: penSettings?.opacity ?? 1, '--ink-w': `${penSettings?.width ?? 4}px` } as CSSProperties}
               />
             )}
 
@@ -6972,9 +7076,17 @@ export default function Canvas({
               ? coarsePointer
                 ? 'Tap the canvas to place a text box'
                 : 'Click the canvas to place a text box · Esc to cancel'
-              : coarsePointer
-                ? 'Drag to draw a section'
-                : 'Drag to draw a section · Esc to cancel'}
+              : tool === 'ink'
+                ? coarsePointer
+                  ? 'Drag to sketch'
+                  : 'Drag to sketch · Esc to put the pen away'
+                : tool === 'eraser'
+                  ? coarsePointer
+                    ? 'Drag across ink strokes to erase them'
+                    : 'Drag across ink strokes to erase them · Esc to cancel'
+                  : coarsePointer
+                    ? 'Drag to draw a section'
+                    : 'Drag to draw a section · Esc to cancel'}
         </p>
       )}
 

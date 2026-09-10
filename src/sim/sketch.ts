@@ -65,6 +65,30 @@ export const INK_DEFAULT_WIDTH = 4;
 export const INK_MIN_OPACITY = 0.2;
 export const INK_DEFAULT_OPACITY = 1;
 
+/** Eraser nib, in world px. A fixed-feel range with its own slider. */
+export const ERASER_MIN_WIDTH = 4;
+export const ERASER_MAX_WIDTH = 48;
+export const ERASER_DEFAULT_WIDTH = 16;
+
+/**
+ * The pen as the reader currently holds it. Session state only: created
+ * fresh on every visit, never persisted. A new stroke copies these values
+ * at commit; editing a committed stroke later touches only that stroke.
+ */
+export interface PenSettings {
+  tone: InkTone;
+  width: number;
+  opacity: number;
+  eraserWidth: number;
+}
+
+export const DEFAULT_PEN_SETTINGS: PenSettings = {
+  tone: 0,
+  width: INK_DEFAULT_WIDTH,
+  opacity: INK_DEFAULT_OPACITY,
+  eraserWidth: ERASER_DEFAULT_WIDTH,
+};
+
 /**
  * A stroke with fewer samples than this is a click, not a drawing: dropped
  * at commit so a stray tap under the armed pen tool never leaves a dot.
