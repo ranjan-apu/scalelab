@@ -1142,7 +1142,8 @@
   pointer-events: none;
 }
 
-/* Status ledger. Hidden to remove Breakscale clone signature. */
+/* Status ledger. Hidden by design: the dock already reports system state,
+   and a second readout of component counts competes with it. */
 .cv-ledger {
   display: none !important;
   gap: var(--sp-3);

@@ -15,7 +15,7 @@ import type {
   DragEvent,
   ReactNode,
 } from 'react';
-import type { NodeConfig, NodeKind, SimNode, SimSnapshot, Topology } from './sim/types';
+import type { NodeConfig, NodeKind, SimNode, SimSnapshot, Topology, TrafficPattern } from './sim/types';
 import { useCoarsePointer } from './useCoarsePointer';
 import { Engine } from './sim/engine';
 import { PRESETS, makeNode } from './sim/presets';
@@ -34,6 +34,8 @@ import { Palette } from './components/Palette';
 import { Glossary } from './components/Glossary';
 import { Shortcuts } from './components/Shortcuts';
 import { Examples } from './components/Examples';
+import { InterviewPractice } from './components/InterviewPractice';
+import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { Guide } from './components/guide';
 import { cloneSubgraph, isTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
@@ -508,10 +510,13 @@ interface Session {
  */
 
 function loadSession(): Session {
+  // A first-time visitor lands in their OWN empty studio, not on a preset
+  // cloned from another product. The Studio guide (auto-opened on first
+  // run) and the Examples gallery are the on-ramps from here.
   const fallback: Session = {
-    topology: PRESETS[0]!.topology,
-    rps: offeredRpsFor(PRESETS[0]!.topology),
-    presetId: PRESETS[0]!.id,
+    topology: { nodes: [], edges: [], annotations: [] },
+    rps: 50,
+    presetId: null,
   };
 
   try {
@@ -540,7 +545,7 @@ function loadSession(): Session {
     };
   } catch {
     // Corrupt JSON, blocked storage (private mode, disabled cookies) — any
-    // failure here falls back to the first preset rather than breaking boot.
+    // failure here falls back to an empty studio rather than breaking boot.
     return fallback;
   }
 }
@@ -669,6 +674,13 @@ export default function App() {
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
 
   const [examplesOpen, setExamplesOpen] = useState(false);
+  const [interviewOpen, setInterviewOpen] = useState(false);
+
+  /**
+   * Cmd+K landing ping for the library search. Incremented, never reset:
+   * the Palette focuses its search box on each change.
+   */
+  const [paletteFocusNonce, setPaletteFocusNonce] = useState(0);
 
   /* ---------------- panel layout ---------------- */
 
@@ -728,7 +740,17 @@ export default function App() {
      other: two stacked sheets would cover the diagram they exist to explain,
      and the reader would have no way to see the effect of what they changed.
      On a desktop the two are rails on opposite edges and coexist happily. */
-  const [inspectorHidden, setInspectorHidden] = useState(false);
+  /**
+   * The right dock hosts TWO things: the node inspector while a selection
+   * exists, and the Studio review (cost, advisor, RFC) when nothing is
+   * selected. It starts closed so a first-time visitor meets the canvas,
+   * and selecting anything opens it via the effect below. Pressing I (or
+   * the toggle) with an empty selection opens the Studio review instead.
+   * Deliberately not persisted, for the same reason as before.
+   */
+  const [inspectorHidden, setInspectorHidden] = useState(true);
+  /** Manual-close veto for the auto-open effect below. */
+  const dismissRef = useRef(false);
 
   /* On a phone the three panels are SHEETS stacked over the canvas, so only
      one may be open: two of them cover the diagram they exist to explain,
@@ -758,22 +780,39 @@ export default function App() {
   }, [layout]);
 
   /**
-   * The inspector is selection-driven, the way Excalidraw's properties
-   * panel is: nothing selected means nothing to configure, so the panel is
-   * simply absent and the canvas has the width. `inspectorHidden` is the
-   * manual override on top of that — pressing I (or the floating toggle)
-   * dismisses the panel for the CURRENT selection, and the effect below
-   * clears the override on the next selection gesture. That gives "get
-   * this out of my way while I look" without creating a mode a student
-   * has to remember: selecting something is always enough to bring the
-   * settings back. Deliberately not persisted, for the same reason.
+   * The right dock is dual-purpose: node settings while a selection
+   * exists, Studio review when nothing is selected. `inspectorHidden` is
+   * the manual override — pressing I (or the toggle) flips it either way,
+   * and the effect below clears it on the next selection gesture, so
+   * selecting something always brings the settings back. Deliberately not
+   * persisted: a dismissed dock stays dismissed for this selection only.
    */
 
   useEffect(() => {
-    if (selectedIds.size > 0) setInspectorHidden(false);
+    if (selectedIds.size > 0) {
+      // A new selection opens the dock, unless the reader explicitly
+      // closed it for this exact selection. Without the guard, closing
+      // the dock and then rubber-banding one more node would pop it
+      // straight back open.
+      if (!dismissRef.current) setInspectorHidden(false);
+    } else {
+      // Nothing selected means nothing to configure AND no review to
+      // push: the dock closes and stays closed until the reader opens
+      // it or selects something. The Studio review never appears
+      // uninvited, not on boot, not on preset load, not on deselect.
+      setInspectorHidden(true);
+      dismissRef.current = false;
+    }
   }, [selectedIds]);
 
-  const toggleInspector = useCallback(() => setInspectorHidden((h) => !h), []);
+  const toggleInspector = useCallback(() => {
+    setInspectorHidden((h) => {
+      // Closing by hand vetoes the auto-open above until the selection
+      // itself changes. Opening by hand clears the veto.
+      dismissRef.current = !h;
+      return !h;
+    });
+  }, []);
 
   /**
    * The selection, split into the three things it can hold. Node ids and
@@ -827,7 +866,7 @@ export default function App() {
     selectedTextBox !== null ||
     selectedNote !== null ||
     selectedInk !== null;
-  const inspectorVisible = hasSelection && !inspectorHidden;
+  const inspectorVisible = !inspectorHidden;
 
   /**
    * The uncovered-canvas sentinel (see .stage-safe in App.css): an inert div
@@ -2144,6 +2183,21 @@ export default function App() {
     });
   }, []);
 
+  /**
+   * Pin an interview section onto the canvas as a textbox, centred on the
+   * current view. Practice notes live beside the diagram they describe.
+   */
+  const handlePinSection = useCallback(
+    (title: string, text: string) => {
+      const centre = viewCenterRef.current?.() ?? { x: 240, y: 200 };
+      const gx = (v: number) => Math.round(v / GRID) * GRID;
+      handleCreateTextBox(gx(centre.x - TEXTBOX_DEFAULT_WIDTH / 2), gx(centre.y), title, text);
+      toastSeq.current += 1;
+      setToast({ text: 'Pinned section to canvas', id: toastSeq.current });
+    },
+    [handleCreateTextBox],
+  );
+
   const handleLoadPreset = useCallback(
     (preset: Preset) => {
       // Deep copy: presets are module-level constants and must never be
@@ -2185,7 +2239,7 @@ export default function App() {
         onSelect: handleNewCanvas,
       },
       {
-        label: 'How to use ScaleLab',
+        label: 'Studio guide',
         icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
         onSelect: () => setGuideOpen(true),
       },
@@ -2198,6 +2252,11 @@ export default function App() {
         label: 'Examples',
         icon: 'M3 4a1 1 0 0 1 1-1h6v7H3zM14 3h6a1 1 0 0 1 1 1v5h-7zM3 13h7v8H4a1 1 0 0 1-1-1zM14 13h7v7a1 1 0 0 1-1 1h-6z',
         onSelect: () => setExamplesOpen(true),
+      },
+      {
+        label: 'Interview practice',
+        icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h6',
+        onSelect: () => setInterviewOpen(true),
       },
       {
         label: 'Glossary',
@@ -2515,6 +2574,21 @@ export default function App() {
       }
 
       /*
+       * Cmd/Ctrl+K jumps to the library search: the rail opens (sheets
+       * close on a phone, the way the Build tab does) and the search box
+       * takes focus so typing filters immediately.
+       */
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyK') {
+        e.preventDefault();
+        setLayout((l) =>
+          l.library ? l : { ...l, library: true, metrics: phone ? false : l.metrics },
+        );
+        if (phone) setInspectorHidden(true);
+        setPaletteFocusNonce((n) => n + 1);
+        return;
+      }
+
+      /*
        * Duplicate. By e.code for the same layout reasons as undo, and
        * preventDefault matters doubly here: Ctrl+D is the browser's
        * bookmark chord.
@@ -2580,8 +2654,8 @@ export default function App() {
        * modifiers so they can never shadow Cmd/Ctrl+C, Cmd/Ctrl+M or
        * Cmd/Ctrl+I in the browser.
        *
-       * I is a no-op with nothing selected: the inspector is
-       * selection-driven and an empty panel is not worth opening.
+       * I toggles the right dock either way: node settings with a
+       * selection, Studio review without one.
        */
       if (!e.metaKey && !e.ctrlKey && !e.altKey) {
         if (e.key === 'c' || e.key === 'C') {
@@ -2595,10 +2669,8 @@ export default function App() {
           return;
         }
         if (e.key === 'i' || e.key === 'I') {
-          if (hasSelection) {
-            e.preventDefault();
-            toggleInspector();
-          }
+          e.preventDefault();
+          toggleInspector();
           return;
         }
         /*
@@ -2659,6 +2731,29 @@ export default function App() {
    * only as the persisted slider value for session restore.
    */
   const offeredRps = useMemo(() => offeredRpsFor(topology), [topology]);
+
+  /**
+   * The scenario shared by every traffic source, or 'mixed' when sources
+   * disagree. Tabs show no selection rather than a lie in that case.
+   */
+  const trafficPattern = useMemo(() => {
+    const sources = findTrafficSources(topology);
+    if (sources.length === 0) return 'steady' as const;
+    const first = sources[0]!.config.traffic ?? 'steady';
+    return sources.every((s) => (s.config.traffic ?? 'steady') === first)
+      ? first
+      : ('mixed' as const);
+  }, [topology]);
+
+  /** One scenario for every source: the engine scales each baseline, so the
+   *  mix survives the switch. */
+  const handlePatternChange = useCallback(
+    (pattern: TrafficPattern) => {
+      const ids = findTrafficSources(topology).map((s) => s.id);
+      if (ids.length > 0) handleConfigChangeMany(ids, { traffic: pattern });
+    },
+    [topology, handleConfigChangeMany],
+  );
 
   /**
    * Requests actually lost PER SECOND, derived from the engine's per-reason
@@ -2892,7 +2987,7 @@ export default function App() {
           <button
             type="button"
             className={`app-mode-btn${cleanCanvas ? ' is-active' : ''}`}
-            title="Clean Canvas mode: Draw & architecture view without live request counters"
+            title="Design mode: architecture view without live request counters"
             aria-pressed={cleanCanvas}
             onClick={() => {
               if (!cleanCanvas) togglePreference('cleanCanvas');
@@ -2913,12 +3008,12 @@ export default function App() {
               <path d="m9 9 6 6" />
               <path d="m15 9-6 6" />
             </svg>
-            <span className="app-mode-label">Clean Canvas</span>
+            <span className="app-mode-label">Design</span>
           </button>
           <button
             type="button"
             className={`app-mode-btn${!cleanCanvas ? ' is-active' : ''}`}
-            title="Simulation mode: live traffic load slider, requests/second, and telemetry"
+            title="Simulate mode: live traffic control, requests per second, and telemetry"
             aria-pressed={!cleanCanvas}
             onClick={() => {
               if (cleanCanvas) togglePreference('cleanCanvas');
@@ -2937,7 +3032,7 @@ export default function App() {
             >
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
             </svg>
-            <span className="app-mode-label">Simulation</span>
+            <span className="app-mode-label">Simulate</span>
           </button>
         </div>
 
@@ -2946,7 +3041,7 @@ export default function App() {
             type="button"
             className="app-guide-btn"
             title="Help: Interactive guide & manual"
-            aria-label="Help: How to use ScaleLab"
+            aria-label="Help: Studio guide"
             onClick={() => setGuideOpen(true)}
           >
             <svg
@@ -3081,6 +3176,88 @@ export default function App() {
           } as CSSProperties
         }
       >
+        {/* Activity rail: the studio's stable command strip. On laptop widths
+          the three floating canvas toggles hide and this rail carries the
+          same three actions (plus Examples and the guide) in one place that
+          never moves. Below the breakpoint the rail hides and the floating
+          toggles and phone tab bar take over, so touch layouts keep their
+          larger, edge-placed targets. */}
+        <nav className="app-activity" aria-label="Studio panels">
+          <button
+            type="button"
+            className={`btn btn-icon app-activity-btn${layout.library ? ' is-active' : ''}`}
+            aria-expanded={layout.library}
+            aria-label={layout.library ? 'Hide library' : 'Show library'}
+            title={layout.library ? 'Hide library (C)' : 'Show library (C)'}
+            onClick={toggleLibrary}
+          >
+            <PanelGlyph edge="left" />
+          </button>
+          <button
+            type="button"
+            className={`btn btn-icon app-activity-btn${inspectorVisible ? ' is-active' : ''}`}
+            aria-expanded={inspectorVisible}
+            aria-label={inspectorVisible ? 'Hide review' : 'Show review'}
+            title={inspectorVisible ? 'Hide review (I)' : 'Show review (I)'}
+            onClick={toggleInspector}
+          >
+            <PanelGlyph edge="right" />
+          </button>
+          <button
+            type="button"
+            className={`btn btn-icon app-activity-btn${layout.metrics ? ' is-active' : ''}`}
+            aria-expanded={layout.metrics}
+            aria-label={layout.metrics ? 'Hide charts' : 'Show charts'}
+            title={layout.metrics ? 'Hide charts (M)' : 'Show charts (M)'}
+            onClick={toggleMetrics}
+          >
+            <PanelGlyph edge="bottom" />
+          </button>
+          <div className="app-activity-sep" aria-hidden="true" />
+          <button
+            type="button"
+            className="btn btn-icon app-activity-btn"
+            aria-label="Open examples"
+            title="Examples"
+            onClick={() => setExamplesOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M3 4a1 1 0 0 1 1-1h6v7H3zM14 3h6a1 1 0 0 1 1 1v5h-7zM3 13h7v8H4a1 1 0 0 1-1-1zM14 13h7v7a1 1 0 0 1-1 1h-6z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="btn btn-icon app-activity-btn"
+            aria-label="Open studio guide"
+            title="Studio guide"
+            onClick={() => setGuideOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
+        </nav>
         <PanelSlot
           open={layout.library}
           edge="left"
@@ -3090,6 +3267,7 @@ export default function App() {
             onAdd={handlePaletteAdd}
             onAddAnnotation={handlePaletteAnnotation}
             armedTool={armedTool}
+            searchFocusSignal={paletteFocusNonce}
           />
           <PanelResizer
             edge="left"
@@ -3172,9 +3350,9 @@ export default function App() {
               visibleRef={stageSafeRef}
             />
 
-            {/* Floating Simulation Control Deck (Only in Simulation Mode) */}
+            {/* Studio control deck (only in Simulate mode) */}
             {!cleanCanvas && (
-              <aside className="app-sim-dock" aria-label="Simulation control deck">
+              <aside className="app-sim-dock" aria-label="Studio control deck">
                 <TrafficControl
                   rps={offeredRps}
                   onRpsChange={handleRpsChange}
@@ -3186,6 +3364,8 @@ export default function App() {
                   lost={lostRps}
                   empty={topology.nodes.length === 0}
                   noTrafficSource={findTrafficSources(topology).length === 0}
+                  pattern={trafficPattern}
+                  onPatternChange={handlePatternChange}
                 />
               </aside>
             )}
@@ -3201,26 +3381,20 @@ export default function App() {
             >
               <PanelGlyph edge="left" />
             </button>
-            {/*
-              Rendered only while something is selected, because that is the
-              only time the inspector can exist at all. With nothing
-              selected there is no panel AND no button — the affordance for
-              the inspector is selection itself, which the empty-canvas copy
-              and the palette rows already teach.
-            */}
-            {hasSelection ? (
-              <button
-                type="button"
-                className="btn btn-sm btn-icon stage-toggle stage-toggle-inspector"
-                data-chrome="layout"
-                aria-expanded={inspectorVisible}
-                aria-label={inspectorVisible ? 'Hide inspector' : 'Show inspector'}
-                title={inspectorVisible ? 'Hide inspector (I)' : 'Show inspector (I)'}
-                onClick={toggleInspector}
-              >
-                <PanelGlyph edge="right" />
-              </button>
-            ) : null}
+            {/* The dock toggle is always present: with a selection it shows
+              settings, with none it shows the Studio review. The affordance
+              that opens the dock is the affordance that brings it back. */}
+            <button
+              type="button"
+              className="btn btn-sm btn-icon stage-toggle stage-toggle-inspector"
+              data-chrome="layout"
+              aria-expanded={inspectorVisible}
+              aria-label={inspectorVisible ? 'Hide inspector' : 'Show inspector'}
+              title={inspectorVisible ? 'Hide inspector (I)' : 'Show inspector (I)'}
+              onClick={toggleInspector}
+            >
+              <PanelGlyph edge="right" />
+            </button>
             <button
               type="button"
               className="btn btn-sm btn-icon stage-toggle stage-toggle-metrics"
@@ -3291,6 +3465,7 @@ export default function App() {
             onInkStyle={handleInkStyle}
             onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
             cleanCanvas={cleanCanvas}
+            topology={topology}
           />
           <PanelResizer
             edge="right"
@@ -3313,10 +3488,8 @@ export default function App() {
         about whether a panel is open. Above the breakpoint it is
         display:none and costs a reader nothing.
 
-        The inspector tab is disabled rather than hidden when nothing is
-        selected. A tab bar whose tabs come and go moves the others under
-        the thumb mid-tap, and the disabled state teaches what the tab is
-        for: select something and it lights up.
+        The Review tab opens the right dock in both states: node settings
+        with a selection, Studio review without one.
       */}
       <nav className="app-tabbar" aria-label="Panels">
         <button
@@ -3332,11 +3505,10 @@ export default function App() {
           type="button"
           className="app-tab"
           aria-expanded={inspectorVisible}
-          disabled={!hasSelection}
           onClick={toggleInspector}
         >
           <PanelGlyph edge="right" />
-          Inspect
+          Review
         </button>
         <button
           type="button"
@@ -3391,6 +3563,7 @@ export default function App() {
           try { localStorage.setItem('scalelab.guide-dismissed', 'true'); } catch { /* quota / private browsing */ }
         }}
         onOpenExamples={() => setExamplesOpen(true)}
+        onOpenInterview={() => setInterviewOpen(true)}
       />
       {/* The real file input, kept off screen. A bare one cannot be styled,
           so the Settings row calls click() on this. It lives beside the
@@ -3431,6 +3604,15 @@ export default function App() {
         activePresetId={presetId}
         onLoad={handleLoadPreset}
         onNewCanvas={handleNewCanvas}
+      />
+      <InterviewPractice
+        open={interviewOpen}
+        onClose={() => setInterviewOpen(false)}
+        packs={INTERVIEW_PACKS}
+        presets={PRESETS}
+        activePresetId={presetId}
+        onLoadPreset={handleLoadPreset}
+        onPinSection={handlePinSection}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { createElement, useCallback, useMemo, useRef, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
 import type { NodeKind } from '../sim/types';
 import {
@@ -300,6 +300,11 @@ export interface PaletteProps {
    * evidence and the student who looks back at the rail sees nothing.
    */
   armedTool?: AnnotationTool | null;
+  /**
+   * Increment to move focus into the search box (the Cmd+K shortcut).
+   * A counter, not a boolean, so repeated presses refocus.
+   */
+  searchFocusSignal?: number;
 }
 
 /* ------------------------------------------------------------------ *
@@ -449,7 +454,7 @@ const CATEGORY_CHIPS = [
   { id: 'control', label: 'Control' },
 ] as const;
 
-export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
+export function Palette({ onAdd, onAddAnnotation, armedTool, searchFocusSignal }: PaletteProps) {
   /**
    * Whether the hover explanations are on. With them OFF (the default) the
    * per-row "?" mark is not rendered at all: <Term> degrades to its bare
@@ -470,6 +475,13 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement | null>(null);
   const needle = query.trim().toLowerCase();
+
+  /* Cmd+K landing: the shell opens the rail and pings this, and the
+     search box takes focus so typing filters immediately. Guarded on
+     truthy so the initial 0 commits nothing. */
+  useEffect(() => {
+    if (searchFocusSignal) searchRef.current?.focus();
+  }, [searchFocusSignal]);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -543,7 +555,7 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
   );
 
   return (
-    <nav className="pal" aria-label="Components and examples">
+    <nav className="pal" aria-label="Library and examples">
       <div className="pal-scroll scroll">
         {/* Not a disclosure. The rail itself already hides and shows with one
             button and a keyboard shortcut, so wrapping its only remaining
@@ -555,7 +567,7 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
             disclosure in a 224px rail is a filing cabinet, not a tool. */}
         <div className="pal-section">
           <p className="label pal-heading">
-            Components{' '}
+            Library{' '}
             <span className="pal-heading-count">
               {needle ? `${matchCount} of ${totalKinds}` : totalKinds}
             </span>
@@ -585,8 +597,8 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
               ref={searchRef}
               type="search"
               className="pal-search-input"
-              placeholder="Search components"
-              aria-label="Search components"
+              placeholder="Search library"
+              aria-label="Search library"
               value={query}
               onChange={onSearchChange}
               onKeyDown={onSearchKeyDown}

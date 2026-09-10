@@ -22,9 +22,9 @@ export function OverviewPane() {
 
         <div className="gd-step-card">
           <div className="gd-step-num">2</div>
-          <h4>Simulate or Clean Canvas</h4>
+          <h4>Design or Simulate</h4>
           <p>
-            Toggle <strong>Clean Canvas</strong> for pure diagramming, or <strong>Simulation</strong> to dial up traffic with the bottom control deck and watch real queue dynamics.
+            Toggle <strong>Design</strong> for pure diagramming, or <strong>Simulate</strong> to dial up traffic with the studio control deck and watch real queue dynamics.
           </p>
         </div>
 
@@ -36,6 +36,10 @@ export function OverviewPane() {
             or kill nodes. Observe p99 latency spikes and add circuit breakers or autoscalers.
           </p>
         </div>
+      </div>
+
+      <div className="gd-callout">
+        <strong>Studio review:</strong> press <strong>I</strong> with an empty canvas to estimate this design in monthly cloud cost. Open <strong>Interview practice</strong> from the menu to walk requirements, API, and deep dives for classic problems, then pin each section onto the canvas and load its starter system.
       </div>
 
       <div className="gd-callout">

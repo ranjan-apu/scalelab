@@ -17,4 +17,5 @@ export interface GuideProps {
   open: boolean;
   onClose: () => void;
   onOpenExamples?: () => void;
+  onOpenInterview?: () => void;
 }

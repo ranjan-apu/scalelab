@@ -5,11 +5,12 @@ export function TrafficPane() {
 
       <div className="gd-grid-2">
         <div className="gd-card-mini">
-          <h4>Traffic Patterns</h4>
-          <p>Select a <strong>Client</strong> component to configure how load arrives:</p>
+          <h4>Traffic Scenarios</h4>
+          <p>The control deck under the canvas shapes <strong>how load arrives</strong>. One choice applies to every source at once:</p>
           <ul>
             <li><strong>Steady:</strong> Uniform rate for baseline benchmarking.</li>
-            <li><strong>Spike Burst:</strong> Periodic 4x surges to test queue absorption.</li>
+            <li><strong>Ramp:</strong> Climbs to full load, then holds.</li>
+            <li><strong>Spike:</strong> Periodic 4x surges to test queue absorption.</li>
             <li><strong>Diurnal:</strong> Realistic 24-hour day/night oscillation waves.</li>
           </ul>
         </div>

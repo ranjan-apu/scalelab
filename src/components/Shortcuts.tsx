@@ -40,15 +40,16 @@ interface Group {
 
 const GROUPS: Group[] = [
   {
-    title: 'Simulation',
+    title: 'Run',
     rows: [
       { keys: ['Space'], does: 'Play or pause' },
       { keys: ['S'], does: 'Step one tick (pauses first)' },
     ],
   },
   {
-    title: 'Build',
+    title: 'Design',
     rows: [
+      { keys: ['Ctrl+K', 'Cmd+K'], does: 'Focus the library search' },
       { keys: ['Drag a port'], does: 'Connect two components' },
       { keys: ['Click a port'], does: 'Arm a link; click the target to finish' },
       { keys: ['Double-click'], does: 'Rename a component in place' },

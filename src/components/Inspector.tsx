@@ -13,7 +13,10 @@ import type {
   NodeStats,
   SimNode,
   SystemStats,
+  Topology,
+  TrafficPattern,
 } from '../sim/types';
+import { TRAFFIC_PATTERNS } from '../sim/types';
 import { defaultConfig } from '../sim/presets';
 import { KIND_NAME, KIND_TERM } from './nodeVisuals';
 import {
@@ -41,6 +44,7 @@ import type { Ink, InkTone } from '../sim/sketch';
 import { INTERVIEW_TEMPLATES, applyTab } from './annotationLayout';
 import type { InterviewTemplate } from './annotationLayout';
 import { usePreference } from '../content/preferences';
+import { StudioPanel } from './StudioPanel';
 import './Inspector.css';
 
 /* ------------------------------------------------------------------ *
@@ -515,7 +519,7 @@ const FIELD_SPECS: Record<Field, FieldSpec> = {
   rps: {
     control: 'slider',
     term: 'offered',
-    label: 'Offered load',
+    label: 'Traffic',
     unit: 'requests per second',
     min: 1,
     max: 5000,
@@ -2337,7 +2341,7 @@ function TextBoxInspector({
               <button
                 key={f}
                 type="button"
-                className={`btn btn-ghost ins-font-btn${(textBox.font ?? (style === 'sticky' ? 'hand' : 'sans')) === f ? ' is-active' : ''}`}
+                className={`btn btn-ghost ins-font-btn${(textBox.font ?? 'sans') === f ? ' is-active' : ''}`}
                 style={{ fontFamily: `var(--${f})` }}
                 onClick={() => onSetTextBoxStyle?.(textBox.id, { font: f })}
               >
@@ -2749,6 +2753,11 @@ export interface InspectorProps {
   onInkStyle?: (id: string, patch: { width?: number; opacity?: number }) => void;
   onDeleteInk?: (id: string) => void;
   cleanCanvas?: boolean;
+  /**
+   * Whole topology, for the Studio review shown when nothing is selected.
+   * Optional: without it the panel keeps its old empty state.
+   */
+  topology?: Topology;
 }
 
 export function Inspector({
@@ -2779,6 +2788,7 @@ export function Inspector({
   onInkStyle,
   onDeleteInk,
   cleanCanvas,
+  topology,
 }: InspectorProps) {
   const cleanCanvasPref = usePreference('cleanCanvas');
   const isClean = cleanCanvas ?? cleanCanvasPref;
@@ -2845,6 +2855,8 @@ export function Inspector({
                 Connections have nothing to configure. Press Delete to remove them.
               </p>
             </>
+          ) : topology ? (
+            <StudioPanel topology={topology} />
           ) : (
             <p className="ins-empty">
               Select a component on the canvas and its settings will appear here.
@@ -3693,6 +3705,20 @@ function rpsToPosition(rps: number): number {
  */
 const SCALE_MARKS = [1, 10, 100, 1000, 5000];
 
+/** Scenario tab labels and explanations, in engine order. */
+const SCENARIO_LABELS: Record<TrafficPattern, string> = {
+  steady: 'Steady',
+  ramp: 'Ramp',
+  spike: 'Spike',
+  diurnal: 'Diurnal',
+};
+const SCENARIO_HINTS: Record<TrafficPattern, string> = {
+  steady: 'Steady: flat traffic at the set rate',
+  ramp: 'Ramp: climbs to full load over one cycle, then holds',
+  spike: 'Spike: quiet stretches, then a 4x burst at the same average',
+  diurnal: 'Diurnal: a smooth day-night cycle between quarter and double load',
+};
+
 export interface TrafficControlProps {
   rps: number;
   onRpsChange: (rps: number) => void;
@@ -3724,6 +3750,12 @@ export interface TrafficControlProps {
    * control rather than an inapplicable one.
    */
   noTrafficSource: boolean;
+  /**
+   * Traffic shape across sources: the shared pattern, or 'mixed' when
+   * sources disagree (tabs show no selection rather than lying).
+   */
+  pattern: TrafficPattern | 'mixed';
+  onPatternChange: (pattern: TrafficPattern) => void;
 }
 
 export function TrafficControl({
@@ -3737,6 +3769,8 @@ export function TrafficControl({
   lost,
   empty,
   noTrafficSource,
+  pattern,
+  onPatternChange,
 }: TrafficControlProps) {
   const sliderId = useId();
 
@@ -3772,7 +3806,7 @@ export function TrafficControl({
             target steal the label's activation.
           */}
           <label className="label" htmlFor={sliderId}>
-            <Term id="offered">Offered load</Term>
+            <Term id="offered">Traffic</Term>
           </label>
           <span className="traffic-load-readout">
             {noTrafficSource ? (
@@ -3841,6 +3875,36 @@ export function TrafficControl({
         </div>
       </div>
 
+      {/* Scenario. The SHAPE of traffic over time, applied to every source at
+          once: the engine scales each client's baseline through effectiveRps,
+          so a preset's deliberate traffic mix survives the switch. Tabs, not
+          a dropdown: four options fit, and the choice stays visible while
+          the run plays. */}
+      <div className="traffic-scenario">
+        <span className="label traffic-scenario-label" id={`${sliderId}-scenario`}>
+          Scenario
+        </span>
+        <div
+          className="traffic-scenario-tabs"
+          role="group"
+          aria-labelledby={`${sliderId}-scenario`}
+        >
+          {TRAFFIC_PATTERNS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`traffic-scenario-tab${pattern === p ? ' is-active' : ''}`}
+              aria-pressed={pattern === p}
+              disabled={noTrafficSource}
+              title={SCENARIO_HINTS[p]}
+              onClick={() => onPatternChange(p)}
+            >
+              {SCENARIO_LABELS[p]}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="traffic-spacer" />
 
       {/* Effect. p99 is the number students should watch, so it carries the
@@ -3862,7 +3926,7 @@ export function TrafficControl({
           <>
             <div className="traffic-metric">
               <span className="label">
-                System <Term id="p99">p99</Term>
+                <Term id="p99">p99 latency</Term>
               </span>
               <span className={p99Tone ? `num num-hero ${p99Tone}` : 'num num-hero'}>
                 {formatMs(p99)}
@@ -3907,7 +3971,7 @@ export function TrafficControl({
         transport" once and then three short labels, instead of three
         orphaned buttons.
       */}
-      <div className="traffic-actions" role="group" aria-label="Simulation transport">
+      <div className="traffic-actions" role="group" aria-label="Run controls">
         <button
           type="button"
           className="btn btn-icon transport-toggle"

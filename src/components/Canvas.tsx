@@ -133,8 +133,10 @@ import './Canvas.css';
 
 export const NODE_W = 184;
 export const NODE_H = 88;
-/** Radii come from the design scale (3/4/6). The node body is the 6. */
-const NODE_R = 6;
+/** Studio card radius. 12px reads as a product surface rather than a
+ * simulator box, and still leaves the header-band path and selection ring
+ * (both derived from this constant) geometrically consistent. */
+const NODE_R = 12;
 /**
  * Gap between the node's outline and the selection ring drawn around it.
  *
@@ -1643,7 +1645,9 @@ const Glyph = memo(function Glyph({ kind }: { kind: NodeKind }) {
  *   0 -> 1.0   1 -> 1.26   10 -> 1.85   100 -> 2.71   1k -> 3.55   5k -> 4.16
  */
 function edgeWidth(f: number): number {
-  return f <= 0 ? 1 : clamp(1 + Math.log10(1 + f) * 0.85, 1, 4.5);
+  // Studio wires start at 1.5px: hairlines belong to schematics, not to a
+  // product canvas.
+  return f <= 0 ? 1.5 : clamp(1.5 + Math.log10(1 + f) * 0.85, 1.5, 5);
 }
 
 interface EdgeViewProps {
@@ -2336,7 +2340,7 @@ const TextBoxView = memo(function TextBoxView({
 
   const cardStyle = box.cardStyle ?? 'card';
   const rx = cardStyle === 'sticky' ? 2 : cardStyle === 'outline' ? 4 : 8;
-  const font = box.font ?? (cardStyle === 'sticky' ? 'hand' : 'sans');
+  const font = box.font ?? 'sans';
   const height = Math.max(box.height, layout.contentH);
   const toneClass = box.tone !== undefined ? ` cv-tone-${box.tone}` : '';
   const selClass = selected ? ' is-selected' : '';
@@ -6871,7 +6875,10 @@ export default function Canvas({
         </div>
       )}
 
-      {topology.nodes.length === 0 && (
+      {/* The empty canvas hint shows only on a truly empty canvas. Pinned
+        practice notes count as content: the hint used to sit underneath a
+        freshly pinned textbox, stacking two texts on top of each other. */}
+      {topology.nodes.length === 0 && (topology.annotations ?? []).length === 0 && (
         <div className="cv-empty">
           <p className="cv-empty-lead">Start with an empty canvas</p>
           <p className="cv-empty-body">

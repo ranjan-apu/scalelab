@@ -36,39 +36,11 @@
    No component-specific class may be defined in this file.
    ========================================================================== */
 
-/* ==========================================================================
-   Bundled webfont: Caveat.
+/* Studio note face: typed comment cards, not handwriting.
 
-   Self-hosted rather than linked from Google Fonts, so the page makes no
-   third-party request and nothing about who is reading leaves this origin.
-
-   Licensed under the SIL Open Font License 1.1, which is NOT the repository's
-   MIT licence: the full terms travel with the binary in
-   public/fonts/Caveat/OFL.txt, as the licence requires. Verified from the
-   font's own embedded metadata rather than from a secondary source.
-
-   The latin subset only (the unicode-range below is Google's own for that
-   block), which is 75KB. `font-display: swap` because a handwriting face is
-   decoration on top of an annotation that is perfectly readable in the
-   fallback; blocking text on it would be the wrong trade.
-
-   Canvas measures text through textMetrics, which caches widths. Canvas
-   already calls resetTextMetrics from a document.fonts.ready handler, so the
-   notes re-wrap once this lands rather than keeping widths measured against
-   the fallback face.
-   ========================================================================== */
-
-@font-face {
-  font-family: 'Caveat';
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-  src: url('/fonts/Caveat/Caveat-latin.woff2') format('woff2');
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
-    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF,
-    U+FFFD;
-}
+   ScaleLab Studio annotations render in the UI sans (italic at the usage
+   sites in Canvas.css), giving design notes the voice of a review comment
+   rather than a whiteboard scribble. No webfont is fetched for this. */
 
 :root {
   /* ------------------------------------------------------------------------
@@ -286,18 +258,17 @@
      "you did this": the focus ring, selection, the slider fill, .btn-primary.
      A data series may never wear the selection hue.
 
-     Measured: --accent as text on --bg 5.78:1 (AA body).
-               white on --accent 6.17:1, on hover 7.61:1, on press 9.32:1.
-               --accent against the palest kind fill 5.42:1, so the selection
-               ring is unmistakable on every node in the system.
+     Measured: --accent as text on --bg 5.12:1, on --surface 5.39:1 (AA body).
+               white on --accent 5.47:1. Teal is the studio's own hue: nothing
+               in the simulator it was forked from wears it.
      ------------------------------------------------------------------------ */
-  --accent: #325cbd;
-  --accent-hover: #2a4fa5;
-  --accent-press: #23438c;
+  --accent: #0f766e;
+  --accent-hover: #0c6b5f;
+  --accent-press: #095349;
   --accent-fg: #ffffff;
-  --accent-soft: #e3edff; /* tinted chip background; --text on it = 13.23:1 */
-  --accent-ink: #2d5277; /* text on --accent-soft = 6.90:1 */
-  --accent-ring: rgba(50, 92, 189, 0.32); /* focus halo, flat not glowing */
+  --accent-soft: #d9efea; /* tinted chip background */
+  --accent-ink: #0b5f54; /* text on --accent-soft */
+  --accent-ring: rgba(15, 118, 110, 0.32); /* focus halo, flat not glowing */
 
   /* ------------------------------------------------------------------------
      Semantic metric states.
@@ -668,7 +639,7 @@
      stack ends in a generic family that always resolves, so a machine with
      none of the named faces still renders something sane rather than falling
      back to the UI sans and quietly losing the distinction. */
-  --hand: 'Caveat', 'Segoe Print', 'Bradley Hand', Chalkboard, 'Comic Neue', cursive;
+  --hand: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
 
   color-scheme: light;
@@ -741,15 +712,15 @@
   --cat-violet: #b491dd;
   --cat-blue: #78aee0;
 
-  /* Accent. Lightened until it carries text on the dark ground: 6.59:1 on
-     --bg, where the light theme's blue would have been 2.4:1 and unreadable. */
-  --accent: #6f9bf0;
-  --accent-hover: #87acf5;
-  --accent-press: #5b86dc;
+  /* Accent. Teal carries text on the dark ground where the old blue sat
+     at 2.4:1 and was unreadable. */
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-press: #14b8a6;
   --accent-fg: #16151a;
-  --accent-soft: #1b2740;
-  --accent-ink: #a9c6ff; /* on --accent-soft = 8.65:1 */
-  --accent-ring: rgba(111, 155, 240, 0.38);
+  --accent-soft: #0c2b27;
+  --accent-ink: #7de8d8;
+  --accent-ring: rgba(45, 212, 191, 0.38);
 
   /* Status. Each clears 4.5:1 on both --bg and --surface, and each -soft
      plate carries its own ink above 4.5:1. */
@@ -960,13 +931,13 @@
     --cat-violet: #b491dd;
     --cat-blue: #78aee0;
 
-    --accent: #6f9bf0;
-    --accent-hover: #87acf5;
-    --accent-press: #5b86dc;
+    --accent: #2dd4bf;
+    --accent-hover: #5eead4;
+    --accent-press: #14b8a6;
     --accent-fg: #16151a;
-    --accent-soft: #1b2740;
-    --accent-ink: #a9c6ff;
-    --accent-ring: rgba(111, 155, 240, 0.38);
+    --accent-soft: #0c2b27;
+    --accent-ink: #7de8d8;
+    --accent-ring: rgba(45, 212, 191, 0.38);
 
     --ok: #4ac06e;
     --warn: #d79a2b;

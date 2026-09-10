@@ -622,6 +622,71 @@
 }
 
 /* --------------------------------------------------------------------------
+   Scenario — the shape of traffic over time
+
+   A segmented tab row under the rate slider. Segmented, not a select: four
+   options fit in the dock at every breakpoint, and the active shape stays
+   visible while the run plays. Inactive tabs wear the recessed surface so
+   the active one reads as pressed, matching the workspace mode switch.
+   -------------------------------------------------------------------------- */
+.traffic-scenario {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.traffic-scenario-label {
+  flex: none;
+}
+
+.traffic-scenario-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-btn);
+  background: var(--surface-2);
+  border: var(--bw) solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.traffic-scenario-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.traffic-scenario-tab {
+  flex: 1 0 auto;
+  padding: 3px var(--sp-2);
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  line-height: 1.5;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.traffic-scenario-tab:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.traffic-scenario-tab.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.traffic-scenario-tab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
    Readouts — the effect
    -------------------------------------------------------------------------- */
 

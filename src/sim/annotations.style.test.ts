@@ -83,7 +83,7 @@ describe('annotation colour', () => {
 });
 
 describe('annotation font', () => {
-  it.each(['sans', 'hand', 'serif', 'mono'])('accepts %s', (f) => {
+  it.each(['sans', 'serif', 'mono'])('accepts %s', (f) => {
     expect(firstNote(noteWith({ font: f }))).toMatchObject({ font: f });
   });
 
@@ -92,6 +92,9 @@ describe('annotation font', () => {
     // serif on a typical machine, so the picker showed two identical
     // buttons. A design saved while it existed must not resurrect it.
     expect(firstNote(noteWith({ font: 'marker' }))).not.toHaveProperty('font');
+    // The handwriting face went the same way when its webfont was removed:
+    // designs saved while it existed fall back to the default rendering.
+    expect(firstNote(noteWith({ font: 'hand' }))).not.toHaveProperty('font');
     // Painting in a face we cannot measure wraps the note to the wrong width.
     expect(firstNote(noteWith({ font: 'Papyrus' }))).not.toHaveProperty('font');
     expect(firstNote(noteWith({ font: 42 }))).not.toHaveProperty('font');
