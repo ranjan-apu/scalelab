@@ -15,11 +15,16 @@ import type {
   DragEvent,
   ReactNode,
 } from 'react';
-import type { NodeConfig, NodeKind, SimNode, SimSnapshot, Topology, TrafficPattern } from './sim/types';
+import type { NodeConfig, NodeKind, SimEdge, SimNode, SimSnapshot, Topology, TrafficPattern } from './sim/types';
 import { useCoarsePointer } from './useCoarsePointer';
 import { Engine } from './sim/engine';
 import { PRESETS, makeNode } from './sim/presets';
 import type { Preset } from './sim/presets';
+import { CostModal } from './components/CostModal';
+import { AdvisorDrawer } from './components/AdvisorDrawer';
+import { calculateCloudCosts } from './content/cloudPricing';
+import { auditTopology } from './sim/advisor';
+import { exportToHldMarkdown } from './hldExport';
 import Canvas, {
   GRID,
   NODE_H,
@@ -619,6 +624,15 @@ export default function App() {
   const [topology, setTopology] = useState<Topology>(initial.topology);
   const [rps, setRps] = useState<number>(initial.rps);
   const [presetId, setPresetId] = useState<string | null>(initial.presetId);
+  const [costModalOpen, setCostModalOpen] = useState(false);
+  const [advisorDrawerOpen, setAdvisorDrawerOpen] = useState(false);
+  const [architectureTitle, setArchitectureTitle] = useState<string>(() => {
+    if (initial.presetId) {
+      const p = PRESETS.find((preset) => preset.id === initial.presetId);
+      if (p) return p.name;
+    }
+    return 'System Architecture';
+  });
   /**
    * Canvas selection. Node ids and edge ids share this one set; an edge id is
    * `from->to`, which can never collide with a node id, so the namespace is
@@ -856,6 +870,22 @@ export default function App() {
     return ann && isInk(ann) ? ann : null;
   }, [selectedIds, topology.annotations]);
 
+  const selectedEdge = useMemo<SimEdge | null>(() => {
+    if (selectedNodes.length > 0 || selectedIds.size !== 1) return null;
+    const [id] = selectedIds;
+    return topology.edges.find((e) => e.id === id) ?? null;
+  }, [selectedNodes.length, selectedIds, topology.edges]);
+
+  const edgeSourceNode = useMemo<SimNode | null>(() => {
+    if (!selectedEdge) return null;
+    return topology.nodes.find((n) => n.id === selectedEdge.from) ?? null;
+  }, [selectedEdge, topology.nodes]);
+
+  const edgeTargetNode = useMemo<SimNode | null>(() => {
+    if (!selectedEdge) return null;
+    return topology.nodes.find((n) => n.id === selectedEdge.to) ?? null;
+  }, [selectedEdge, topology.nodes]);
+
   /**
    * "Something the INSPECTOR can talk about is selected."
    * Nodes, edges, Requirements Cards (TextBoxes), Notes and ink strokes are
@@ -863,6 +893,7 @@ export default function App() {
    */
   const hasSelection =
     selectedNodes.length + selectedEdgeCount > 0 ||
+    selectedEdge !== null ||
     selectedTextBox !== null ||
     selectedNote !== null ||
     selectedInk !== null;
@@ -1799,6 +1830,17 @@ export default function App() {
     [applyTopology, topology, history],
   );
 
+  const handleUpdateEdge = useCallback(
+    (edgeId: string, patch: Partial<SimEdge>) => {
+      history.commit('edge-config', snapRef.current);
+      applyTopology({
+        ...topology,
+        edges: topology.edges.map((e) => (e.id === edgeId ? { ...e, ...patch } : e)),
+      });
+    },
+    [applyTopology, topology, history],
+  );
+
   /**
    * Delete a whole selection in ONE topology edit.
    *
@@ -2159,6 +2201,7 @@ export default function App() {
         setToast({ text: 'That design is no longer saved.', id: toastSeq.current });
         return;
       }
+      setArchitectureTitle(saved.name);
       replaceDesign(structuredClone(saved.topology), null, 'open design');
       toastSeq.current += 1;
       setToast({ text: `Opened ${saved.name}`, id: toastSeq.current });
@@ -2173,6 +2216,7 @@ export default function App() {
       setToast({ text: result.error, id: toastSeq.current });
       return;
     }
+    setArchitectureTitle(name);
     // The eviction is said out loud. A shelf that silently drops the
     // oldest thing on it is a shelf that loses work.
     setToast({
@@ -2202,6 +2246,7 @@ export default function App() {
     (preset: Preset) => {
       // Deep copy: presets are module-level constants and must never be
       // mutated by editing the loaded system.
+      setArchitectureTitle(preset.name);
       replaceDesign(structuredClone(preset.topology), preset.id, 'example load');
     },
     [replaceDesign],
@@ -2217,6 +2262,7 @@ export default function App() {
     ) {
       return;
     }
+    setArchitectureTitle('System Architecture');
     replaceDesign({ nodes: [], edges: [], annotations: [] }, null, 'new canvas');
     toastSeq.current += 1;
     setToast({ text: 'Created a new empty canvas', id: toastSeq.current });
@@ -2371,7 +2417,25 @@ export default function App() {
       });
   }, [topology]);
 
-
+  const handleExportHldMarkdown = useCallback(() => {
+    const title =
+      architectureTitle.trim() ||
+      (presetId ? (PRESETS.find((p) => p.id === presetId)?.name ?? 'System Architecture') : 'System Architecture');
+    const md = exportToHldMarkdown(topology, { systemName: title });
+    const stem = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    downloadBlob(
+      new Blob([md], { type: 'text/markdown;charset=utf-8' }),
+      `${stem || 'hld-architecture'}-rfc.md`,
+    );
+    toastSeq.current += 1;
+    setToast({
+      text: 'Exported Hello Interview HLD RFC document (.md)',
+      id: toastSeq.current,
+    });
+  }, [topology, architectureTitle, presetId]);
 
   const importDesign = useCallback(
     async (file: File) => {
@@ -2383,6 +2447,7 @@ export default function App() {
       // The imported design is no longer any example, so the preset id is
       // cleared: leaving it set would have the Examples gallery claim a
       // file the student opened is the example it was edited from.
+      if (result.name) setArchitectureTitle(result.name);
       replaceDesign(result.topology, null, 'file import');
       setImportError(null);
       toastSeq.current += 1;
@@ -2724,6 +2789,17 @@ export default function App() {
   const selectedStats =
     selectedNode && snapshot ? (snapshot.nodes[selectedNode.id] ?? null) : null;
 
+  const cloudCostEstimate = useMemo(() => calculateCloudCosts(topology), [topology]);
+  const architecturalFindings = useMemo(() => auditTopology(topology), [topology]);
+  const spofCount = useMemo(
+    () => architecturalFindings.filter((f) => f.severity === 'critical').length,
+    [architecturalFindings],
+  );
+  const warningCount = useMemo(
+    () => architecturalFindings.filter((f) => f.severity === 'warning').length,
+    [architecturalFindings],
+  );
+
   /**
    * The header's offered load, derived from the topology's client nodes (the
    * sum, so multi-client presets add up) rather than mirrored in a separate
@@ -2898,8 +2974,16 @@ export default function App() {
 
           <div className="app-bar-sep" aria-hidden="true" />
 
-          <div className="app-doc-info" title="Current Workspace">
-            <span className="app-doc-title">System Architecture</span>
+          <div className="app-doc-info" title="Click to rename architecture">
+            <input
+              type="text"
+              className="app-doc-title-input"
+              value={architectureTitle}
+              onChange={(e) => setArchitectureTitle(e.target.value)}
+              aria-label="Architecture Title"
+              placeholder="System Architecture"
+              maxLength={60}
+            />
           </div>
 
           {/*
@@ -2982,58 +3066,117 @@ export default function App() {
           </div>
         </div>
 
-        {/* Center: Mode Switcher */}
-        <div className="app-mode-switch" role="group" aria-label="Workspace mode">
-          <button
-            type="button"
-            className={`app-mode-btn${cleanCanvas ? ' is-active' : ''}`}
-            title="Design mode: architecture view without live request counters"
-            aria-pressed={cleanCanvas}
-            onClick={() => {
-              if (!cleanCanvas) togglePreference('cleanCanvas');
-            }}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+        {/* Center: Mode Switcher & Studio Telemetry */}
+        <div className="app-center-studio">
+          <div className="app-mode-switch" role="group" aria-label="Workspace mode">
+            <button
+              type="button"
+              className={`app-mode-btn${cleanCanvas ? ' is-active' : ''}`}
+              title="Clean Canvas mode: Draw & architecture view without live request counters"
+              aria-pressed={cleanCanvas}
+              onClick={() => {
+                if (!cleanCanvas) togglePreference('cleanCanvas');
+              }}
             >
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="m9 9 6 6" />
-              <path d="m15 9-6 6" />
-            </svg>
-            <span className="app-mode-label">Design</span>
-          </button>
-          <button
-            type="button"
-            className={`app-mode-btn${!cleanCanvas ? ' is-active' : ''}`}
-            title="Simulate mode: live traffic control, requests per second, and telemetry"
-            aria-pressed={!cleanCanvas}
-            onClick={() => {
-              if (cleanCanvas) togglePreference('cleanCanvas');
-            }}
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="m9 9 6 6" />
+                <path d="m15 9-6 6" />
+              </svg>
+              <span className="app-mode-label">Clean Canvas</span>
+            </button>
+            <button
+              type="button"
+              className={`app-mode-btn${!cleanCanvas ? ' is-active' : ''}`}
+              title="Simulation mode: live traffic load slider, requests/second, and telemetry"
+              aria-pressed={!cleanCanvas}
+              onClick={() => {
+                if (cleanCanvas) togglePreference('cleanCanvas');
+              }}
             >
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-            <span className="app-mode-label">Simulate</span>
-          </button>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              <span className="app-mode-label">Simulation</span>
+            </button>
+          </div>
+
+          <div className="app-studio-telemetry" role="region" aria-label="Studio insights">
+            <button
+              type="button"
+              className="app-studio-pill-btn app-cost-pill"
+              title="Multi-Cloud Monthly Spend Estimate across AWS, GCP, Azure"
+              onClick={() => setCostModalOpen(true)}
+            >
+              <span className="app-studio-pill-icon" aria-hidden="true">☁️</span>
+              <span className="app-studio-pill-val">${cloudCostEstimate.totalAws.toLocaleString()}/mo</span>
+              <span className="app-studio-pill-tag">AWS</span>
+            </button>
+
+            <button
+              type="button"
+              className={`app-studio-pill-btn app-advisor-pill${spofCount > 0 ? ' is-spof' : warningCount > 0 ? ' is-warn' : ' is-good'}`}
+              title="Architectural Advisor: Linter for SPOFs & Resilience"
+              onClick={() => setAdvisorDrawerOpen(true)}
+            >
+              <span className="app-studio-pill-icon" aria-hidden="true">
+                {spofCount > 0 ? '🚨' : warningCount > 0 ? '⚠️' : '🛡️'}
+              </span>
+              <span className="app-studio-pill-val">
+                {spofCount > 0
+                  ? `${spofCount} SPOF${spofCount > 1 ? 's' : ''}`
+                  : warningCount > 0
+                  ? `${warningCount} Warning${warningCount > 1 ? 's' : ''}`
+                  : 'Resilient'}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="app-studio-pill-btn app-rfc-pill"
+              title="Export Hello Interview style High-Level Design (HLD) RFC (.md)"
+              onClick={handleExportHldMarkdown}
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              <span className="app-studio-pill-val">HLD RFC</span>
+            </button>
+          </div>
         </div>
 
         <div className="app-island app-island-menu">
@@ -3466,6 +3609,11 @@ export default function App() {
             onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
             cleanCanvas={cleanCanvas}
             topology={topology}
+            edge={selectedEdge}
+            sourceNode={edgeSourceNode}
+            targetNode={edgeTargetNode}
+            onUpdateEdge={handleUpdateEdge}
+            onDeleteEdge={(edgeId) => handleDeleteSelection([], [edgeId], [])}
           />
           <PanelResizer
             edge="right"
@@ -3595,6 +3743,23 @@ export default function App() {
         onImport={() => fileInputRef.current?.click()}
         onExportImage={handleExportImage}
         onExportMermaid={handleExportMermaid}
+        onExportHldMarkdown={handleExportHldMarkdown}
+      />
+
+      <CostModal
+        open={costModalOpen}
+        onClose={() => setCostModalOpen(false)}
+        topology={topology}
+      />
+
+      <AdvisorDrawer
+        open={advisorDrawerOpen}
+        onClose={() => setAdvisorDrawerOpen(false)}
+        topology={topology}
+        onSelectNodes={(nodeIds) => {
+          setSelectedIds(new Set(nodeIds));
+          setAdvisorDrawerOpen(false);
+        }}
       />
 
       <Examples

@@ -128,6 +128,7 @@ export interface SettingsProps {
   onImport?: () => void;
   onExportImage?: (format: 'svg' | 'png') => void;
   onExportMermaid?: () => void;
+  onExportHldMarkdown?: () => void;
 }
 
 export function Settings({
@@ -137,6 +138,7 @@ export function Settings({
   onImport,
   onExportImage,
   onExportMermaid,
+  onExportHldMarkdown,
 }: SettingsProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -302,6 +304,17 @@ export function Settings({
                       <span className="st-row-label">Copy Mermaid diagram</span>
                       <span className="st-hint">
                         Markdown flowchart code for GitHub READMEs, Notion, and RFCs.
+                      </span>
+                    </span>
+                  </button>
+                )}
+                {onExportHldMarkdown && (
+                  <button type="button" className="st-action" onClick={onExportHldMarkdown}>
+                    <Glyph d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />
+                    <span className="st-action-text">
+                      <span className="st-row-label">Export Hello Interview HLD RFC (.md)</span>
+                      <span className="st-hint">
+                        Complete Markdown RFC with requirements, data flow, SPOFs, and cloud sizing.
                       </span>
                     </span>
                   </button>

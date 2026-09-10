@@ -8,9 +8,11 @@ import type { ReactNode } from 'react';
  */
 import { Pause, Play, RotateCcw, StepForward } from 'lucide-react';
 import type {
+  EdgeProtocol,
   NodeConfig,
   NodeKind,
   NodeStats,
+  SimEdge,
   SimNode,
   SystemStats,
   Topology,
@@ -2218,6 +2220,143 @@ function InkInspector({ ink, onSetInkTone, onInkStyle, onDeleteInk }: InkInspect
 }
 
 /* ------------------------------------------------------------------ *
+ * Connection / Edge Inspector
+ * ------------------------------------------------------------------ */
+
+interface EdgeInspectorProps {
+  edge: SimEdge;
+  sourceNode?: SimNode | null;
+  targetNode?: SimNode | null;
+  onUpdateEdge?: (id: string, patch: Partial<SimEdge>) => void;
+  onDeleteEdge?: (id: string) => void;
+  cleanCanvas?: boolean;
+}
+
+const PROTOCOLS: Array<{ id: EdgeProtocol; label: string; desc: string }> = [
+  { id: 'rest', label: 'REST / HTTPS', desc: 'Standard HTTP/1.1 or HTTP/2 API call' },
+  { id: 'grpc', label: 'gRPC / Protobuf', desc: 'Low-latency multiplexed binary RPC' },
+  { id: 'kafka', label: 'Kafka / Event', desc: 'Asynchronous distributed event topic' },
+  { id: 'ws', label: 'WebSocket', desc: 'Full-duplex persistent bidirectional channel' },
+  { id: 'sql', label: 'SQL Query', desc: 'Relational database connection pool query' },
+  { id: 'graphql', label: 'GraphQL', desc: 'Query and mutation endpoint' },
+];
+
+function EdgeInspector({
+  edge,
+  sourceNode,
+  targetNode,
+  onUpdateEdge,
+  onDeleteEdge,
+  cleanCanvas,
+}: EdgeInspectorProps) {
+  const fromName = sourceNode?.label ?? edge.from;
+  const toName = targetNode?.label ?? edge.to;
+  const currentProto = edge.protocol ?? 'rest';
+  const isSync = edge.sync !== false;
+
+  return (
+    <aside className="ins" aria-label="Edge Inspector">
+      <div className="ins-scroll scroll">
+        <header className="ins-head">
+          <h2 className="ins-title">Connection</h2>
+          <span className="label ins-kind">
+            {fromName} → {toName}
+          </span>
+        </header>
+
+        <Section title="Communication Protocol">
+          <div className="ins-proto-grid">
+            {PROTOCOLS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`ins-proto-btn${currentProto === p.id ? ' is-active' : ''}`}
+                onClick={() => onUpdateEdge?.(edge.id, { protocol: p.id })}
+                title={p.desc}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Contract / Route / Payload">
+          <input
+            type="text"
+            className="field ins-field-input"
+            value={edge.edgeLabel ?? ''}
+            placeholder={
+              currentProto === 'kafka'
+                ? 'e.g. UserCreatedEvent'
+                : currentProto === 'sql'
+                  ? 'e.g. SELECT * FROM users'
+                  : 'e.g. POST /v1/orders'
+            }
+            onChange={(e) => onUpdateEdge?.(edge.id, { edgeLabel: e.target.value })}
+            aria-label="API endpoint or event name"
+          />
+          <p className="ins-empty-hint">
+            Specify the API path, event topic, or query contract carried across this wire.
+          </p>
+        </Section>
+
+        <Section title="Execution Semantics">
+          <div className="ins-proto-mode-switch">
+            <button
+              type="button"
+              className={`ins-proto-btn${isSync ? ' is-active' : ''}`}
+              onClick={() => onUpdateEdge?.(edge.id, { sync: true })}
+            >
+              Sync Blocking (Solid Wire)
+            </button>
+            <button
+              type="button"
+              className={`ins-proto-btn${!isSync ? ' is-active' : ''}`}
+              onClick={() => onUpdateEdge?.(edge.id, { sync: false })}
+            >
+              Async Event (Dashed Wire)
+            </button>
+          </div>
+          <p className="ins-empty-hint">
+            {isSync
+              ? 'Caller blocks waiting for response. Vulnerable to downstream latency cascades.'
+              : 'Decoupled asynchronous communication. Failures do not block the caller.'}
+          </p>
+        </Section>
+
+        {!cleanCanvas && (
+          <Section title="Link Characteristics">
+            <label className="label">
+              <span>Link Latency: {edge.latencyMs ?? 0} ms</span>
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={250}
+              step={5}
+              value={edge.latencyMs ?? 0}
+              onChange={(e) => onUpdateEdge?.(edge.id, { latencyMs: Number(e.target.value) })}
+              className="slider"
+            />
+          </Section>
+        )}
+
+        <div className="ins-footer" style={{ marginTop: '20px' }}>
+          <button
+            type="button"
+            className="btn btn-danger ins-delete"
+            style={{ width: '100%' }}
+            onClick={() => onDeleteEdge?.(edge.id)}
+          >
+            Delete Connection
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * Requirements Card (Text Box) Inspector
  * ------------------------------------------------------------------ */
 
@@ -2752,12 +2891,16 @@ export interface InspectorProps {
   onSetInkTone?: (id: string, tone: InkTone) => void;
   onInkStyle?: (id: string, patch: { width?: number; opacity?: number }) => void;
   onDeleteInk?: (id: string) => void;
-  cleanCanvas?: boolean;
   /**
    * Whole topology, for the Studio review shown when nothing is selected.
    * Optional: without it the panel keeps its old empty state.
    */
   topology?: Topology;
+  edge?: SimEdge | null;
+  sourceNode?: SimNode | null;
+  targetNode?: SimNode | null;
+  onUpdateEdge?: (id: string, patch: Partial<SimEdge>) => void;
+  onDeleteEdge?: (id: string) => void;
 }
 
 export function Inspector({
@@ -2789,6 +2932,11 @@ export function Inspector({
   onDeleteInk,
   cleanCanvas,
   topology,
+  edge,
+  sourceNode,
+  targetNode,
+  onUpdateEdge,
+  onDeleteEdge,
 }: InspectorProps) {
   const cleanCanvasPref = usePreference('cleanCanvas');
   const isClean = cleanCanvas ?? cleanCanvasPref;
@@ -2808,6 +2956,18 @@ export function Inspector({
   /* Nothing selected. Edges may still be, so the empty state reports that
      rather than claiming the canvas selection is empty when it is not. */
   if (nodes.length === 0) {
+    if (edge) {
+      return (
+        <EdgeInspector
+          edge={edge}
+          sourceNode={sourceNode}
+          targetNode={targetNode}
+          onUpdateEdge={onUpdateEdge}
+          onDeleteEdge={onDeleteEdge}
+          cleanCanvas={isClean}
+        />
+      );
+    }
     if (textBox) {
       return (
         <TextBoxInspector
