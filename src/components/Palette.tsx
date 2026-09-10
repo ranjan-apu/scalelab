@@ -543,7 +543,7 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
   );
 
   return (
-    <nav className="pal" aria-label="Components and examples">
+    <nav className="pal" aria-label="Library and examples">
       <div className="pal-scroll scroll">
         {/* Not a disclosure. The rail itself already hides and shows with one
             button and a keyboard shortcut, so wrapping its only remaining
@@ -555,7 +555,7 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
             disclosure in a 224px rail is a filing cabinet, not a tool. */}
         <div className="pal-section">
           <p className="label pal-heading">
-            Components{' '}
+            Library{' '}
             <span className="pal-heading-count">
               {needle ? `${matchCount} of ${totalKinds}` : totalKinds}
             </span>
@@ -585,8 +585,8 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
               ref={searchRef}
               type="search"
               className="pal-search-input"
-              placeholder="Search components"
-              aria-label="Search components"
+              placeholder="Search library"
+              aria-label="Search library"
               value={query}
               onChange={onSearchChange}
               onKeyDown={onSearchKeyDown}

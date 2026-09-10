@@ -300,7 +300,7 @@ describe('Clean Canvas mode conditional rendering in Inspector', () => {
       />,
     );
 
-    expect(container.textContent).not.toContain('Offered load');
+    expect(container.textContent).not.toContain('Traffic');
     expect(container.textContent).not.toContain('Right now');
     expect(container.textContent).toContain('Delete component');
   });
@@ -320,7 +320,7 @@ describe('Clean Canvas mode conditional rendering in Inspector', () => {
       />,
     );
 
-    expect(container.textContent).toContain('Offered load');
+    expect(container.textContent).toContain('Traffic');
     expect(container.textContent).toContain('Right now');
   });
 
@@ -387,7 +387,7 @@ describe('Clean Canvas mode conditional rendering in Inspector', () => {
         cleanCanvas={true}
       />,
     );
-    expect(container.textContent).not.toContain('Offered load');
+    expect(container.textContent).not.toContain('Traffic');
     expect(container.textContent).not.toContain('Give up after');
     expect(container.textContent).not.toContain('Retry budget');
     expect(container.textContent).toContain('Function & Role');

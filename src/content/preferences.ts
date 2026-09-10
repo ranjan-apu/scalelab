@@ -70,9 +70,10 @@ export const DEFAULT_PREFERENCES: Preferences = {
   sparklines: true,
   snapToGrid: true,
   minimap: false,
-  // Follow the OS until told otherwise. Picking light as the default would
-  // flash a bright page at someone whose machine is set to dark.
-  theme: 'system',
+  // ScaleLab Studio opens on its light paper workspace: the product's
+  // identity is a design studio, not a dark ops console. Users who want
+  // dark can still pick it (or follow the OS with `system`).
+  theme: 'light',
   collapsedGroups: [],
   pinnedKinds: [],
 };

@@ -508,10 +508,13 @@ interface Session {
  */
 
 function loadSession(): Session {
+  // A first-time visitor lands in their OWN empty studio, not on a preset
+  // cloned from another product. The Studio guide (auto-opened on first
+  // run) and the Examples gallery are the on-ramps from here.
   const fallback: Session = {
-    topology: PRESETS[0]!.topology,
-    rps: offeredRpsFor(PRESETS[0]!.topology),
-    presetId: PRESETS[0]!.id,
+    topology: { nodes: [], edges: [], annotations: [] },
+    rps: 50,
+    presetId: null,
   };
 
   try {
@@ -540,7 +543,7 @@ function loadSession(): Session {
     };
   } catch {
     // Corrupt JSON, blocked storage (private mode, disabled cookies) — any
-    // failure here falls back to the first preset rather than breaking boot.
+    // failure here falls back to an empty studio rather than breaking boot.
     return fallback;
   }
 }
@@ -2185,7 +2188,7 @@ export default function App() {
         onSelect: handleNewCanvas,
       },
       {
-        label: 'How to use ScaleLab',
+        label: 'Studio guide',
         icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
         onSelect: () => setGuideOpen(true),
       },
@@ -2892,7 +2895,7 @@ export default function App() {
           <button
             type="button"
             className={`app-mode-btn${cleanCanvas ? ' is-active' : ''}`}
-            title="Clean Canvas mode: Draw & architecture view without live request counters"
+            title="Design mode: architecture view without live request counters"
             aria-pressed={cleanCanvas}
             onClick={() => {
               if (!cleanCanvas) togglePreference('cleanCanvas');
@@ -2913,12 +2916,12 @@ export default function App() {
               <path d="m9 9 6 6" />
               <path d="m15 9-6 6" />
             </svg>
-            <span className="app-mode-label">Clean Canvas</span>
+            <span className="app-mode-label">Design</span>
           </button>
           <button
             type="button"
             className={`app-mode-btn${!cleanCanvas ? ' is-active' : ''}`}
-            title="Simulation mode: live traffic load slider, requests/second, and telemetry"
+            title="Simulate mode: live traffic control, requests per second, and telemetry"
             aria-pressed={!cleanCanvas}
             onClick={() => {
               if (cleanCanvas) togglePreference('cleanCanvas');
@@ -2937,7 +2940,7 @@ export default function App() {
             >
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
             </svg>
-            <span className="app-mode-label">Simulation</span>
+            <span className="app-mode-label">Simulate</span>
           </button>
         </div>
 
@@ -2946,7 +2949,7 @@ export default function App() {
             type="button"
             className="app-guide-btn"
             title="Help: Interactive guide & manual"
-            aria-label="Help: How to use ScaleLab"
+            aria-label="Help: Studio guide"
             onClick={() => setGuideOpen(true)}
           >
             <svg
@@ -3172,9 +3175,9 @@ export default function App() {
               visibleRef={stageSafeRef}
             />
 
-            {/* Floating Simulation Control Deck (Only in Simulation Mode) */}
+            {/* Studio control deck (only in Simulate mode) */}
             {!cleanCanvas && (
-              <aside className="app-sim-dock" aria-label="Simulation control deck">
+              <aside className="app-sim-dock" aria-label="Studio control deck">
                 <TrafficControl
                   rps={offeredRps}
                   onRpsChange={handleRpsChange}

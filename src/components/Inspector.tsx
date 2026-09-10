@@ -515,7 +515,7 @@ const FIELD_SPECS: Record<Field, FieldSpec> = {
   rps: {
     control: 'slider',
     term: 'offered',
-    label: 'Offered load',
+    label: 'Traffic',
     unit: 'requests per second',
     min: 1,
     max: 5000,
@@ -3772,7 +3772,7 @@ export function TrafficControl({
             target steal the label's activation.
           */}
           <label className="label" htmlFor={sliderId}>
-            <Term id="offered">Offered load</Term>
+            <Term id="offered">Traffic</Term>
           </label>
           <span className="traffic-load-readout">
             {noTrafficSource ? (
@@ -3862,7 +3862,7 @@ export function TrafficControl({
           <>
             <div className="traffic-metric">
               <span className="label">
-                System <Term id="p99">p99</Term>
+                <Term id="p99">p99 latency</Term>
               </span>
               <span className={p99Tone ? `num num-hero ${p99Tone}` : 'num num-hero'}>
                 {formatMs(p99)}
@@ -3907,7 +3907,7 @@ export function TrafficControl({
         transport" once and then three short labels, instead of three
         orphaned buttons.
       */}
-      <div className="traffic-actions" role="group" aria-label="Simulation transport">
+      <div className="traffic-actions" role="group" aria-label="Run controls">
         <button
           type="button"
           className="btn btn-icon transport-toggle"

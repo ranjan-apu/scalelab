@@ -97,12 +97,12 @@ export function GuideModal({
       >
         <header className="gd-head">
           <div className="gd-head-lead">
-            <div className="gd-badge-pill">ScaleLab Guide</div>
+            <div className="gd-badge-pill">ScaleLab Studio guide</div>
             <h2 id="gd-title" className="gd-title">
-              How to Use ScaleLab
+              Welcome to ScaleLab Studio
             </h2>
             <p className="gd-subtitle">
-              A discrete-event distributed system simulator &amp; scale testing platform
+              A system design studio &amp; scale testing platform
             </p>
           </div>
           <button

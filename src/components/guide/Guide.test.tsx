@@ -33,7 +33,7 @@ describe('Guide component', () => {
     render(<Guide open={true} onClose={() => {}} />);
     const dialog = document.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
-    expect(dialog?.textContent).toContain('How to Use ScaleLab');
+    expect(dialog?.textContent).toContain('Welcome to ScaleLab Studio');
     expect(dialog?.textContent).toContain('Think in Events, Not Just Static Boxes');
   });
 

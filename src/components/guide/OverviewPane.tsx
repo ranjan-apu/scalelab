@@ -22,9 +22,9 @@ export function OverviewPane() {
 
         <div className="gd-step-card">
           <div className="gd-step-num">2</div>
-          <h4>Simulate or Clean Canvas</h4>
+          <h4>Design or Simulate</h4>
           <p>
-            Toggle <strong>Clean Canvas</strong> for pure diagramming, or <strong>Simulation</strong> to dial up traffic with the bottom control deck and watch real queue dynamics.
+            Toggle <strong>Design</strong> for pure diagramming, or <strong>Simulate</strong> to dial up traffic with the studio control deck and watch real queue dynamics.
           </p>
         </div>
 
