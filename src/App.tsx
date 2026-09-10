@@ -2870,7 +2870,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Workspace Mode Switcher: Clean Canvas (HLD/Design) vs Simulation */}
+        {/* Center: Mode Switcher */}
         <div className="app-mode-switch" role="group" aria-label="Workspace mode">
           <button
             type="button"
@@ -2922,36 +2922,6 @@ export default function App() {
             </svg>
             <span className="app-mode-label">Simulation</span>
           </button>
-        </div>
-
-        <div className={`app-island app-island-load${cleanCanvas ? ' is-clean' : ''}`}>
-          {cleanCanvas ? (
-            <div className="app-clean-banner">
-              <span className="app-clean-badge">Clean Canvas</span>
-              <span className="app-clean-hint">Architecture & High-Level Design Mode</span>
-              <button
-                type="button"
-                className="btn btn-sm btn-subtle app-clean-sim-btn"
-                title="Switch to simulation to test traffic load and bottlenecks"
-                onClick={() => togglePreference('cleanCanvas')}
-              >
-                <span>Run Load Test →</span>
-              </button>
-            </div>
-          ) : (
-            <TrafficControl
-              rps={offeredRps}
-              onRpsChange={handleRpsChange}
-              running={running}
-              onToggleRun={handleToggleRun}
-              onStep={handleStep}
-              onReset={handleReset}
-              system={snapshot?.system ?? EMPTY_SYSTEM}
-              lost={lostRps}
-              empty={topology.nodes.length === 0}
-              noTrafficSource={findTrafficSources(topology).length === 0}
-            />
-          )}
         </div>
 
         <div className="app-island app-island-menu">
@@ -3158,6 +3128,25 @@ export default function App() {
               fitSignal={fitNonce}
               visibleRef={stageSafeRef}
             />
+
+            {/* Floating Simulation Control Deck (Only in Simulation Mode) */}
+            {!cleanCanvas && (
+              <aside className="app-sim-dock" aria-label="Simulation control deck">
+                <TrafficControl
+                  rps={offeredRps}
+                  onRpsChange={handleRpsChange}
+                  running={running}
+                  onToggleRun={handleToggleRun}
+                  onStep={handleStep}
+                  onReset={handleReset}
+                  system={snapshot?.system ?? EMPTY_SYSTEM}
+                  lost={lostRps}
+                  empty={topology.nodes.length === 0}
+                  noTrafficSource={findTrafficSources(topology).length === 0}
+                />
+              </aside>
+            )}
+
             <button
               type="button"
               className="btn btn-sm btn-icon stage-toggle stage-toggle-library"

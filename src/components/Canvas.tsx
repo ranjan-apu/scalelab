@@ -3087,6 +3087,12 @@ const NodeView = memo(function NodeView({
 
       {showHeader && (
         <>
+          {/* Solid architectural header banner */}
+          <path
+            className="cv-node-header-band"
+            d={`M 0,${NODE_R} A ${NODE_R},${NODE_R} 0 0 1 ${NODE_R},0 L ${NODE_W - NODE_R},0 A ${NODE_R},${NODE_R} 0 0 1 ${NODE_W},${NODE_R} L ${NODE_W},${HEAD_H} L 0,${HEAD_H} Z`}
+          />
+
           <line
             className="cv-node-hair"
             x1={PAD_X}

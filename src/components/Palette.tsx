@@ -439,6 +439,16 @@ function handleAnnDragStart(event: DragEvent<HTMLButtonElement>, tool: Annotatio
   startCarry(event);
 }
 
+const CATEGORY_CHIPS = [
+  { id: 'all', label: 'All' },
+  { id: 'traffic', label: 'Traffic' },
+  { id: 'compute', label: 'Compute' },
+  { id: 'data', label: 'Data' },
+  { id: 'stores', label: 'Stores' },
+  { id: 'messaging', label: 'Messaging' },
+  { id: 'control', label: 'Control' },
+] as const;
+
 export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
   /**
    * Whether the hover explanations are on. With them OFF (the default) the
@@ -461,14 +471,17 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
   const searchRef = useRef<HTMLInputElement | null>(null);
   const needle = query.trim().toLowerCase();
 
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
   const matchingPinned = useMemo(() => {
     const valid = pinnedKinds.filter((k) => k in KIND_NAME);
-    if (!needle) return valid;
     return valid.filter((k) => {
       const g = groupOfKind(k) ?? { id: 'pinned', title: 'Pinned', kinds: [] };
+      if (selectedCategory !== 'all' && g.id !== selectedCategory) return false;
+      if (!needle) return true;
       return matchesKind(k, g, needle);
     });
-  }, [pinnedKinds, needle]);
+  }, [pinnedKinds, needle, selectedCategory]);
 
   const isPinnedCollapsed = !needle && collapsedGroups.includes('pinned');
   const isAnnCollapsed = !needle && collapsedGroups.includes('annotate');
@@ -487,6 +500,11 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
       kinds: g.kinds.filter((k) => matchesKind(k, g, needle)),
     })).filter((g) => g.kinds.length > 0);
   }, [needle]);
+
+  const visibleGroups = useMemo(() => {
+    if (selectedCategory === 'all') return groups;
+    return groups.filter((g) => g.id === selectedCategory);
+  }, [groups, selectedCategory]);
 
   const matchCount = useMemo(
     () => groups.reduce((n, g) => n + g.kinds.length, 0),
@@ -599,6 +617,22 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
             )}
           </div>
 
+          {/* Category Chips Filter Bar */}
+          <div className="pal-category-chips" role="tablist" aria-label="Filter components by category">
+            {CATEGORY_CHIPS.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                role="tab"
+                aria-selected={selectedCategory === cat.id}
+                className={`pal-category-chip${selectedCategory === cat.id ? ' is-active' : ''}`}
+                onClick={() => setSelectedCategory(cat.id)}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
           {/* The count is announced, not just shown: a filter that silently
               empties the list leaves a screen reader user with no idea it
               did anything. */}
@@ -667,7 +701,7 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
             </div>
           )}
 
-          {groups.map((group) => {
+          {visibleGroups.map((group) => {
             const isCollapsed = !needle && collapsedGroups.includes(group.id);
             return (
               <div className="pal-group" key={group.id}>
