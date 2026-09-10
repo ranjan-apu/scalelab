@@ -2,17 +2,16 @@
 
 # <img src="public/favicon.svg" width="32" height="32" alt="ScaleLab Logo" align="center" /> ScaleLab
 
-**A discrete-event distributed system design simulator & scale testing platform.**
+**A system design studio: diagram architectures, simulate real load, and practice interviews, all in the browser.**
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x%20%7C%207.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8.x-646cff?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Bun](https://img.shields.io/badge/Bun-1.x-fbf0df?logo=bun&logoColor=black)](https://bun.sh/)
 [![Tests](https://img.shields.io/badge/Tests-Vitest-6e9f18?logo=vitest&logoColor=white)](https://vitest.dev/)
 
-Model complex distributed architectures on an interactive canvas, simulate realistic traffic load, and witness real queueing dynamics, cascading failures, bottlenecks, and recovery behavior in real time.
+Draw a system on the canvas, push traffic through it, and watch real queueing behavior emerge: latency percentiles climbing, queues filling, circuit breakers tripping, retry storms collapsing a system that was healthy a moment earlier. Then rehearse explaining it with guided interview packs.
 
-[Features](#-key-features) • [System Presets](#-real-world-presets--templates) • [Interactive Challenges](#-interactive-challenges) • [Quickstart](#-quickstart) • [Architecture](#-project-architecture) • [Exporting](#-export--infrastructure-as-code)
+[Features](#-key-features) • [System Presets](#-presets) • [Interview Practice](#-interview-practice) • [Quickstart](#-quickstart) • [Architecture](#-project-architecture) • [Exporting](#-export--share)
 
 </div>
 
@@ -20,104 +19,111 @@ Model complex distributed architectures on an interactive canvas, simulate reali
 
 ## 📖 Overview
 
-System design is notoriously difficult to test before shipping to production. Traditional whiteboard diagrams lack dynamic behavior, while production scale testing is expensive and risky.
+System design is hard to test before shipping to production. Whiteboard diagrams don't move, and production scale testing is expensive and risky.
 
-**ScaleLab** bridges this gap by providing an in-browser, high-fidelity **discrete-event queueing simulation engine** with a fluid, drag-and-drop canvas. It models how real systems behave under pressure:
-- What happens when a cache hit rate drops from 95% to 70%?
-- How does a brief downstream database timeout cascade into a catastrophic retry storm?
-- Why does autoscaling often arrive too late during traffic spikes?
-- How do message fan-outs and consumer lags silently degrade event-driven pipelines?
+**ScaleLab** closes that gap with three things in one workspace:
 
-ScaleLab lets you experiment with these failure modes safely, visualize the flow of requests, and inspect real latency percentiles (p50, p90, p99).
+1. **A diagramming canvas** with 34 architecture components, notes, sections, requirements cards, and a freehand pen with eraser.
+2. **A discrete-event simulation engine** that runs real traffic through whatever you draw, with Gamma-distributed service times, concurrency limits, backpressure, and failure cascades.
+3. **Guided interview practice** that walks classic design problems from requirements to deep dives, pinnable onto the canvas next to a runnable starter system.
+
+Everything runs locally in the browser. No account, no backend.
 
 ---
 
 ## ✨ Key Features
 
 ### 🧮 Discrete-Event Simulation Engine
-- **Queueing Theory in Action**: Backed by true discrete-event mechanics, Gamma-distributed service times, concurrency limits, and Little's Law dynamics.
-- **Failures & Resilience Patterns**:
-  - **Retry Storms & Backpressure**: Model how unmanaged retries multiply traffic and crush recovering databases.
-  - **Circuit Breakers**: Tripping states (*Closed*, *Open*, *Half-Open*) to isolate failing downstreams.
-  - **Rate Limiters & Load Shedders**: Shed low-priority traffic at the gateway before backlogs form.
-  - **Bulkheads & Sidecars**: Isolate failure domains and offload cross-cutting concerns.
-  - **Autoscaling Mechanics**: Instance scaling with realistic boot delays and scaling hysteresis.
-- **Dynamic Traffic Profiles**: Drive topologies using steady rates, traffic ramps, burst spikes, or diurnal (24-hour day/night) cycles.
+- **Queueing in action**: true discrete-event mechanics, concurrency limits, and Little's Law dynamics. Every number comes from the simulation, never a formula.
+- **Failure & resilience patterns**:
+  - **Retry storms & backpressure**: unmanaged retries multiplying traffic and crushing recovering databases.
+  - **Circuit breakers**: *Closed*, *Open*, and *Half-Open* states isolating failing downstreams.
+  - **Rate limiters & load shedders**: shedding low-priority traffic at the gateway before backlogs form.
+  - **Bulkheads & sidecars**: isolating failure domains and offloading cross-cutting concerns.
+  - **Autoscaling**: instance scaling with realistic boot delays and hysteresis.
+- **Traffic scenarios**: Steady, Ramp, Spike, and Diurnal (24-hour day/night) shapes applied to every source at once from the control deck.
 
-### 🧩 33 Specialized Architecture Components
-ScaleLab provides 33 building blocks covering modern cloud topologies:
+### 🧩 34 Architecture Components
+The Library covers modern cloud topologies in seven groups:
 
-| Category | Components |
+| Group | Components |
 | :--- | :--- |
-| **Ingress & Routing** | Client, Load Balancer, API Gateway, CDN, Edge Compute, Region |
-| **Compute & Logic** | Microservice, Async Worker, Serverless Lambda, Cron Burst, Sidecar |
-| **Caching & Buffering** | Cache (Redis/Memcached), Write-Behind Buffer |
-| **Storage & Databases** | Primary Database, Read Replica Set, Sharded Database, Object Store (S3), Search Index, Time Series DB, Graph DB, Vector DB, Cold Storage Archive |
-| **Messaging & Streaming** | Message Queue, Stream Broker (Kafka), Pub/Sub Topic, Dead-Letter / Retry Queue, WebSocket Gateway |
-| **Resilience & Control** | Circuit Breaker, Rate Limiter, Bulkhead, Load Shedder, Autoscaler Controller |
+| **Traffic** | Client, Event producer, Load balancer, CDN, Edge compute |
+| **Compute** | Service, Worker, Queue, Retry queue, Transcoder |
+| **Data** | Database, Cache, Write-behind cache, Read replicas, Sharded store |
+| **Specialised stores** | Object storage, Search index, Time-series store, Graph database, Vector database, Cold storage |
+| **Messaging** | Stream broker, Pub/sub topic, WebSocket gateway, Lambda, Cron job |
+| **Control** | Rate limiter, Load shedder, Circuit breaker, Bulkhead, Autoscaler, Region, API gateway, Sidecar proxy |
+
+### 🖥️ Studio Workspace
+- **Clean Canvas / Simulation modes**: pure diagramming without telemetry, or live traffic with the control deck.
+- **Library + activity rail**: searchable components, `Cmd/Ctrl+K` jump-to-search, collapsible rails, and a review dock that opens only when asked.
+- **Studio review**: live monthly cloud-cost estimate for the design on the canvas.
+- **Autosave + share links**: work persists in the browser; the Share button copies a self-contained link carrying the whole design (components, pins, traffic patterns included).
+- **Light & dark themes** with measured contrast, and layouts for laptop, tablet, and phone.
+
+### 🎤 Interview Practice
+Three guided packs (Timeline Feed, URL Shortener, Group Chat), each following the interview track: problem checkpoints, functional and non-functional requirements, estimations, core entities, API design, endpoint-by-endpoint build order, and deep dives with tradeoffs. Every section pins to the canvas as a note, and each pack loads a runnable starter system.
+
+### ✏️ Pen, Eraser & Annotations
+- **Pen toolbar** (floating island, `P`): five theme-aware colours, size and opacity sliders with live previews. Settings are per-visit; new strokes copy them at commit.
+- **Eraser** (`E`): drag across ink strokes to condemn and delete them in one undo step, with an adjustable nib.
+- **Notes, sections, and requirements cards** with interview templates, plus freehand ink that saves and shares with the design.
 
 ---
 
-## 🏛️ Real-World Presets & Templates
+## 🏛️ Presets
 
-ScaleLab includes **22+ ready-to-run architectures**, ranging from fundamental distributed design patterns to reverse-engineered production architectures:
+26 ready-to-run systems, from distributed patterns to reconstructions of production architectures:
 
 ### 🏢 Real-World Reconstructions
-- **Discord (Real-Time Chat)**: Millions of concurrent WebSockets, gateway connection limits, pub/sub message fan-out, and channel sharding under hot-key skew.
-- **Uber (Ride Dispatch)**: High-frequency driver GPS streams (13:1 driver-to-rider ratio), Kafka consumer lag, dispatch state engines, and payment circuit breakers.
-- **Netflix (Streaming at Scale)**: ISP-edge Open Connect CDN (serving ~96% of traffic), Zuul routing, Hystrix breakers on licensing, and asynchronous video encoding queues.
-- **Spotify (Music & Discovery)**: Audio CDN streaming separate from metadata APIs, Discover Weekly batch vector index contention, and firehose ingestion queues.
-- **Twitter / X (Timeline Fan-Out)**: Fan-out-on-write into precomputed timeline caches, celebrity tweet bursts, and asynchronous worker lag.
-- **Stripe (Correctness Over Availability)**: Idempotency keys, ledger consistency, payment network brownout breakers, and webhook dead-letter delivery.
-- **WhatsApp (Store and Forward)**: Ultra-lightweight Erlang routing, holding connection limits, offline message buffers, and queue depth observability.
+- **Discord**: millions of concurrent WebSockets, gateway limits, pub/sub fan-out, channel sharding under hot-key skew.
+- **Uber**: high-frequency driver GPS streams, Kafka consumer lag, dispatch contention, payment breakers.
+- **Netflix**: edge CDN delivery, routing, licensing breakers, async encoding queues.
+- **Spotify**: audio streaming separate from metadata APIs, batch index contention, ingestion queues.
+- **Twitter / X**: fan-out-on-write timeline caches, celebrity bursts, worker lag.
+- **Stripe**: idempotency keys, ledger consistency, brownout breakers, dead-letter webhooks.
+- **WhatsApp**: connection holding, offline message buffers, queue depth observability.
+
+### 🎯 Interview-Style Systems
+- **Ticketmaster**: high-contention seat holds and checkout concurrency.
+- **TinyURL**: shortening, redirects, click analytics, cache-heavy reads.
+- **LeetCode**: judges, queues, leaderboards, contest bursts.
 
 ### 📐 Foundational Patterns
-- **Single Server Bottleneck**: Trace latency explosion as database queues saturate.
-- **Cache-Aside Degradation**: Observe what happens when cache hit rates fall.
-- **Retry Storm**: Watch aggressive client retries turn a minor blip into total collapse.
-- **Sharded Database**: Explore partition skew when a single partition receives hot-key traffic.
-- **Multi-Region Failover**: Simulate region failover costs, split-brain hazards, and cold start spikes.
-- **Event-Driven Backend**: Measure Kafka-style consumer group lag and lambda cold starts.
+Single server, load balanced, cache-aside, async workers, retry storm, CDN + origin, rate-limited API, circuit breaker, read replicas, sharded database, autoscaling service, multi-region, full stack, specialised stores, event-driven, resilient delivery.
 
 ---
 
-## 🎯 Interactive Challenges
+## 🔍 Observability & Design Review
 
-Test your system design intuition with built-in, hands-on debugging challenges:
-
-1. **Hold the Line**: Squeeze p99 latency under 200ms at 150 RPS on an overloaded single-node service.
-2. **More Machines, Not Bigger Ones**: Scale out a bottlenecked cluster under 600 RPS to eliminate request drops.
-3. **Stop the Storm**: Diagnose and extinguish a self-inflicted 100% outage caused by retry storms.
-4. **Keep It Warm**: Balance cache sizing, hit rates, and database capacity under 1,200 RPS.
-
----
-
-## 🔍 Observability & Architectural Insights
-
-- **Live Metrics Dashboard**: Real-time throughput (RPS), error rates, p50, p90, and p99 latency percentiles, queue depth indicators, and node utilization gauges.
-- **Flow Visualizer**: Real-time animated packets traveling along edges with colored status dots for successful requests, queueing delays, timeouts, and dropped packets.
-- **Architectural Advisor**: Automated topology linting that detects Single Points of Failure (SPOFs), missing breakers, unbounded queues, and unbuffered write spikes.
-- **Cloud Vendor Sizing & Cost Estimator**: Compare monthly infrastructure bills and cloud SKUs across **AWS**, **Google Cloud (GCP)**, and **Microsoft Azure**.
-- **System Design Glossary**: Built-in interactive reference on Little's Law, M/M/1 vs M/G/1 queueing models, CAP theorem, cache eviction policies, and consistency models.
+- **Live metrics**: throughput, goodput, error and drop rates, p50/p90/p99 latency charts, queue depth, per-node utilization and sparklines.
+- **Flow visualizer**: animated packets on edges, coloured by health; per-edge rates and severed-wire states.
+- **Request tracing**: follow individual requests through the topology.
+- **Advisor drawer**: structural linting that flags single points of failure, unprotected downstreams, and missing resilience.
+- **Cost modal**: per-component monthly estimates across **AWS, GCP, and Azure** SKUs, plus the live ticker in Studio review.
+- **Glossary**: built-in reference for queueing, consistency, caching, and resilience terms, linked from inline explanations.
 
 ---
 
-## 🚢 Export & Infrastructure as Code
+## 🚢 Export & Share
 
-ScaleLab diagrams are not locked into the tool:
+Designs are never locked in:
 
-- **Mermaid.js Flowcharts**: Export clear, documented architecture diagrams directly into markdown or PR descriptions.
-- **High-Res SVG & PNG**: Export styled vector or raster graphics with inline styling.
-- **Topology JSON**: Save and share architecture templates using portable JSON design files or encoded URL hashes.
+- **HLD RFC (Markdown)**: one-click architecture document with the diagram, component matrix, data flows, and cost estimate.
+- **Mermaid.js**: flowcharts for markdown docs and PR descriptions.
+- **SVG & PNG**: high-resolution diagram exports.
+- **Design files (JSON)**: save, reopen, and version named designs locally.
+- **Share links**: URL-encoded designs that restore components, annotations, and traffic settings on open.
 
 ---
 
 ## 🚀 Quickstart
 
 ### Prerequisites
-- [Bun](https://bun.sh) (v1.0+) or [Node.js](https://nodejs.org) (v20+)
+- [Node.js](https://nodejs.org) v20+ ([Bun](https://bun.sh) works too)
 
-### Installation & Local Setup
+### Local Setup
 
 ```bash
 # Clone the repository
@@ -125,59 +131,67 @@ git clone https://github.com/ranjan-apu/scalelab.git
 cd scalelab
 
 # Install dependencies
-bun install
-# or: npm install
+npm install
 
-# Start the Vite development server
-bun dev
-# or: npm run dev
+# Start the dev server
+npm run dev
 ```
 
-Open your browser at `http://localhost:5173` to explore ScaleLab.
+Open `http://localhost:5173` to explore ScaleLab.
 
 ### Available Scripts
 
 | Command | Action |
 | :--- | :--- |
-| `bun dev` | Launch local development server with hot module replacement (HMR) |
-| `bun run build` | Typecheck with TypeScript and build production bundle into `dist/` |
-| `bun run preview` | Locally preview the production build |
-| `bun run test` | Run the Vitest unit and integration test suite |
-| `bun run typecheck` | Run standalone TypeScript type checking without emitting files |
+| `npm run dev` | Local dev server with hot module replacement |
+| `npm run build` | Typecheck and build the production bundle into `dist/` |
+| `npm run preview` | Preview the production build locally |
+| `npm test` | Run the Vitest suite |
+| `npm run typecheck` | Standalone TypeScript checking |
 
 ---
 
 ## 📁 Project Architecture
 
-The codebase is organized cleanly into pure simulation logic and reactive UI components:
+Pure simulation logic stays DOM-free under `src/sim`; React components stay presentational:
 
 ```text
 scalelab/
-├── public/                # Static assets, fonts, and icons
+├── public/                # Static assets and icons
 ├── src/
-│   ├── sim/               # Pure discrete-event simulation engine (zero DOM/UI dependencies)
-│   │   ├── engine.ts      # Core event-loop scheduler, priority queue, and tick processing
-│   │   ├── types.ts       # Topology, NodeConfig, Edge, and Metric definitions
-│   │   ├── presets.ts     # Architecture templates (Netflix, Uber, Discord, etc.)
-│   │   ├── challenges.ts  # Guided debugging challenges & verification logic
-│   │   ├── advisor.ts     # Architectural analysis & anti-pattern detection rules
-│   │   └── behaviour-*.ts # Component-specific queue and processing behaviors
-│   ├── components/        # React 19 UI presentation layer
-│   │   ├── Canvas.tsx     # Interactive SVG canvas (nodes, edges, animated traffic)
-│   │   ├── Inspector.tsx  # Dynamic node configuration and parameter tuning
-│   │   ├── Metrics.tsx    # Live percentile charts, error graphs, and queue stats
-│   │   ├── Advisor.tsx    # Topology health warnings and recommendations
-│   │   ├── Cost.tsx       # Cloud vendor pricing calculator (AWS, GCP, Azure)
-│   │   ├── Challenges.tsx # Challenge drawer, hints, and pass/fail evaluation
-│   │   └── Glossary.tsx   # Integrated distributed systems knowledge base
-│   ├── content/           # Cloud vendor mappings (AWS, GCP, Azure) and glossary text
-│   ├── theme/             # Theme tokens, dark mode, and accessible contrast palettes
-│   ├── exportFormats.ts   # Mermaid export generator
-│   ├── imageExport.ts     # SVG and high-resolution PNG canvas renderer
-│   ├── App.tsx            # Main application shell and simulation orchestration
-│   └── main.tsx           # React entry point
+│   ├── sim/               # Discrete-event engine (no DOM dependencies)
+│   │   ├── engine.ts      # Event-loop scheduler, priority queue, tick processing
+│   │   ├── types.ts       # Topology, NodeConfig, edges, metrics
+│   │   ├── presets.ts     # 26 architecture templates
+│   │   ├── advisor.ts     # Structural lint rules (SPOFs, unprotected paths)
+│   │   ├── costs.ts       # Cost rollup over a topology
+│   │   ├── sketch.ts      # Ink model, pen settings, eraser constants
+│   │   └── behaviour-*.ts # Per-component queueing behaviours
+│   ├── content/           # Glossary, preferences, interview packs, cloud pricing
+│   ├── components/        # React presentation layer
+│   │   ├── Canvas.tsx     # SVG canvas: nodes, edges, ink, gestures
+│   │   ├── Palette.tsx    # Component library, annotation tools, Cmd+K search
+│   │   ├── Inspector.tsx  # Node/annotation configuration, ink editing
+│   │   ├── PenToolbar.tsx # Floating pen/eraser island
+│   │   ├── StudioPanel.tsx# Review dock: cost estimate
+│   │   ├── Metrics.tsx    # Percentile charts and system stats
+│   │   ├── Trace.tsx      # Request tracing
+│   │   ├── AdvisorDrawer.tsx # Design findings drawer
+│   │   ├── CostModal.tsx  # Multi-cloud cost breakdown
+│   │   ├── InterviewPractice.tsx # Guided interview sessions
+│   │   ├── Examples.tsx   # Preset gallery dialog
+│   │   ├── Designs.tsx    # Saved designs
+│   │   ├── guide/         # Help guide panes (overview, traffic, practice)
+│   │   └── Glossary.tsx   # Knowledge base panel
+│   ├── theme/             # Design tokens and contrast-checked palettes
+│   ├── hldExport.ts       # HLD RFC Markdown generator
+│   ├── exportFormats.ts   # Mermaid generator
+│   ├── imageExport.ts     # SVG/PNG renderer
+│   ├── designFile.ts      # JSON design file format
+│   ├── share.ts           # URL-encoded sharing
+│   ├── App.tsx            # Shell, panels, toolbar, orchestration
+│   └── main.tsx           # Entry point
 ├── package.json
-├── tsconfig.json
 └── vite.config.ts
 ```
 
@@ -185,27 +199,24 @@ scalelab/
 
 ## 🛠️ Tech Stack
 
-- **Core Engine**: Pure TypeScript Discrete-Event Simulator (Heap-based priority event queue)
-- **UI Framework**: [React 19](https://react.dev/)
-- **Build System**: [Vite](https://vitejs.dev/)
-- **Runtime & Package Manager**: [Bun](https://bun.sh/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Testing**: [Vitest](https://vitest.dev/) with JSDOM
+- **Engine**: hand-rolled TypeScript discrete-event simulator (heap-based priority queue)
+- **UI**: [React 19](https://react.dev/), SVG canvas, [Lucide](https://lucide.dev/) icons
+- **Build**: [Vite](https://vitejs.dev/), TypeScript, [Vitest](https://vitest.dev/) + JSDOM
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Whether you are adding new architecture presets, refining component behavior models, or improving simulation fidelity:
+Contributions are welcome: new presets, behaviour models, interview packs, or simulation fidelity.
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-preset`)
-3. Commit your changes (`git commit -m 'Add Twitter recommendation architecture'`)
-4. Push to the branch (`git push origin feature/amazing-preset`)
+2. Create your feature branch (`git checkout -b feat/my-preset`)
+3. Commit your changes (`git commit -m 'Add ...'`)
+4. Push to the branch (`git push origin feat/my-preset`)
 5. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+Open source under the [MIT License](LICENSE).
