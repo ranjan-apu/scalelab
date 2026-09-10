@@ -345,6 +345,66 @@
   color: var(--text);
 }
 
+/* ---------------- Draw.io tools grid ---------------- */
+
+.gd-draw-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+
+@media (max-width: 650px) {
+  .gd-draw-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gd-draw-item {
+  padding: var(--sp-3);
+  background: var(--surface-raised, rgba(0, 0, 0, 0.02));
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.gd-draw-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text);
+}
+
+.gd-draw-title strong {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.gd-draw-title span {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+.gd-draw-icon {
+  font-size: 1.1rem;
+}
+
+.gd-draw-item p {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.gd-subtext {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
 /* ---------------- Feature list ---------------- */
 
 .gd-feature-list {

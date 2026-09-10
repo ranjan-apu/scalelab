@@ -14,10 +14,9 @@ export function OverviewPane() {
       <div className="gd-grid-3">
         <div className="gd-step-card">
           <div className="gd-step-num">1</div>
-          <h4>Build Topology</h4>
+          <h4>Build &amp; Diagram</h4>
           <p>
-            Drag components from the left palette (API Gateways, Microservices,
-            Caches, Kafka brokers, Databases). Wire dependencies by dragging ports.
+            Drag cloud components, wire ports, and use <strong>draw.io tools</strong> (Normal Boxes, Sticky Notes, and Freehand Markers) to design your architecture.
           </p>
         </div>
 

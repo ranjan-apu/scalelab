@@ -38,8 +38,56 @@ export function BuildingPane() {
         <ul>
           <li><strong>Drag a port:</strong> Click and drag from any component&apos;s port handle to a downstream target.</li>
           <li><strong>Control edges:</strong> Connect an Autoscaler controller to a Microservice to scale instances automatically.</li>
-          <li><strong>Annotations:</strong> Press <kbd>N</kbd> to drop sticky notes or <kbd>B</kbd> to frame functional zones with sections.</li>
         </ul>
+      </div>
+
+      <div className="gd-subsection">
+        <h4>✏️ Draw.io Diagramming &amp; Documentation Tools</h4>
+        <p className="gd-subtext">
+          Document real-world designs, draw system boundaries, and sketch interview notes directly on the canvas:
+        </p>
+        <div className="gd-draw-grid">
+          <div className="gd-draw-item">
+            <div className="gd-draw-title">
+              <span className="gd-draw-icon">🖊️</span>
+              <strong>Freehand Pen / Marker</strong>
+              <kbd>P</kbd>
+            </div>
+            <p>
+              Draw smooth freehand ink strokes, arrows, bottlenecks, and handwritten notes with quadratic SVG smoothing. Customize stroke width (1–32px), opacity, and 5 theme tones in the Inspector. Press <kbd>Esc</kbd> or <kbd>P</kbd> to disarm.
+            </p>
+          </div>
+          <div className="gd-draw-item">
+            <div className="gd-draw-title">
+              <span className="gd-draw-icon">📦</span>
+              <strong>Normal Boxes &amp; Cards</strong>
+              <kbd>T</kbd> <span>or double-click</span>
+            </div>
+            <p>
+              Double-click empty canvas to add a box. Switch between <strong>Normal Box (Outline)</strong> for clean flowchart rectangles and boundaries, <strong>Sticky Note</strong> for callouts, or <strong>Requirements Card</strong> for interview templates.
+            </p>
+          </div>
+          <div className="gd-draw-item">
+            <div className="gd-draw-title">
+              <span className="gd-draw-icon">🔤</span>
+              <strong>Typography &amp; Styling</strong>
+              <span className="badge">Inspector</span>
+            </div>
+            <p>
+              Format text in Interface (Sans), Handwritten, Serif, or Monospace typefaces. Scale font sizes (S/M/L) and toggle Bold or Italic formatting.
+            </p>
+          </div>
+          <div className="gd-draw-item">
+            <div className="gd-draw-title">
+              <span className="gd-draw-icon">🖼️</span>
+              <strong>Notes &amp; Section Frames</strong>
+              <kbd>N</kbd> <kbd>B</kbd>
+            </div>
+            <p>
+              Drop plain text notes (<kbd>N</kbd>) or drag colored section frames (<kbd>B</kbd>) behind nodes to demarcate architectural tiers like VPCs, regions, and clusters.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
