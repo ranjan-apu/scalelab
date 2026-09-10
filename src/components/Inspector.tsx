@@ -2891,6 +2891,7 @@ export interface InspectorProps {
   onSetInkTone?: (id: string, tone: InkTone) => void;
   onInkStyle?: (id: string, patch: { width?: number; opacity?: number }) => void;
   onDeleteInk?: (id: string) => void;
+  cleanCanvas?: boolean;
   /**
    * Whole topology, for the Studio review shown when nothing is selected.
    * Optional: without it the panel keeps its old empty state.
