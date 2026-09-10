@@ -638,6 +638,7 @@ export default function App() {
   /* The theme is applied to <html>, which is outside React, so this is a
      genuine external-system synchronisation rather than derived state. */
   const themeChoice = usePreference('theme');
+  const cleanCanvas = usePreference('cleanCanvas');
   useEffect(() => {
     applyTheme(themeChoice);
   }, [themeChoice]);
@@ -2727,61 +2728,54 @@ export default function App() {
               >
                 <defs>
                   <linearGradient
-                    id="brand-sl-top"
+                    id="brand-sl-core"
+                    x1="4"
+                    y1="4"
+                    x2="28"
+                    y2="28"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0%" stopColor="#38BDF8" />
+                    <stop offset="50%" stopColor="#6366F1" />
+                    <stop offset="100%" stopColor="#4338CA" />
+                  </linearGradient>
+                  <linearGradient
+                    id="brand-sl-accent"
                     x1="8"
-                    y1="6"
+                    y1="8"
                     x2="24"
-                    y2="15"
+                    y2="24"
                     gradientUnits="userSpaceOnUse"
                   >
-                    <stop stopColor="#60A5FA" />
-                    <stop offset="1" stopColor="#2563EB" />
+                    <stop offset="0%" stopColor="#06B6D4" />
+                    <stop offset="100%" stopColor="#3B82F6" />
                   </linearGradient>
-                  <linearGradient
-                    id="brand-sl-left"
-                    x1="5"
-                    y1="14"
-                    x2="16"
-                    y2="27"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <stop stopColor="#1D4ED8" />
-                    <stop offset="1" stopColor="#0F172A" />
-                  </linearGradient>
-                  <linearGradient
-                    id="brand-sl-right"
-                    x1="16"
-                    y1="14"
-                    x2="27"
-                    y2="27"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <stop stopColor="#3B82F6" />
-                    <stop offset="1" stopColor="#1E293B" />
-                  </linearGradient>
+                  <filter id="brand-sl-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#6366F1" floodOpacity="0.4" />
+                  </filter>
                 </defs>
-                <rect width="32" height="32" rx="7.5" fill="#0D131F" />
-                <rect width="32" height="32" rx="7.5" stroke="#1E293B" strokeWidth="0.75" />
-                <path d="M16 6 L25.5 11.5 L16 17 L6.5 11.5 Z" fill="url(#brand-sl-top)" />
-                <path d="M6.5 11.5 L16 17 V27 L6.5 21.5 Z" fill="url(#brand-sl-left)" />
-                <path d="M16 17 L25.5 11.5 V21.5 L16 27 Z" fill="url(#brand-sl-right)" />
-                <path
-                  d="M16 8.5 L22 12 L16 15 L10 12 Z"
-                  stroke="#93C5FD"
-                  strokeOpacity="0.6"
-                  strokeWidth="0.8"
-                  fill="none"
-                />
-                <path d="M16 17 V25" stroke="#38BDF8" strokeWidth="1.2" strokeLinecap="round" />
-                <path
-                  d="M10 13.5 L16 17 L22 13.5"
-                  stroke="#60A5FA"
-                  strokeWidth="0.8"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-                <circle cx="16" cy="17" r="2.2" fill="#38BDF8" />
-                <circle cx="16" cy="17" r="1" fill="#FFFFFF" />
+                <rect width="32" height="32" rx="8" fill="#090D16" />
+                <rect width="32" height="32" rx="8" stroke="#1E293B" strokeWidth="1" />
+                <g filter="url(#brand-sl-glow)">
+                  <rect x="6.5" y="7" width="8" height="8" rx="2.5" fill="url(#brand-sl-accent)" />
+                  <rect x="17.5" y="17" width="8" height="8" rx="2.5" fill="url(#brand-sl-core)" />
+                  <path
+                    d="M14.5 11 H19.5 C20.6 11 21.5 11.9 21.5 13 V17"
+                    stroke="#38BDF8"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <path
+                    d="M17.5 21 H12.5 C11.4 21 10.5 20.1 10.5 19 V15"
+                    stroke="#818CF8"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <circle cx="16" cy="16" r="3" fill="#090D16" stroke="#38BDF8" strokeWidth="1.5" />
+                  <circle cx="16" cy="16" r="1.3" fill="#FFFFFF" />
+                </g>
               </svg>
             </div>
             <div className="app-brand-text">
@@ -2869,19 +2863,88 @@ export default function App() {
           </div>
         </div>
 
-        <div className="app-island app-island-load">
-          <TrafficControl
-            rps={offeredRps}
-            onRpsChange={handleRpsChange}
-            running={running}
-            onToggleRun={handleToggleRun}
-            onStep={handleStep}
-            onReset={handleReset}
-            system={snapshot?.system ?? EMPTY_SYSTEM}
-            lost={lostRps}
-            empty={topology.nodes.length === 0}
-            noTrafficSource={findTrafficSources(topology).length === 0}
-          />
+        {/* Workspace Mode Switcher: Clean Canvas (HLD/Design) vs Simulation */}
+        <div className="app-mode-switch" role="group" aria-label="Workspace mode">
+          <button
+            type="button"
+            className={`app-mode-btn${cleanCanvas ? ' is-active' : ''}`}
+            title="Clean Canvas mode: Draw & architecture view without live request counters"
+            aria-pressed={cleanCanvas}
+            onClick={() => {
+              if (!cleanCanvas) togglePreference('cleanCanvas');
+            }}
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="m9 9 6 6" />
+              <path d="m15 9-6 6" />
+            </svg>
+            <span className="app-mode-label">Clean Canvas</span>
+          </button>
+          <button
+            type="button"
+            className={`app-mode-btn${!cleanCanvas ? ' is-active' : ''}`}
+            title="Simulation mode: live traffic load slider, requests/second, and telemetry"
+            aria-pressed={!cleanCanvas}
+            onClick={() => {
+              if (cleanCanvas) togglePreference('cleanCanvas');
+            }}
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            <span className="app-mode-label">Simulation</span>
+          </button>
+        </div>
+
+        <div className={`app-island app-island-load${cleanCanvas ? ' is-clean' : ''}`}>
+          {cleanCanvas ? (
+            <div className="app-clean-banner">
+              <span className="app-clean-badge">Clean Canvas</span>
+              <span className="app-clean-hint">Architecture & High-Level Design Mode</span>
+              <button
+                type="button"
+                className="btn btn-sm btn-subtle app-clean-sim-btn"
+                title="Switch to simulation to test traffic load and bottlenecks"
+                onClick={() => togglePreference('cleanCanvas')}
+              >
+                <span>Run Load Test →</span>
+              </button>
+            </div>
+          ) : (
+            <TrafficControl
+              rps={offeredRps}
+              onRpsChange={handleRpsChange}
+              running={running}
+              onToggleRun={handleToggleRun}
+              onStep={handleStep}
+              onReset={handleReset}
+              system={snapshot?.system ?? EMPTY_SYSTEM}
+              lost={lostRps}
+              empty={topology.nodes.length === 0}
+              noTrafficSource={findTrafficSources(topology).length === 0}
+            />
+          )}
         </div>
 
         <div className="app-island app-island-menu">

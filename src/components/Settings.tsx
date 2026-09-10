@@ -51,6 +51,11 @@ interface ToggleRow {
 function toggles(coarse: boolean): ToggleRow[] {
   return [
     {
+      key: 'cleanCanvas',
+      label: 'Clean canvas (design mode)',
+      hint: 'Hide live requests and telemetry counters, showing a clean architectural diagram like Excalidraw or draw.io.',
+    },
+    {
       key: 'tooltips',
       label: 'Explain metric names',
       hint: coarse

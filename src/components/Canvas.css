@@ -358,6 +358,33 @@
     fill var(--dur-fast) var(--ease);
 }
 
+/* Category accent spine along the left edge of each node */
+.cv-node-spine {
+  fill: var(--k-stroke, var(--accent));
+  pointer-events: none;
+}
+
+/* Clean Canvas Mode: Whiteboard / Architectural typography */
+.cv-node-clean-group {
+  fill: var(--k-ink, var(--text-dim));
+  font-family: var(--sans);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-med);
+  letter-spacing: var(--tr-label);
+  dominant-baseline: alphabetic;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.cv-node-clean-kind {
+  fill: var(--text);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  dominant-baseline: alphabetic;
+  pointer-events: none;
+}
+
 /* The hairline under the header is drawn in the kind's own stroke, held well
    back with opacity. A neutral --border line across a tinted body reads as a
    foreign object sitting on top of the colour; the same hue at low alpha

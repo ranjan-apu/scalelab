@@ -5,7 +5,9 @@ import {
   __reloadPreferencesForTesting,
   __resetPreferences,
   getPreferences,
+  setCleanCanvas,
   setPreference,
+  toggleCleanCanvas,
   toggleGroupCollapsed,
   togglePinnedKind,
   togglePreference,
@@ -22,11 +24,13 @@ import {
 describe('defaults', () => {
   beforeEach(() => __resetPreferences());
 
-  it('starts with tooltips off', () => {
+  it('starts with tooltips and cleanCanvas off', () => {
     // The whole point of the preference: a first-time student meets a clean
     // interface, not forty dotted underlines.
     expect(DEFAULT_PREFERENCES.tooltips).toBe(false);
     expect(getPreferences().tooltips).toBe(false);
+    expect(DEFAULT_PREFERENCES.cleanCanvas).toBe(false);
+    expect(getPreferences().cleanCanvas).toBe(false);
   });
 
   it('starts with the visual helpers on', () => {
@@ -181,5 +185,21 @@ describe('collapsedGroups and pinnedKinds', () => {
     __reloadPreferencesForTesting();
     expect(getPreferences().collapsedGroups).toEqual([]);
     expect(getPreferences().pinnedKinds).toEqual([]);
+  });
+
+  it('toggles, sets, and persists cleanCanvas', () => {
+    expect(getPreferences().cleanCanvas).toBe(false);
+    toggleCleanCanvas();
+    expect(getPreferences().cleanCanvas).toBe(true);
+
+    const raw = localStorage.getItem('scalelab.preferences.v1');
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw as string).cleanCanvas).toBe(true);
+
+    __reloadPreferencesForTesting();
+    expect(getPreferences().cleanCanvas).toBe(true);
+
+    setCleanCanvas(false);
+    expect(getPreferences().cleanCanvas).toBe(false);
   });
 });

@@ -48,6 +48,11 @@ export interface Preferences {
    * up with three meanings and no name for the third.
    */
   theme: ThemeChoice;
+  /**
+   * Clean Canvas mode: Hides live request telemetry, sparklines, and traffic load
+   * counters, providing a clean architectural diagramming view like Excalidraw or draw.io.
+   */
+  cleanCanvas: boolean;
   /** Group IDs of collapsed sections in the sidebar palette. */
   collapsedGroups: string[];
   /** Pinned node kinds appearing in the top Pinned section of the palette. */
@@ -60,6 +65,7 @@ export type ThemeChoice = 'light' | 'dark' | 'system';
 export const THEME_CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];
 
 export const DEFAULT_PREFERENCES: Preferences = {
+  cleanCanvas: false,
   tooltips: false,
   sparklines: true,
   snapToGrid: true,
@@ -130,6 +136,7 @@ function load(): Preferences {
     // Each key is validated on its own, so an unknown or corrupt field costs
     // only that one preference rather than the whole set.
     return {
+      cleanCanvas: bool(p.cleanCanvas, DEFAULT_PREFERENCES.cleanCanvas),
       tooltips: bool(p.tooltips, DEFAULT_PREFERENCES.tooltips),
       sparklines: bool(p.sparklines, DEFAULT_PREFERENCES.sparklines),
       snapToGrid: bool(p.snapToGrid, DEFAULT_PREFERENCES.snapToGrid),
@@ -215,6 +222,14 @@ export function togglePinnedKind(kind: NodeKind): void {
     ? currentPinned.filter((k) => k !== kind)
     : [...currentPinned, kind];
   setPreference('pinnedKinds', next);
+}
+
+export function toggleCleanCanvas(): void {
+  setPreference('cleanCanvas', !current.cleanCanvas);
+}
+
+export function setCleanCanvas(enabled: boolean): void {
+  setPreference('cleanCanvas', enabled);
 }
 
 function subscribe(fn: () => void): () => void {

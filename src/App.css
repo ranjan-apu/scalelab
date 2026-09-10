@@ -91,6 +91,97 @@
   max-width: 940px;
 }
 
+/* Mode switcher: Clean Canvas vs Simulation */
+.app-mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-md);
+  padding: 3px;
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.app-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+  white-space: nowrap;
+}
+
+.app-mode-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.app-mode-btn.is-active {
+  color: var(--accent-fg);
+  background: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.app-mode-btn.is-active svg {
+  stroke: var(--accent-fg);
+}
+
+/* Clean Canvas Top Bar Banner */
+.app-island-load.is-clean {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--sp-4);
+  max-width: 580px;
+}
+
+.app-clean-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  justify-content: space-between;
+}
+
+.app-clean-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: var(--surface-2);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--sans);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-med);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-label);
+  color: var(--text);
+}
+
+.app-clean-hint {
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.app-clean-sim-btn {
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: var(--fw-med);
+}
+
 /* Pushes the menu to the far right, leaving the gap between it and the load
    island as visible canvas rather than as dead space inside a bar. */
 .app-island-menu {
