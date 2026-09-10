@@ -19,10 +19,6 @@ import type { NodeConfig, NodeKind, SimNode, SimSnapshot, Topology } from './sim
 import { useCoarsePointer } from './useCoarsePointer';
 import { Engine } from './sim/engine';
 import { PRESETS, makeNode } from './sim/presets';
-import { CHALLENGES, challengeById } from './sim/challenges';
-import { FIXED_DURING_CHALLENGE, applyLoad, evaluate } from './sim/challenge';
-import { ChallengePanel } from './components/Challenge';
-import { Challenges } from './components/Challenges';
 import type { Preset } from './sim/presets';
 import Canvas, {
   GRID,
@@ -83,7 +79,6 @@ import { Settings } from './components/Settings';
 import { MainMenu } from './components/MainMenu';
 import { Designs } from './components/Designs';
 import { getDesign, saveDesign } from './savedDesigns';
-import { downloadBackup, restoreBackup } from './backup';
 import { PanelResizer } from './components/PanelResizer';
 import { applyTheme } from './theme/applyTheme';
 import { usePresence } from './components/presence';
@@ -92,8 +87,6 @@ import type { HistoryEntry, HistorySnapshot } from './history';
 import { buildShareUrl, decodeTopology, hasShareHash } from './share';
 import { DESIGN_FILE_ACCEPT, downloadDesign, readDesignFile } from './designFile';
 import { downloadBlob, svgToPng } from './imageExport';
-import { Advisor } from './components/Advisor';
-import { analyzeArchitecture } from './sim/advisor';
 import { exportToMermaid } from './exportFormats';
 import './App.css';
 
@@ -645,6 +638,7 @@ export default function App() {
   /* The theme is applied to <html>, which is outside React, so this is a
      genuine external-system synchronisation rather than derived state. */
   const themeChoice = usePreference('theme');
+  const cleanCanvas = usePreference('cleanCanvas');
   useEffect(() => {
     applyTheme(themeChoice);
   }, [themeChoice]);
@@ -656,13 +650,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(() => {
-    try {
-      return localStorage.getItem('scalelab.guide-dismissed') !== 'true';
-    } catch {
-      return true; // If storage is unavailable, show the guide anyway.
-    }
-  });
+  const [guideOpen, setGuideOpen] = useState(false);
 
   /**
    * Whether the canvas has reached storage yet.
@@ -673,22 +661,8 @@ export default function App() {
    * came out of storage in the first place.
    */
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
-  const backupInputRef = useRef<HTMLInputElement | null>(null);
 
   const [examplesOpen, setExamplesOpen] = useState(false);
-  const [challengesOpen, setChallengesOpen] = useState(false);
-  const [advisorOpen, setAdvisorOpen] = useState(false);
-
-  /**
-   * The challenge being attempted, by id, or null for the free sandbox.
-   *
-   * Only the id is held: the brief itself is a module constant, and storing
-   * a copy would let a challenge edited in source drift from one already in
-   * progress. Not persisted, because a brief resumed days later with a
-   * half-finished design and no memory of the goal is worse than starting it
-   * again.
-   */
-  const [challengeId, setChallengeId] = useState<string | null>(null);
 
   /* ---------------- panel layout ---------------- */
 
@@ -2136,56 +2110,6 @@ export default function App() {
     [replaceDesign],
   );
 
-  const handleBackup = useCallback(() => {
-    downloadBackup();
-    toastSeq.current += 1;
-    setToast({ text: 'Downloaded everything', id: toastSeq.current });
-  }, []);
-
-  /**
-   * Restore replaces what this browser holds, so it asks first.
-   *
-   * A confirm() rather than a bespoke dialog: this is destructive and rare,
-   * the browser's own prompt is the one a reader already trusts for exactly
-   * this, and a custom modal here would be new furniture for a question
-   * asked once.
-   */
-  const handleRestorePick = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Cleared so choosing the SAME file twice fires again.
-    e.target.value = '';
-    if (!file) return;
-
-    let text: string;
-    try {
-      text = await file.text();
-    } catch {
-      toastSeq.current += 1;
-      setToast({ text: 'That file could not be read.', id: toastSeq.current });
-      return;
-    }
-
-    if (
-      !window.confirm(
-        'Restoring replaces every saved design and setting in this browser with the ones in the file. Continue?',
-      )
-    ) {
-      return;
-    }
-
-    const result = restoreBackup(text);
-    toastSeq.current += 1;
-    if (!result.ok) {
-      setToast({ text: result.error, id: toastSeq.current });
-      return;
-    }
-    // Reloaded rather than patched into the running app: preferences, the
-    // layout and the session are all read once at boot, so the only
-    // honest way to apply a wholesale replacement is to start again.
-    setToast({ text: 'Restored. Reloading...', id: toastSeq.current });
-    window.setTimeout(() => window.location.reload(), 400);
-  }, []);
-
   const handleSaveNamed = useCallback((name: string) => {
     const result = saveDesign(name, topoLiveRef.current);
     toastSeq.current += 1;
@@ -2208,10 +2132,6 @@ export default function App() {
       // Deep copy: presets are module-level constants and must never be
       // mutated by editing the loaded system.
       replaceDesign(structuredClone(preset.topology), preset.id, 'example load');
-      // Loading an example by hand leaves any brief behind: the design the
-      // brief was judging is gone, so continuing to score it would be
-      // scoring something else.
-      setChallengeId(null);
     },
     [replaceDesign],
   );
@@ -2227,67 +2147,9 @@ export default function App() {
       return;
     }
     replaceDesign({ nodes: [], edges: [], annotations: [] }, null, 'new canvas');
-    setChallengeId(null);
     toastSeq.current += 1;
     setToast({ text: 'Created a new empty canvas', id: toastSeq.current });
   }, [replaceDesign, presetId, topology.nodes.length]);
-
-  /**
-   * Start a brief: load its preset and set the load it is judged at.
-   *
-   * The load is applied to the topology rather than held beside it, so the
-   * slider shows the number the brief actually states and a reader can move
-   * it. Turning the traffic down until the goals are met is not a way to
-   * cheat, because the goals are only ever read at the stated load.
-   */
-  const handleStartChallenge = useCallback(
-    (id: string) => {
-      const challenge = challengeById(id);
-      if (!challenge) return;
-      const preset = PRESETS.find((p) => p.id === challenge.presetId);
-      if (!preset) return;
-
-      /*
-       * A brief replaces whatever is on the canvas, so it asks first when
-       * that is something the reader made.
-       *
-       * Undo already recovers it, which is the real safety net, but nobody
-       * who has just watched their diagram vanish thinks to press Ctrl+Z.
-       * The question is only worth asking when there is something to lose:
-       * an unmodified example or an empty canvas is not work, and a prompt
-       * on every start would train people to dismiss it before reading.
-       *
-       * A confirm() for the same reason the restore path uses one. It is
-       * destructive, it is rare, and a custom modal would be new furniture
-       * for a question asked once.
-       */
-      const madeSomething = presetId === null && topology.nodes.length > 0;
-      if (
-        madeSomething &&
-        !window.confirm(
-          'Starting a challenge replaces what is on the canvas. Your design is not saved anywhere else. Continue?',
-        )
-      ) {
-        return;
-      }
-
-      const topo = structuredClone(preset.topology);
-      applyLoad(topo, challenge.loadRps);
-      replaceDesign(topo, preset.id, 'challenge start');
-      setChallengeId(id);
-    },
-    [replaceDesign, presetId, topology.nodes.length],
-  );
-
-  /* The live verdict. Recomputed per snapshot rather than on a timer, so the
-     panel and the numbers it quotes always come from the same tick. */
-  const challenge = challengeId ? challengeById(challengeId) : undefined;
-  const challengeResult = useMemo(
-    () => (challenge && snapshot ? evaluate(challenge, snapshot) : null),
-    [challenge, snapshot],
-  );
-
-  const advisorAudit = useMemo(() => analyzeArchitecture(topology), [topology]);
 
   /**
    * What the menu offers.
@@ -2314,17 +2176,6 @@ export default function App() {
         label: 'Your designs',
         icon: 'M4 4a2 2 0 0 1 2-2h7l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM13 2v5h5M9 13h6M9 17h6',
         onSelect: () => setDesignsOpen(true),
-      },
-      {
-        label: 'Architecture Advisor',
-        icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10M9 12l2 2 4-4',
-        hint: `Grade ${advisorAudit.grade}`,
-        onSelect: () => setAdvisorOpen(true),
-      },
-      {
-        label: 'Challenges',
-        icon: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0z',
-        onSelect: () => setChallengesOpen(true),
       },
       {
         label: 'Examples',
@@ -2877,66 +2728,58 @@ export default function App() {
               >
                 <defs>
                   <linearGradient
-                    id="brand-sl-top"
+                    id="brand-sl-core"
+                    x1="4"
+                    y1="4"
+                    x2="28"
+                    y2="28"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0%" stopColor="#38BDF8" />
+                    <stop offset="50%" stopColor="#6366F1" />
+                    <stop offset="100%" stopColor="#4338CA" />
+                  </linearGradient>
+                  <linearGradient
+                    id="brand-sl-accent"
                     x1="8"
-                    y1="6"
+                    y1="8"
                     x2="24"
-                    y2="15"
+                    y2="24"
                     gradientUnits="userSpaceOnUse"
                   >
-                    <stop stopColor="#60A5FA" />
-                    <stop offset="1" stopColor="#2563EB" />
+                    <stop offset="0%" stopColor="#06B6D4" />
+                    <stop offset="100%" stopColor="#3B82F6" />
                   </linearGradient>
-                  <linearGradient
-                    id="brand-sl-left"
-                    x1="5"
-                    y1="14"
-                    x2="16"
-                    y2="27"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <stop stopColor="#1D4ED8" />
-                    <stop offset="1" stopColor="#0F172A" />
-                  </linearGradient>
-                  <linearGradient
-                    id="brand-sl-right"
-                    x1="16"
-                    y1="14"
-                    x2="27"
-                    y2="27"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <stop stopColor="#3B82F6" />
-                    <stop offset="1" stopColor="#1E293B" />
-                  </linearGradient>
+                  <filter id="brand-sl-glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="0" dy="1" stdDeviation="1.5" floodColor="#6366F1" floodOpacity="0.4" />
+                  </filter>
                 </defs>
-                <rect width="32" height="32" rx="7.5" fill="#0D131F" />
-                <rect width="32" height="32" rx="7.5" stroke="#1E293B" strokeWidth="0.75" />
-                <path d="M16 6 L25.5 11.5 L16 17 L6.5 11.5 Z" fill="url(#brand-sl-top)" />
-                <path d="M6.5 11.5 L16 17 V27 L6.5 21.5 Z" fill="url(#brand-sl-left)" />
-                <path d="M16 17 L25.5 11.5 V21.5 L16 27 Z" fill="url(#brand-sl-right)" />
-                <path
-                  d="M16 8.5 L22 12 L16 15 L10 12 Z"
-                  stroke="#93C5FD"
-                  strokeOpacity="0.6"
-                  strokeWidth="0.8"
-                  fill="none"
-                />
-                <path d="M16 17 V25" stroke="#38BDF8" strokeWidth="1.2" strokeLinecap="round" />
-                <path
-                  d="M10 13.5 L16 17 L22 13.5"
-                  stroke="#60A5FA"
-                  strokeWidth="0.8"
-                  strokeLinecap="round"
-                  fill="none"
-                />
-                <circle cx="16" cy="17" r="2.2" fill="#38BDF8" />
-                <circle cx="16" cy="17" r="1" fill="#FFFFFF" />
+                <rect width="32" height="32" rx="8" fill="#090D16" />
+                <rect width="32" height="32" rx="8" stroke="#1E293B" strokeWidth="1" />
+                <g filter="url(#brand-sl-glow)">
+                  <rect x="6.5" y="7" width="8" height="8" rx="2.5" fill="url(#brand-sl-accent)" />
+                  <rect x="17.5" y="17" width="8" height="8" rx="2.5" fill="url(#brand-sl-core)" />
+                  <path
+                    d="M14.5 11 H19.5 C20.6 11 21.5 11.9 21.5 13 V17"
+                    stroke="#38BDF8"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <path
+                    d="M17.5 21 H12.5 C11.4 21 10.5 20.1 10.5 19 V15"
+                    stroke="#818CF8"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                  <circle cx="16" cy="16" r="3" fill="#090D16" stroke="#38BDF8" strokeWidth="1.5" />
+                  <circle cx="16" cy="16" r="1.3" fill="#FFFFFF" />
+                </g>
               </svg>
             </div>
             <div className="app-brand-text">
               <h1 className="app-title">ScaleLab</h1>
-              <p className="app-tagline">Simulate, load test, and observe systems</p>
             </div>
           </div>
 
@@ -3020,32 +2863,20 @@ export default function App() {
           </div>
         </div>
 
-        <div className="app-island app-island-load">
-          <TrafficControl
-            rps={offeredRps}
-            onRpsChange={handleRpsChange}
-            running={running}
-            onToggleRun={handleToggleRun}
-            onStep={handleStep}
-            onReset={handleReset}
-            system={snapshot?.system ?? EMPTY_SYSTEM}
-            lost={lostRps}
-            empty={topology.nodes.length === 0}
-            noTrafficSource={findTrafficSources(topology).length === 0}
-          />
-        </div>
-
-        <div className="app-island app-island-menu">
+        {/* Workspace Mode Switcher: Clean Canvas (HLD/Design) vs Simulation */}
+        <div className="app-mode-switch" role="group" aria-label="Workspace mode">
           <button
             type="button"
-            className="app-advisor-btn"
-            title={`Architecture Advisor: Grade ${advisorAudit.grade} (${advisorAudit.score}/100)`}
-            aria-label="Architecture Advisor"
-            onClick={() => setAdvisorOpen(true)}
+            className={`app-mode-btn${cleanCanvas ? ' is-active' : ''}`}
+            title="Clean Canvas mode: Draw & architecture view without live request counters"
+            aria-pressed={cleanCanvas}
+            onClick={() => {
+              if (!cleanCanvas) togglePreference('cleanCanvas');
+            }}
           >
             <svg
-              width="14"
-              height="14"
+              width="13"
+              height="13"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -3054,15 +2885,69 @@ export default function App() {
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-              <path d="m9 12 2 2 4-4" />
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="m9 9 6 6" />
+              <path d="m15 9-6 6" />
             </svg>
-            <span className="app-advisor-label">Advisor</span>
-            <span className={`adv-mini-pill adv-grade-${advisorAudit.grade}`}>
-              {advisorAudit.grade}
-            </span>
+            <span className="app-mode-label">Clean Canvas</span>
           </button>
+          <button
+            type="button"
+            className={`app-mode-btn${!cleanCanvas ? ' is-active' : ''}`}
+            title="Simulation mode: live traffic load slider, requests/second, and telemetry"
+            aria-pressed={!cleanCanvas}
+            onClick={() => {
+              if (cleanCanvas) togglePreference('cleanCanvas');
+            }}
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            <span className="app-mode-label">Simulation</span>
+          </button>
+        </div>
 
+        <div className={`app-island app-island-load${cleanCanvas ? ' is-clean' : ''}`}>
+          {cleanCanvas ? (
+            <div className="app-clean-banner">
+              <span className="app-clean-badge">Clean Canvas</span>
+              <span className="app-clean-hint">Architecture & High-Level Design Mode</span>
+              <button
+                type="button"
+                className="btn btn-sm btn-subtle app-clean-sim-btn"
+                title="Switch to simulation to test traffic load and bottlenecks"
+                onClick={() => togglePreference('cleanCanvas')}
+              >
+                <span>Run Load Test →</span>
+              </button>
+            </div>
+          ) : (
+            <TrafficControl
+              rps={offeredRps}
+              onRpsChange={handleRpsChange}
+              running={running}
+              onToggleRun={handleToggleRun}
+              onStep={handleStep}
+              onReset={handleReset}
+              system={snapshot?.system ?? EMPTY_SYSTEM}
+              lost={lostRps}
+              empty={topology.nodes.length === 0}
+              noTrafficSource={findTrafficSources(topology).length === 0}
+            />
+          )}
+        </div>
+
+        <div className="app-island app-island-menu">
           <button
             type="button"
             className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
@@ -3102,31 +2987,6 @@ export default function App() {
             <span className="app-share-label">
               {copiedLink ? 'Copied!' : 'Share'}
             </span>
-          </button>
-
-          <button
-            type="button"
-            className="app-guide-btn"
-            title="How to use ScaleLab: Interactive guide & manual"
-            aria-label="How to use ScaleLab"
-            onClick={() => setGuideOpen(true)}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span className="app-guide-label">Guide</span>
           </button>
 
           {/*
@@ -3291,13 +3151,6 @@ export default function App() {
               never see it. Its rect is the canvas minus every open panel.
             */}
             <div ref={stageSafeRef} className="stage-safe" aria-hidden="true" />
-            {challenge && challengeResult ? (
-              <ChallengePanel
-                challenge={challenge}
-                result={challengeResult}
-                onGiveUp={() => setChallengeId(null)}
-              />
-            ) : null}
             <button
               type="button"
               className="btn btn-sm btn-icon stage-toggle stage-toggle-library"
@@ -3350,7 +3203,6 @@ export default function App() {
               <Metrics
                 snapshot={snapshot}
                 nodeNames={nodeNames}
-                nodes={topology.nodes}
               />
             ) : null}
             <PanelResizer
@@ -3383,7 +3235,6 @@ export default function App() {
             selectedEdgeCount={selectedEdgeCount}
             onChangeMany={handleConfigChangeMany}
             onDeleteMany={handleDeleteMany}
-            lockedFields={challenge ? FIXED_DURING_CHALLENGE : undefined}
             textBox={selectedTextBox}
             onEditTextBox={handleEditTextBox}
             onSetTextBoxTone={handleSetSectionTone}
@@ -3499,7 +3350,6 @@ export default function App() {
           try { localStorage.setItem('scalelab.guide-dismissed', 'true'); } catch { /* quota / private browsing */ }
         }}
         onOpenExamples={() => setExamplesOpen(true)}
-        onOpenChallenges={() => setChallengesOpen(true)}
       />
       {/* The real file input, kept off screen. A bare one cannot be styled,
           so the Settings row calls click() on this. It lives beside the
@@ -3513,15 +3363,6 @@ export default function App() {
         tabIndex={-1}
         aria-hidden="true"
         onChange={handleImportPick}
-      />
-      <input
-        ref={backupInputRef}
-        type="file"
-        className="app-file-input"
-        accept=".json,application/json"
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={handleRestorePick}
       />
       <Designs
         open={designsOpen}
@@ -3540,18 +3381,6 @@ export default function App() {
         onImport={() => fileInputRef.current?.click()}
         onExportImage={handleExportImage}
         onExportMermaid={handleExportMermaid}
-        onBackup={handleBackup}
-        onRestore={() => backupInputRef.current?.click()}
-      />
-      <Advisor
-        open={advisorOpen}
-        onClose={() => setAdvisorOpen(false)}
-        topology={topology}
-        onSelectNode={(id) => setSelectedIds(new Set([id]))}
-        onNotify={(text) => {
-          toastSeq.current += 1;
-          setToast({ text, id: toastSeq.current });
-        }}
       />
 
       <Examples
@@ -3561,12 +3390,6 @@ export default function App() {
         activePresetId={presetId}
         onLoad={handleLoadPreset}
         onNewCanvas={handleNewCanvas}
-      />
-      <Challenges
-        open={challengesOpen}
-        onClose={() => setChallengesOpen(false)}
-        challenges={CHALLENGES}
-        onStart={handleStartChallenge}
       />
     </div>
   );

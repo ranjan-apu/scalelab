@@ -18,9 +18,6 @@ import {
   togglePinnedKind,
   usePreference,
 } from '../content/preferences';
-import { useVendor } from '../content/vendors/useVendor';
-import { nameFor } from '../content/vendors/lookup';
-import type { Vendor } from '../content/vendors/types';
 import { ANN_DND_MIME } from './annotationLayout';
 import './Palette.css';
 
@@ -136,7 +133,6 @@ interface PaletteItemProps {
   kind: NodeKind;
   isPinned: boolean;
   hintsOn: boolean;
-  vendor: Vendor | null;
   onAdd: (kind: NodeKind) => void;
   onTogglePin: (kind: NodeKind) => void;
   onKeyDown: (e: KeyboardEvent<HTMLButtonElement>, kind: NodeKind) => void;
@@ -148,7 +144,6 @@ function PaletteItem({
   kind,
   isPinned,
   hintsOn,
-  vendor,
   onAdd,
   onTogglePin,
   onKeyDown,
@@ -173,9 +168,6 @@ function PaletteItem({
         </span>
         <span className="pal-names">
           <span className="pal-name">{KIND_NAME[kind]}</span>
-          {vendor && nameFor(kind, vendor) !== KIND_NAME[kind] && (
-            <span className="pal-vendor">{nameFor(kind, vendor)}</span>
-          )}
         </span>
       </button>
       <div className="pal-item-actions">
@@ -286,13 +278,9 @@ function matchesKind(
   kind: NodeKind,
   group: KindGroup,
   needle: string,
-  vendor: Vendor | null,
 ): boolean {
   return (
     KIND_NAME[kind].toLowerCase().includes(needle) ||
-    // The vendor name too, so someone who typed "RDS" finds the database
-    // even though the concept is what the rail is organised by.
-    nameFor(kind, vendor).toLowerCase().includes(needle) ||
     KIND_HINT[kind].toLowerCase().includes(needle) ||
     group.title.toLowerCase().includes(needle)
   );
@@ -461,7 +449,6 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
    * silently extended the document's scroll box by ~634px.
    */
   const hintsOn = usePreference('tooltips');
-  const vendor = useVendor();
   const collapsedGroups = usePreference('collapsedGroups');
   const pinnedKinds = usePreference('pinnedKinds');
 
@@ -479,9 +466,9 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
     if (!needle) return valid;
     return valid.filter((k) => {
       const g = groupOfKind(k) ?? { id: 'pinned', title: 'Pinned', kinds: [] };
-      return matchesKind(k, g, needle, vendor);
+      return matchesKind(k, g, needle);
     });
-  }, [pinnedKinds, needle, vendor]);
+  }, [pinnedKinds, needle]);
 
   const isPinnedCollapsed = !needle && collapsedGroups.includes('pinned');
   const isAnnCollapsed = !needle && collapsedGroups.includes('annotate');
@@ -497,9 +484,9 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
     if (!needle) return KIND_GROUPS;
     return KIND_GROUPS.map((g) => ({
       ...g,
-      kinds: g.kinds.filter((k) => matchesKind(k, g, needle, vendor)),
+      kinds: g.kinds.filter((k) => matchesKind(k, g, needle)),
     })).filter((g) => g.kinds.length > 0);
-  }, [needle, vendor]);
+  }, [needle]);
 
   const matchCount = useMemo(
     () => groups.reduce((n, g) => n + g.kinds.length, 0),
@@ -668,7 +655,6 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
                       kind={kind}
                       isPinned={true}
                       hintsOn={hintsOn}
-                      vendor={vendor}
                       onAdd={onAdd}
                       onTogglePin={togglePinnedKind}
                       onKeyDown={onRowKeyDown}
@@ -704,7 +690,6 @@ export function Palette({ onAdd, onAddAnnotation, armedTool }: PaletteProps) {
                         kind={kind}
                         isPinned={pinnedKinds.includes(kind)}
                         hintsOn={hintsOn}
-                        vendor={vendor}
                         onAdd={onAdd}
                         onTogglePin={togglePinnedKind}
                         onKeyDown={onRowKeyDown}

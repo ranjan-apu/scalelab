@@ -33,8 +33,8 @@ const TABS: TabDef[] = [
   },
   {
     id: 'presets',
-    label: 'Presets & Challenges',
-    badge: '22+',
+    label: 'Architecture Presets',
+    badge: '13',
     icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
   },
   {
@@ -48,7 +48,6 @@ export function GuideModal({
   open,
   onClose,
   onOpenExamples,
-  onOpenChallenges,
 }: GuideProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -166,7 +165,6 @@ export function GuideModal({
             <PresetsPane
               onClose={onClose}
               onOpenExamples={onOpenExamples}
-              onOpenChallenges={onOpenChallenges}
             />
           )}
           {activeTab === 'shortcuts' && <ShortcutsPane />}

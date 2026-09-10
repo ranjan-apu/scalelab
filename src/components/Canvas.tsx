@@ -1782,6 +1782,7 @@ const EdgeView = memo(function EdgeView({
    */
   const midX = route.label.x;
   const midY = route.label.y;
+  const cleanCanvas = usePreference('cleanCanvas');
 
   return (
     <g
@@ -1801,7 +1802,7 @@ const EdgeView = memo(function EdgeView({
           router sees it. */}
       <path d={d} className="cv-edge-hit" data-hit="edge" data-id={edge.id} />
       <path d={d} className="cv-edge-line" strokeWidth={width} />
-      {active && (
+      {active && !cleanCanvas && (
         <path d={d} className="cv-edge-flow" strokeWidth={width * 0.75} style={style} />
       )}
       {/* Arrowhead: one of four fixed triangles, pointed along the path's
@@ -1845,7 +1846,7 @@ const EdgeView = memo(function EdgeView({
       )}
 
       {/* How traffic splits at a fan-out. Invisible before this change. */}
-      {showLabel && active && (
+      {showLabel && active && !cleanCanvas && (
         <text className="cv-edge-label" x={midX} y={midY - 6 + labelDy}>
           {formatRate(flow)}
         </text>
@@ -2949,6 +2950,7 @@ const NodeView = memo(function NodeView({
   // count series (a cron's emitted total, a broker's lag) autoscales.
   const sparkUnit = readout ? readout.sparkUnit : true;
 
+  const cleanCanvas = usePreference('cleanCanvas');
   const full = detail === 2;
   const showHeader = detail >= 1;
 
@@ -3030,6 +3032,16 @@ const NodeView = memo(function NodeView({
         height={NODE_H}
         rx={NODE_R}
         ry={NODE_R}
+      />
+
+      {/* Category accent spine along the left edge */}
+      <rect
+        className="cv-node-spine"
+        x={0}
+        y={0}
+        width={4}
+        height={NODE_H}
+        rx={NODE_R}
       />
 
       {/*
@@ -3176,197 +3188,211 @@ const NodeView = memo(function NodeView({
         </text>
       )}
 
-      {full && readout && (
-        <>
-          {/* The primary is width-guarded like every other cell: it shares
-              its row with the sparkline / vessel (or, on strip kinds, the
-              side cell), and an unguarded value was measured 13px inside the
-              sparkline at a six-figure queue depth. Strip kinds never take
-              the selected font bump (see has-strip above), so their fit is
-              computed at the base size. */}
-          <text
-            className="cv-node-primary"
-            x={PAD_X}
-            y={52}
-            {...fitPrimary(
-              readout.primary.value,
-              readout.primary.label,
-              selected && structure !== 'strip',
-            )}
-          >
-            <tspan className="cv-val">{readout.primary.value}</tspan>
-            <tspan className="cv-cap" dx={4}>
-              {readout.primary.label}
-            </tspan>
+      {cleanCanvas ? (
+        <g className="cv-node-clean-body">
+          <text className="cv-node-clean-group" x={PAD_X} y={54}>
+            {(groupOfKind(node.kind)?.title ?? 'COMPONENT').toUpperCase()}
           </text>
-
-          {/* Strip kinds drop the two-cell secondary row (the strip occupies
-              that band), which previously cost them EVERY number beyond the
-              primary. The right half of the primary row is empty on these
-              kinds, so the single most useful companion figure rides there:
-              coldest partition beside hottest, stale rate beside a replica's
-              utilisation, delivery (or loss) rate beside a broker's lag. */}
-          {structure === 'strip' && (readout.a.value || readout.a.label) && (
-            <text
-              className="cv-node-sec"
-              x={NODE_W - PAD_X}
-              y={52}
-              textAnchor="end"
-              {...fitCell(readout.a.value, readout.a.label, 60)}
-            >
-              <tspan className="cv-val">{readout.a.value}</tspan>
-              {readout.a.value && readout.a.label ? (
-                <tspan className="cv-cap" dx={3}>
-                  {readout.a.label}
-                </tspan>
-              ) : (
-                <tspan className="cv-cap">{readout.a.label}</tspan>
-              )}
-            </text>
-          )}
-
-          {/*
-            The sparkline slot carries the STRUCTURE when the node has one,
-            and the trend otherwise.
-
-            For a shard or a replica set this is a straight upgrade, not a
-            trade: the sparkline there plots the node-level MEAN, which is the
-            single most misleading number those two kinds produce. A shard at
-            hotKeyFraction 0.85 traces a calm flat 0.17 while partition 0 is
-            pinned at 1.00 and shedding. The strip shows both facts at once and
-            the trend is still available on the meter and in the Inspector.
-          */}
-          {structure === 'strip' && units ? (
-            <UnitStrip
-              values={units}
-              /* FULL BODY WIDTH, not the sparkline's 64px slot.
-
-                 For a shard the strip is not a secondary indicator sitting
-                 beside the numbers — it IS the node's primary content, and
-                 the width directly buys legibility at high partition counts.
-                 Measured: 64 partitions in the 64px slot gives 1.00px cells,
-                 which is below the point where a fill height can be read; the
-                 same 64 partitions across the full 160px inner width give
-                 2.50px cells, which still resolve as distinct bars. The
-                 numbers move left to their own column to make room. */
-              x={PAD_X}
-              /* Sits in the band between the secondary readout (baseline 70)
-                 and the meter (80): a 10px strip at y=58 clears the primary
-                 text above it and the meter below without either moving. */
-              y={STRIP_Y}
-              width={METER_W}
-              height={STRIP_H}
-              // A replica set is [primary, ...replicas]: index 0 is a
-              // different KIND of thing from the rest, not just another
-              // member, and the write pool saturating while the read set
-              // idles is the lesson. A shard has no privileged partition.
-              leadIndex={node.kind === 'replica' ? 0 : -1}
-            />
-          ) : structure === 'vessel' && stats ? (
-            <QueueVessel
-              depth={stats.queued}
-              limit={stats.queueLimit}
-              shedding={stats.shedRate > 0}
-              x={SPARK_X}
-              y={SPARK_Y + SPARK_H - 10}
-              width={SPARK_W}
-              height={10}
-            />
-          ) : (
-            <Spark data={spark} unit={sparkUnit} />
-          )}
-
-          {/*
-            The two secondary metrics are anchored to OPPOSITE edges — the
-            first to the left inset, the second to the right — rather than the
-            second sitting at a fixed x offset from the first.
-
-            The fixed offset was a real bug, not a style preference: it
-            assumed the left metric never got wide. At three-digit latency
-            ("117ms P99") the left pair overran the offset and printed
-            straight through the right pair, rendering "P99" and "89%" on top
-            of each other. Anchoring them to opposite edges makes the two grow
-            AWAY from one another, so the gap between them shrinks under
-            pressure instead of going negative.
-          */}
-          {/* The strip occupies this row and already shows the spread these
-              two numbers summarise, so they are dropped for those kinds
-              rather than printed on top of it. The exact hottest/coldest
-              figures remain one click away in the Inspector. */}
-          {structure !== 'strip' && (
+          <text className="cv-node-clean-kind" x={PAD_X} y={72}>
+            {KIND_NAME[node.kind]}
+            {stats?.instances && stats.instances > 1 ? ` · ${stats.instances}x` : ''}
+          </text>
+        </g>
+      ) : (
+        <>
+          {full && readout && (
             <>
-              {/* Each half gets a hard width budget and textLength forces the
-                  glyphs to fit it. SVG text neither wraps nor ellipsises, so
-                  without this a wordy readout simply grows across the node and
-                  collides with its neighbour, which is exactly what happened
-                  when the autoscaler printed a phase word here. Condensing is
-                  ugly at extremes but it is always legible, and it can never
-                  overlap. */}
+              {/* The primary is width-guarded like every other cell: it shares
+                  its row with the sparkline / vessel (or, on strip kinds, the
+                  side cell), and an unguarded value was measured 13px inside the
+                  sparkline at a six-figure queue depth. Strip kinds never take
+                  the selected font bump (see has-strip above), so their fit is
+                  computed at the base size. */}
               <text
-                className="cv-node-sec"
+                className="cv-node-primary"
                 x={PAD_X}
-                y={70}
-                {...fitCell(readout.a.value, readout.a.label, SEC_HALF)}
-              >
-                <tspan className="cv-val">{readout.a.value}</tspan>
-                {readout.a.value && readout.a.label ? (
-                  <tspan className="cv-cap" dx={3}>
-                    {readout.a.label}
-                  </tspan>
-                ) : (
-                  <tspan className="cv-cap">{readout.a.label}</tspan>
+                y={52}
+                {...fitPrimary(
+                  readout.primary.value,
+                  readout.primary.label,
+                  selected && structure !== 'strip',
                 )}
-              </text>
-              <text
-                className="cv-node-sec"
-                x={NODE_W - PAD_X}
-                y={70}
-                textAnchor="end"
-                {...fitCell(readout.b.value, readout.b.label, SEC_HALF)}
               >
-                <tspan className="cv-val">{readout.b.value}</tspan>
-                {readout.b.value && readout.b.label ? (
-                  <tspan className="cv-cap" dx={3}>
-                    {readout.b.label}
-                  </tspan>
-                ) : (
-                  <tspan className="cv-cap">{readout.b.label}</tspan>
-                )}
+                <tspan className="cv-val">{readout.primary.value}</tspan>
+                <tspan className="cv-cap" dx={4}>
+                  {readout.primary.label}
+                </tspan>
               </text>
+
+              {/* Strip kinds drop the two-cell secondary row (the strip occupies
+                  that band), which previously cost them EVERY number beyond the
+                  primary. The right half of the primary row is empty on these
+                  kinds, so the single most useful companion figure rides there:
+                  coldest partition beside hottest, stale rate beside a replica's
+                  utilisation, delivery (or loss) rate beside a broker's lag. */}
+              {structure === 'strip' && (readout.a.value || readout.a.label) && (
+                <text
+                  className="cv-node-sec"
+                  x={NODE_W - PAD_X}
+                  y={52}
+                  textAnchor="end"
+                  {...fitCell(readout.a.value, readout.a.label, 60)}
+                >
+                  <tspan className="cv-val">{readout.a.value}</tspan>
+                  {readout.a.value && readout.a.label ? (
+                    <tspan className="cv-cap" dx={3}>
+                      {readout.a.label}
+                    </tspan>
+                  ) : (
+                    <tspan className="cv-cap">{readout.a.label}</tspan>
+                  )}
+                </text>
+              )}
+
+              {/*
+                The sparkline slot carries the STRUCTURE when the node has one,
+                and the trend otherwise.
+
+                For a shard or a replica set this is a straight upgrade, not a
+                trade: the sparkline there plots the node-level MEAN, which is the
+                single most misleading number those two kinds produce. A shard at
+                hotKeyFraction 0.85 traces a calm flat 0.17 while partition 0 is
+                pinned at 1.00 and shedding. The strip shows both facts at once and
+                the trend is still available on the meter and in the Inspector.
+              */}
+              {structure === 'strip' && units ? (
+                <UnitStrip
+                  values={units}
+                  /* FULL BODY WIDTH, not the sparkline's 64px slot.
+
+                     For a shard the strip is not a secondary indicator sitting
+                     beside the numbers — it IS the node's primary content, and
+                     the width directly buys legibility at high partition counts.
+                     Measured: 64 partitions in the 64px slot gives 1.00px cells,
+                     which is below the point where a fill height can be read; the
+                     same 64 partitions across the full 160px inner width give
+                     2.50px cells, which still resolve as distinct bars. The
+                     numbers move left to their own column to make room. */
+                  x={PAD_X}
+                  /* Sits in the band between the secondary readout (baseline 70)
+                     and the meter (80): a 10px strip at y=58 clears the primary
+                     text above it and the meter below without either moving. */
+                  y={STRIP_Y}
+                  width={METER_W}
+                  height={STRIP_H}
+                  // A replica set is [primary, ...replicas]: index 0 is a
+                  // different KIND of thing from the rest, not just another
+                  // member, and the write pool saturating while the read set
+                  // idles is the lesson. A shard has no privileged partition.
+                  leadIndex={node.kind === 'replica' ? 0 : -1}
+                />
+              ) : structure === 'vessel' && stats ? (
+                <QueueVessel
+                  depth={stats.queued}
+                  limit={stats.queueLimit}
+                  shedding={stats.shedRate > 0}
+                  x={SPARK_X}
+                  y={SPARK_Y + SPARK_H - 10}
+                  width={SPARK_W}
+                  height={10}
+                />
+              ) : (
+                <Spark data={spark} unit={sparkUnit} />
+              )}
+
+              {/*
+                The two secondary metrics are anchored to OPPOSITE edges — the
+                first to the left inset, the second to the right — rather than the
+                second sitting at a fixed x offset from the first.
+
+                The fixed offset was a real bug, not a style preference: it
+                assumed the left metric never got wide. At three-digit latency
+                ("117ms P99") the left pair overran the offset and printed
+                straight through the right pair, rendering "P99" and "89%" on top
+                of each other. Anchoring them to opposite edges makes the two grow
+                AWAY from one another, so the gap between them shrinks under
+                pressure instead of going negative.
+              */}
+              {/* The strip occupies this row and already shows the spread these
+                  two numbers summarise, so they are dropped for those kinds
+                  rather than printed on top of it. The exact hottest/coldest
+                  figures remain one click away in the Inspector. */}
+              {structure !== 'strip' && (
+                <>
+                  {/* Each half gets a hard width budget and textLength forces the
+                      glyphs to fit it. SVG text neither wraps nor ellipsises, so
+                      without this a wordy readout simply grows across the node and
+                      collides with its neighbour, which is exactly what happened
+                      when the autoscaler printed a phase word here. Condensing is
+                      ugly at extremes but it is always legible, and it can never
+                      overlap. */}
+                  <text
+                    className="cv-node-sec"
+                    x={PAD_X}
+                    y={70}
+                    {...fitCell(readout.a.value, readout.a.label, SEC_HALF)}
+                  >
+                    <tspan className="cv-val">{readout.a.value}</tspan>
+                    {readout.a.value && readout.a.label ? (
+                      <tspan className="cv-cap" dx={3}>
+                        {readout.a.label}
+                      </tspan>
+                    ) : (
+                      <tspan className="cv-cap">{readout.a.label}</tspan>
+                    )}
+                  </text>
+                  <text
+                    className="cv-node-sec"
+                    x={NODE_W - PAD_X}
+                    y={70}
+                    textAnchor="end"
+                    {...fitCell(readout.b.value, readout.b.label, SEC_HALF)}
+                  >
+                    <tspan className="cv-val">{readout.b.value}</tspan>
+                    {readout.b.value && readout.b.label ? (
+                      <tspan className="cv-cap" dx={3}>
+                        {readout.b.label}
+                      </tspan>
+                    ) : (
+                      <tspan className="cv-cap">{readout.b.label}</tspan>
+                    )}
+                  </text>
+                </>
+              )}
             </>
           )}
+
+          {/* Meter. Length is the primary encoding of load — it survives both
+              colourblindness and the zoom levels where text has dropped out. */}
+          <rect
+            className="cv-meter-track"
+            x={PAD_X}
+            y={METER_Y}
+            width={METER_W}
+            height={METER_H}
+            rx={1.5}
+          />
+          {meterW > 0 && (
+            <rect
+              className="cv-meter-fill"
+              x={PAD_X}
+              y={METER_Y}
+              width={meterW}
+              height={METER_H}
+              rx={1.5}
+            />
+          )}
+          {/* Threshold tick. A fixed landmark at the warn line, so a bar can be
+              read against WHERE trouble starts, not just against its own length. */}
+          <rect
+            className="cv-meter-tick"
+            x={PAD_X + METER_W * WARN_AT}
+            y={METER_Y - 1}
+            width={1}
+            height={METER_H + 2}
+          />
         </>
       )}
-
-      {/* Meter. Length is the primary encoding of load — it survives both
-          colourblindness and the zoom levels where text has dropped out. */}
-      <rect
-        className="cv-meter-track"
-        x={PAD_X}
-        y={METER_Y}
-        width={METER_W}
-        height={METER_H}
-        rx={1.5}
-      />
-      {meterW > 0 && (
-        <rect
-          className="cv-meter-fill"
-          x={PAD_X}
-          y={METER_Y}
-          width={meterW}
-          height={METER_H}
-          rx={1.5}
-        />
-      )}
-      {/* Threshold tick. A fixed landmark at the warn line, so a bar can be
-          read against WHERE trouble starts, not just against its own length. */}
-      <rect
-        className="cv-meter-tick"
-        x={PAD_X + METER_W * WARN_AT}
-        y={METER_Y - 1}
-        width={1}
-        height={METER_H + 2}
-      />
 
       {/*
         Ports. Input left, output right.
@@ -6902,28 +6928,6 @@ export default function Canvas({
           GAP rather than a "·" glyph, which measured 2.12:1 on the canvas
           (see .cv-ledger). aria-hidden: it repeats what titles and the
           shortcuts dialog already expose to assistive tech, and its churn on
-          selection would be noise there. */}
-      {pendingLink === null &&
-        tool === null &&
-        topology.nodes.length > 0 &&
-        !renameNode && (
-          <div className="cv-hint-idle label" aria-hidden="true">
-            {topology.nodes.some((n) => selectedIds.has(n.id)) ? (
-              <>
-                <span>Drag to move</span>
-                <span>Delete to remove</span>
-                <span>Double-click to rename</span>
-              </>
-            ) : (
-              <>
-                <span>Scroll to pan</span>
-                <span>Ctrl+scroll to zoom</span>
-                <span>Shift+drag to select</span>
-              </>
-            )}
-          </div>
-        )}
-
       {/*
         The note format bar. Chrome pinned to the bottom of the canvas, not
         drawn beside the note it edits: a toolbar anchored to a note is wider

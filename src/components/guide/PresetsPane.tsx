@@ -1,22 +1,20 @@
 interface PresetsPaneProps {
   onClose: () => void;
   onOpenExamples?: () => void;
-  onOpenChallenges?: () => void;
 }
 
 export function PresetsPane({
   onClose,
   onOpenExamples,
-  onOpenChallenges,
 }: PresetsPaneProps) {
   return (
     <div className="gd-pane">
-      <h3>🏛️ Explore Ready-to-Run Presets &amp; Challenges</h3>
+      <h3>🏛️ Explore Ready-to-Run Architecture Presets</h3>
 
       <div className="gd-grid-2">
         <div className="gd-card-mini">
           <h4>🏢 Production Reconstructions</h4>
-          <p>Explore reverse-engineered architectures from the <strong>Examples</strong> menu:</p>
+          <p>Explore reverse-engineered real-world architectures from the <strong>Examples</strong> menu:</p>
           <ul>
             <li><strong>Discord:</strong> Millions of concurrent WebSockets &amp; guild fan-out.</li>
             <li><strong>Uber:</strong> Driver GPS stream ingestion &amp; dispatch lock contention.</li>
@@ -27,12 +25,12 @@ export function PresetsPane({
         </div>
 
         <div className="gd-card-mini">
-          <h4>🎯 Interactive Challenges</h4>
-          <p>Test your intuition with hands-on debugging challenges:</p>
+          <h4>⚡ Common Distributed Patterns</h4>
+          <p>Study foundational patterns under varying load and failure injection:</p>
           <ul>
-            <li><strong>Hold the Line:</strong> Keep p99 under 200ms at 150 RPS on an overloaded service.</li>
-            <li><strong>More Machines:</strong> Scale out a bottlenecked cluster under 600 RPS without dropping packets.</li>
-            <li><strong>Stop the Storm:</strong> Extinguish a self-inflicted 100% outage caused by aggressive retries.</li>
+            <li><strong>Cache-Aside &amp; Write-Behind:</strong> Minimizing database load spikes.</li>
+            <li><strong>Asynchronous Work Queues:</strong> Buffering bursty background jobs.</li>
+            <li><strong>Circuit Breakers &amp; Shedders:</strong> Preventing cascading system collapse.</li>
           </ul>
         </div>
       </div>
@@ -48,18 +46,6 @@ export function PresetsPane({
             }}
           >
             Browse Presets &amp; Examples
-          </button>
-        )}
-        {onOpenChallenges && (
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost"
-            onClick={() => {
-              onClose();
-              onOpenChallenges();
-            }}
-          >
-            Open Challenges Drawer
           </button>
         )}
       </div>

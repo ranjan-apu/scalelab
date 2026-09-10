@@ -17,5 +17,4 @@ export interface GuideProps {
   open: boolean;
   onClose: () => void;
   onOpenExamples?: () => void;
-  onOpenChallenges?: () => void;
 }

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { FailureReason, HistoryPoint, SimNode, SimSnapshot } from '../sim/types';
+import type { FailureReason, HistoryPoint, SimSnapshot } from '../sim/types';
 import {
   formatCompact,
   formatMs,
@@ -10,7 +10,6 @@ import {
 } from './format';
 import { Term } from './Tooltip';
 import { Trace } from './Trace';
-import { Cost } from './Cost';
 import './Metrics.css';
 
 /* ------------------------------------------------------------------ *
@@ -989,8 +988,6 @@ const FailureChart = memo(function FailureChart({
 
 export interface MetricsProps {
   snapshot: SimSnapshot;
-  /** The design being costed. Absent means nothing to price. */
-  nodes?: readonly SimNode[];
   /** Node id to display name, for the trace panel. */
   nodeNames?: Record<string, string>;
 }
@@ -1001,7 +998,7 @@ const EMPTY_BY: Record<FailureReason, number> = Object.fromEntries(
   REASON_ORDER.map((r) => [r, 0]),
 ) as Record<FailureReason, number>;
 
-export function Metrics({ snapshot, nodeNames, nodes }: MetricsProps) {
+export function Metrics({ snapshot, nodeNames }: MetricsProps) {
   const { system, history, failuresByReason } = snapshot;
 
   /* The trace names nodes by id; the reader knows them by the label on the
@@ -1164,8 +1161,6 @@ export function Metrics({ snapshot, nodeNames, nodes }: MetricsProps) {
       />
       <FailureChart samples={failSamples} failures={failuresNow} />
       <Trace trace={snapshot.trace} nameOf={nameOf} />
-      {/* Renders nothing on generic, where there are no prices to show. */}
-      <Cost nodes={nodes ?? []} />
     </div>
   );
 }

@@ -91,6 +91,97 @@
   max-width: 940px;
 }
 
+/* Mode switcher: Clean Canvas vs Simulation */
+.app-mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-md);
+  padding: 3px;
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+.app-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+  white-space: nowrap;
+}
+
+.app-mode-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.app-mode-btn.is-active {
+  color: var(--accent-fg);
+  background: var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.app-mode-btn.is-active svg {
+  stroke: var(--accent-fg);
+}
+
+/* Clean Canvas Top Bar Banner */
+.app-island-load.is-clean {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--sp-4);
+  max-width: 580px;
+}
+
+.app-clean-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  justify-content: space-between;
+}
+
+.app-clean-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  background: var(--surface-2);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--sans);
+  font-size: var(--fs-label);
+  font-weight: var(--fw-med);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-label);
+  color: var(--text);
+}
+
+.app-clean-hint {
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.app-clean-sim-btn {
+  margin-left: auto;
+  white-space: nowrap;
+  font-weight: var(--fw-med);
+}
+
 /* Pushes the menu to the far right, leaving the gap between it and the load
    island as visible canvas rather than as dead space inside a bar. */
 .app-island-menu {
@@ -237,9 +328,7 @@
   flex: none;
 }
 
-.app-advisor-btn,
-.app-share-btn,
-.app-guide-btn {
+.app-share-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
@@ -255,9 +344,7 @@
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.app-advisor-btn:hover,
-.app-share-btn:hover,
-.app-guide-btn:hover {
+.app-share-btn:hover {
   background: var(--surface-hover, var(--border));
 }
 
@@ -266,36 +353,15 @@
   border-color: rgba(34, 197, 94, 0.4);
 }
 
-.app-advisor-label,
-.app-share-label,
-.app-guide-label {
+.app-share-label {
   display: inline;
 }
 
 @media (max-width: 1100px) {
-  .app-advisor-label,
-  .app-share-label,
-  .app-guide-label {
+  .app-share-label {
     display: none;
   }
 }
-
-.adv-mini-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 2px 5px;
-  border-radius: 4px;
-}
-
-.adv-grade-A { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
-.adv-grade-B { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.adv-grade-C { background: rgba(234, 179, 8, 0.2); color: #facc15; }
-.adv-grade-D { background: rgba(249, 115, 22, 0.2); color: #fb923c; }
-.adv-grade-F { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
 .app-menu-btn {
   flex: none;
