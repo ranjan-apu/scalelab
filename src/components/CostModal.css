@@ -1,0 +1,168 @@
+.cost-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
+.cost-modal-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg, 14px);
+  width: 100%;
+  max-width: 780px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  color: var(--text);
+}
+
+.cost-modal-head {
+  padding: 20px 24px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+}
+
+.cost-modal-title {
+  font-size: var(--fs-lg, 20px);
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.cost-modal-desc {
+  font-size: var(--fs-sm, 12px);
+  color: var(--text-dim);
+  margin: 4px 0 0;
+}
+
+.cost-modal-close {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.cost-modal-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px 24px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.cost-provider-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md, 10px);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: border-color var(--dur-fast), transform var(--dur-fast);
+}
+
+.cost-provider-card:hover {
+  border-color: var(--border-strong);
+}
+
+.cost-provider-card.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.cost-provider-name {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.cost-provider-total {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 4px;
+}
+
+.cost-provider-unit {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.cost-modal-table-wrap {
+  padding: 0 24px;
+  overflow-y: auto;
+  max-height: 40vh;
+}
+
+.cost-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm, 12px);
+  margin: 16px 0;
+}
+
+.cost-modal-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cost-modal-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.cost-kind-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
+.cost-sku-detail {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.cost-modal-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.cost-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface-2);
+}
+
+.cost-modal-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin: 0;
+}

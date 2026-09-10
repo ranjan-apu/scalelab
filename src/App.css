@@ -103,12 +103,30 @@
   align-items: center;
 }
 
-.app-doc-title {
+.app-doc-title-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  padding: 3px 8px;
   font-family: var(--sans);
   font-size: var(--fs-sm);
-  font-weight: var(--fw-med);
-  color: var(--text-dim);
-  white-space: nowrap;
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  max-width: 180px;
+  transition: all var(--dur-fast) var(--ease);
+}
+
+.app-doc-title-input:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.app-doc-title-input:focus {
+  outline: none;
+  background: var(--surface-2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-ring);
+  color: var(--text);
 }
 
 @media (max-width: 1200px) {
@@ -123,6 +141,135 @@
   min-width: 0;
   max-width: 780px;
   justify-content: center;
+}
+
+/* Center group: Mode switcher + Studio telemetry pills */
+.app-center-studio {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  pointer-events: auto;
+}
+
+.app-studio-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-studio-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-full);
+  border: var(--bw) solid var(--border);
+  background: var(--surface);
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-med);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+}
+
+.app-studio-pill-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+  transform: translateY(-0.5px);
+}
+
+.app-studio-pill-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.app-studio-pill-val {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.app-studio-pill-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.app-advisor-pill.is-good {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.08);
+}
+.app-advisor-pill.is-good .app-studio-pill-val {
+  color: #16a34a;
+}
+:root[data-theme='dark'] .app-advisor-pill.is-good .app-studio-pill-val {
+  color: #4ade80;
+}
+
+.app-advisor-pill.is-warn {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+}
+.app-advisor-pill.is-warn .app-studio-pill-val {
+  color: #d97706;
+}
+:root[data-theme='dark'] .app-advisor-pill.is-warn .app-studio-pill-val {
+  color: #fbbf24;
+}
+
+.app-advisor-pill.is-spof {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  animation: pulse-spof 2.5s infinite;
+}
+.app-advisor-pill.is-spof .app-studio-pill-val {
+  color: #dc2626;
+  font-weight: 700;
+}
+:root[data-theme='dark'] .app-advisor-pill.is-spof .app-studio-pill-val {
+  color: #f87171;
+}
+
+@keyframes pulse-spof {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+  }
+}
+
+.app-rfc-pill {
+  color: var(--accent);
+  border-color: var(--accent-subtle);
+  background: var(--surface);
+}
+.app-rfc-pill:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.app-rfc-pill svg {
+  stroke: var(--accent);
+}
+.app-rfc-pill .app-studio-pill-val {
+  font-family: var(--sans);
+  color: var(--accent);
+}
+
+@media (max-width: 1100px) {
+  .app-studio-telemetry {
+    display: none;
+  }
 }
 
 /* Mode switcher: Clean Canvas vs Simulation */

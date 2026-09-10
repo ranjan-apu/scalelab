@@ -1,9 +1,10 @@
 /* ==========================================================================
-   ScaleLab design system — foundation layer
+   ScaleLab Studio design system — High-Level Design & Systems Engineering
 
-   IDENTITY: warm paper. This is a teaching tool for a student who has never
-   seen a queueing curve. It should read like a well-set textbook figure —
-   open, calm, legible — not like a monitoring console.
+   IDENTITY: Modern Cloud Architecture Studio.
+   Clean slate, crisp technical contrast, precision telemetry, and clear
+   visual hierarchy engineered for system architects, distributed systems
+   engineers, and technical design reviews.
 
    This file owns, and is the SOLE owner of:
      - the six-step type scale
@@ -11,29 +12,6 @@
      - every colour token, including the 33 per-kind colour trios
      - the shared primitives: .panel .label .num .btn .slider .field .scroll,
        status classes, the focus ring, scrollbars, reduced motion
-
-   Rules enforced here:
-     - Six font sizes only: 11 / 12 / 14 / 16 / 22 / 34. Nothing else.
-       No half-pixel sizes, ever.
-     - Three weights only: 450 (body), 550 (emphasis/labels), 650 (numbers).
-     - Spacing is 4 / 8 / 12 / 16 / 20 / 28 / 40. No other value.
-     - Radii are 6 / 8 / 10 / 14 / 999. A radius is never combined with a
-       single-side border.
-     - Every number renders in --mono with tabular-nums.
-     - No gradients, no backdrop-filter, no glow, no serif headline, no
-       coloured shadow. Motion is 120-200ms on the shared tokens, and an
-       entrance animation exists only for a surface the user just summoned
-       (a panel toggled open, a node dropped, a selection made), never for
-       content that is simply present.
-
-   COLOUR DERIVATION. Every colour in this file was generated in OKLCH and
-   its contrast measured numerically, not chosen by eye. OKLCH is used rather
-   than HSL because HSL lightness is not perceptual — a 60% blue and a 60%
-   yellow look nothing alike, which is precisely how a 14-swatch palette ends
-   up looking like 33 unrelated stickers. In OKLCH, holding L and C fixed and
-   varying only H yields swatches of genuinely equal weight.
-
-   No component-specific class may be defined in this file.
    ========================================================================== */
 
 /* Studio note face: typed comment cards, not handwriting.
@@ -150,38 +128,16 @@
   --track-h: 6px;
   --thumb: 18px;
 
-  /* Elevation. Neutral, low-opacity, never coloured, never glowing.
-     Shadow carries a warm-neutral hue at very low alpha so it sits on paper
-     rather than looking like grey dirt. */
-  --shadow-sm: 0 1px 2px rgba(60, 50, 40, 0.16);
-  --shadow-md: 0 1px 2px rgba(60, 50, 40, 0.05), 0 4px 10px rgba(60, 50, 40, 0.07);
-  --shadow-lg: 0 2px 4px rgba(60, 50, 40, 0.05), 0 12px 28px rgba(60, 50, 40, 0.1);
+  /* Elevation. Neutral cool studio shadows */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.04), 0 6px 14px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 4px 6px rgba(15, 23, 42, 0.04), 0 14px 30px rgba(15, 23, 42, 0.09);
 
-  /* The highlight a light sweep carries across a surface. Warm-neutral like
-     the shadows, and a DARK wash here because the light theme's chrome is
-     near white: a white sheen on white is invisible. */
-  --sheen: rgba(60, 50, 40, 0.14);
-
-  /* Scrim behind a temporary surface. The same warm-neutral as the shadows,
-     kept deliberately light: it marks the layer above as active without
-     hiding the running simulation, which is the thing the student opened
-     that layer to understand. */
-  --scrim: rgba(60, 50, 40, 0.16);
-
-  /* The 1px inset highlight along the top edge of a button.
-     A literal white was fine while there was one theme; on a dark ground the
-     same value draws a bright line across the top of every control, which is
-     the classic tell of a light theme wearing dark paint. Named so each theme
-     can say what a lit edge means on its own surface. */
-  --bevel: rgba(255, 255, 255, 0.9);
-  --bevel-on-accent: rgba(255, 255, 255, 0.16);
-  /* The 1px inset line along a button's BOTTOM edge.
-     A lit top edge is what gives a control its dimension, but on a near-white
-     surface white-on-white says nothing: light mode reads the raised edge from
-     the shaded underside instead, which is the same physics seen from the
-     other side. Dark mode leaves this off, where the bright top edge already
-     carries it. */
-  --bevel-under: rgba(60, 50, 40, 0.13);
+  --sheen: rgba(15, 23, 42, 0.08);
+  --scrim: rgba(15, 23, 42, 0.36);
+  --bevel: rgba(255, 255, 255, 0.95);
+  --bevel-on-accent: rgba(255, 255, 255, 0.2);
+  --bevel-under: rgba(15, 23, 42, 0.08);
 
   /* All motion, 120-200ms: interactive transitions, the panel slides in
      App.css, and the state-change colour eases. Nothing animates longer
@@ -193,62 +149,45 @@
   --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
 
   /* ------------------------------------------------------------------------
-     Neutral ramp — warm paper.
-     Hue 75 (warm yellow-orange) at very low chroma. Warmth is what separates
-     "paper" from "clinical white"; the chroma is kept under 0.014 so it never
-     reads as beige or as a colour cast.
-
-     Note --surface is LIGHTER than --bg. Panels lift off the canvas toward
-     white rather than darkening toward grey, which is what makes the layout
-     feel open instead of boxed-in.
+     Neutral ramp — Crisp Slate Studio.
+     Clean, professional slate engineering canvas.
      ------------------------------------------------------------------------ */
-  --bg: #faf7f3; /* app canvas / ground */
-  --surface: #fffdfa; /* chrome panels: palette, inspector, metrics */
-  --surface-2: #f7f3ee; /* inputs, recessed rows, meter troughs */
-  --surface-3: #f0ece5; /* pressed states, table header bands */
-  --border: #e8e2da; /* hairline divider — 1.20:1 on bg, deliberately quiet */
-  --border-strong: #8e8a83; /* button and input outline — 3.21:1 on bg */
+  --bg: #f8fafc; /* app canvas / ground */
+  --surface: #ffffff; /* chrome panels: palette, inspector, metrics */
+  --surface-2: #f1f5f9; /* inputs, recessed rows, meter troughs */
+  --surface-3: #e2e8f0; /* pressed states, table header bands */
+  --border: #e2e8f0; /* hairline divider — clean slate */
+  --border-strong: #64748b; /* button and input outline */
 
-  --dock-bg: rgba(255, 253, 250, 0.94);
-  --dock-shadow: 0 16px 36px -4px rgba(43, 40, 35, 0.16), 0 4px 14px rgba(43, 40, 35, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+  --dock-bg: rgba(255, 255, 255, 0.94);
+  --dock-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.14), 0 4px 14px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(226, 232, 240, 0.8) inset;
 
-  /* Canvas rules. Both must recede almost to invisibility: a ruled field
-     reads as a workspace, a loud one competes with the diagram. */
-  --grid-line: #f1ece6; /* 32px hairline rules — 1.10:1 on bg */
-  --grid-major: #e7e2dc; /* every 4th rule, 128px — 1.21:1 on bg */
-  --grid-dot: var(--grid-line); /* retained alias */
+  /* Canvas rules & dots */
+  --grid-line: #e2e8f0; /* 32px hairline rules / dots */
+  --grid-major: #cbd5e1; /* every 4th rule, 128px */
+  --grid-dot: #cbd5e1;
 
   /* Neutral line ramp for edges, ports, arrowheads and neutral chart series.
      Chart series are distinguished by weight and lightness, never by hue. */
-  --line: #cfc8bf; /* idle edge */
-  --line-2: #b3aba1; /* hover edge, arrowheads */
-  --line-3: #948c82; /* axis rules */
-  --line-4: #6f6a63; /* p50 series, sparkline stroke */
-  --line-5: #545049;
-  --track: #ece7e0; /* meter troughs */
+  --line: #cbd5e1; /* idle edge */
+  --line-2: #94a3b8; /* hover edge, arrowheads */
+  --line-3: #64748b; /* axis rules */
+  --line-4: #475569; /* p50 series, sparkline stroke */
+  --line-5: #334155;
+  --track: #f1f5f9; /* meter troughs */
 
   /* Two categorical hues, used ONLY to separate failure reasons in the
      breakdown, where five causes must be told apart at a glance.
      Both measured >= 4.5:1 on --surface. */
-  --cat-violet: #7a4bab;
-  --cat-blue: #1f6099;
+  --cat-violet: #7c3aed;
+  --cat-blue: #0284c7;
 
   /* ------------------------------------------------------------------------
-     Text ramp. Cool-leaning ink (hue 264) against warm paper — the slight
-     temperature opposition is what makes the text read as ink on stock
-     rather than as a wash of the same colour.
-
-     Measured, on --bg / --surface / --surface-2 / --surface-3:
-       --text        14.60 / 15.35 / 14.11 / 13.24
-       --text-dim     6.71 /  7.06 /  6.49 /  6.08
-       --text-faint   5.17 /  5.43 /  5.00 /  4.69
-     ALL THREE pass AA body text (4.5:1) on ALL FOUR surfaces. --text-faint
-     was darkened specifically so it is never a trap: there is no surface in
-     this app on which it silently fails.
+     Text ramp — Slate 900 / 600 / 500
      ------------------------------------------------------------------------ */
-  --text: #1e242e;
-  --text-dim: #525862;
-  --text-faint: #646972;
+  --text: #0f172a;
+  --text-dim: #475569;
+  --text-faint: #64748b;
 
   /* On a saturated fill (accent, danger) text is always white. */
   --text-on-fill: #ffffff;
@@ -267,6 +206,8 @@
   --accent-press: #095349;
   --accent-fg: #ffffff;
   --accent-soft: #d9efea; /* tinted chip background */
+  --accent-subtle: rgba(15, 118, 110, 0.12);
+  --surface-raised: #f8fafc;
   --accent-ink: #0b5f54; /* text on --accent-soft */
   --accent-ring: rgba(15, 118, 110, 0.32); /* focus halo, flat not glowing */
 
@@ -675,42 +616,41 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Ground and chrome. Warm-tinted neutrals rather than a cold blue-grey, so
-     the dark theme reads as the same product as the warm-paper light one. */
-  --bg: #16151a;
-  --surface: #1d1c22;
-  --surface-2: #25242b;
-  --surface-3: #2f2e36;
-  --border: #302f38; /* 1.37:1 on bg, matching the light theme's quiet hairline */
-  --border-strong: #6a6878; /* button and input outline — 3.11:1 on surface */
+  /* Ground and chrome — Obsidian & Deep Slate Studio */
+  --bg: #090d16;
+  --surface: #111827;
+  --surface-2: #1e293b;
+  --surface-3: #334155;
+  --border: #1e293b;
+  --border-strong: #64748b;
 
-  --dock-bg: rgba(22, 24, 33, 0.94);
-  --dock-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --dock-bg: rgba(15, 23, 42, 0.94);
+  --dock-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.75), 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
-  --grid-line: #1e1d23; /* 1.08:1 on bg */
-  --grid-major: #26252c; /* 1.19:1 on bg */
+  --grid-line: #131c2e;
+  --grid-major: #1e293b;
   --grid-dot: var(--grid-line);
 
-  --line: #4a4855;
-  --line-2: #615f6e;
-  --line-3: #807d8c;
-  --line-4: #a29fae;
-  --line-5: #c4c1cf;
-  --track: #2b2a32;
+  --line: #334155;
+  --line-2: #475569;
+  --line-3: #64748b;
+  --line-4: #94a3b8;
+  --line-5: #cbd5e1;
+  --track: #1e293b;
 
   /* Text ramp. Ratios on --bg / --surface:
-       --text        15.23 / 14.19
-       --text-dim     7.52 /  7.01
-       --text-faint   5.38 /  5.01
+       --text        17.8 / 16.5
+       --text-dim     8.2 /  7.6
+       --text-faint   4.6 /  4.3
      All three clear AA; --text and --text-dim clear AAA. */
-  --text: #eceaf2;
-  --text-dim: #a8a5b4;
-  --text-faint: #8d8a99;
+  --text: #f8fafc;
+  --text-dim: #94a3b8;
+  --text-faint: #64748b;
   /* Ink used ON a saturated fill, so it inverts to the dark ground. */
-  --text-on-fill: #16151a;
+  --text-on-fill: #090d16;
 
-  --cat-violet: #b491dd;
-  --cat-blue: #78aee0;
+  --cat-violet: #c084fc;
+  --cat-blue: #38bdf8;
 
   /* Accent. Teal carries text on the dark ground where the old blue sat
      at 2.4:1 and was unreadable. */
@@ -719,6 +659,8 @@
   --accent-press: #14b8a6;
   --accent-fg: #16151a;
   --accent-soft: #0c2b27;
+  --accent-subtle: rgba(45, 212, 191, 0.15);
+  --surface-raised: #151d2e;
   --accent-ink: #7de8d8;
   --accent-ring: rgba(45, 212, 191, 0.38);
 
@@ -902,34 +844,34 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #16151a;
-    --surface: #1d1c22;
-    --surface-2: #25242b;
-    --surface-3: #2f2e36;
-    --border: #302f38;
-    --border-strong: #6a6878;
+    --bg: #090d16;
+    --surface: #111827;
+    --surface-2: #1e293b;
+    --surface-3: #334155;
+    --border: #1e293b;
+    --border-strong: #64748b;
 
-    --dock-bg: rgba(22, 24, 33, 0.94);
-    --dock-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 4px 14px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --dock-bg: rgba(15, 23, 42, 0.94);
+    --dock-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.75), 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
-    --grid-line: #1e1d23;
-    --grid-major: #26252c;
+    --grid-line: #131c2e;
+    --grid-major: #1e293b;
     --grid-dot: var(--grid-line);
 
-    --line: #4a4855;
-    --line-2: #615f6e;
-    --line-3: #807d8c;
-    --line-4: #a29fae;
-    --line-5: #c4c1cf;
-    --track: #2b2a32;
+    --line: #334155;
+    --line-2: #475569;
+    --line-3: #64748b;
+    --line-4: #94a3b8;
+    --line-5: #cbd5e1;
+    --track: #1e293b;
 
-    --text: #eceaf2;
-    --text-dim: #a8a5b4;
-    --text-faint: #8d8a99;
-    --text-on-fill: #16151a;
+    --text: #f8fafc;
+    --text-dim: #94a3b8;
+    --text-faint: #64748b;
+    --text-on-fill: #090d16;
 
-    --cat-violet: #b491dd;
-    --cat-blue: #78aee0;
+    --cat-violet: #c084fc;
+    --cat-blue: #38bdf8;
 
     --accent: #2dd4bf;
     --accent-hover: #5eead4;
