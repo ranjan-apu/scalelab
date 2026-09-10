@@ -1072,3 +1072,13 @@
   color: var(--accent);
   font-weight: 600;
 }
+
+/* Clean Canvas Component Function Description */
+.ins-node-desc-field {
+  min-height: 120px;
+  font-size: var(--fs-base, 13px);
+  line-height: 1.6;
+  border-radius: var(--r-input, 6px);
+  margin-top: var(--sp-2, 8px);
+}
+

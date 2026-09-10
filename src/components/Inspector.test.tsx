@@ -324,9 +324,10 @@ describe('Clean Canvas mode conditional rendering in Inspector', () => {
     expect(container.textContent).toContain('Right now');
   });
 
-  it('hides telemetry and live calculations for service nodes when cleanCanvas is true', async () => {
+  it('hides all simulation parameters and shows minimal rename and description when cleanCanvas is true', async () => {
     const { makeNode } = await import('../sim/presets');
     const serviceNode = makeNode('service', 100, 100);
+    const onDescribe = vi.fn();
 
     render(
       <Inspector
@@ -335,14 +336,76 @@ describe('Clean Canvas mode conditional rendering in Inspector', () => {
         onChange={vi.fn()}
         onDelete={vi.fn()}
         onRename={vi.fn()}
+        onDescribe={onDescribe}
         cleanCanvas={true}
       />,
     );
 
+    // Simulation knobs must not be present
+    expect(container.textContent).not.toContain('Slots per instance');
+    expect(container.textContent).not.toContain('Service time');
+    expect(container.textContent).not.toContain('Work unevenness');
+    expect(container.textContent).not.toContain('Queue capacity');
     expect(container.textContent).not.toContain('Right now');
     expect(container.textContent).not.toContain('What that works out to');
-    // Architectural knobs like capacity and service time should remain
-    expect(container.textContent).toContain('Slots per instance');
-    expect(container.textContent).toContain('Service time');
+
+    // Minimal options: rename input, function description textarea, and delete
+    expect(container.querySelector('input[aria-label="Node name"]')).not.toBeNull();
+    const textarea = container.querySelector(
+      'textarea[aria-label="Component function description"]',
+    ) as HTMLTextAreaElement;
+    expect(textarea).not.toBeNull();
+    expect(container.textContent).toContain('Function & Role');
+    expect(container.textContent).toContain('Delete component');
+
+    // Editing description calls onDescribe
+    act(() => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value',
+      )?.set;
+      nativeInputValueSetter?.call(textarea, 'API Gateway for authentication');
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(onDescribe).toHaveBeenCalledWith(serviceNode.id, 'API Gateway for authentication');
+  });
+
+  it('hides simulation knobs for client and database nodes in clean canvas mode', async () => {
+    const { makeNode } = await import('../sim/presets');
+    const clientNode = makeNode('client', 100, 100);
+    const dbNode = makeNode('db', 200, 200);
+
+    // Client node
+    render(
+      <Inspector
+        node={clientNode}
+        stats={dummyStats}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onRename={vi.fn()}
+        cleanCanvas={true}
+      />,
+    );
+    expect(container.textContent).not.toContain('Offered load');
+    expect(container.textContent).not.toContain('Give up after');
+    expect(container.textContent).not.toContain('Retry budget');
+    expect(container.textContent).toContain('Function & Role');
+
+    // Database node
+    render(
+      <Inspector
+        node={dbNode}
+        stats={dummyStats}
+        onChange={vi.fn()}
+        onDelete={vi.fn()}
+        onRename={vi.fn()}
+        cleanCanvas={true}
+      />,
+    );
+    expect(container.textContent).not.toContain('Read/write mix');
+    expect(container.textContent).not.toContain('Lock wait');
+    expect(container.textContent).not.toContain('Slots per instance');
+    expect(container.textContent).toContain('Function & Role');
   });
 });

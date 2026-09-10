@@ -77,9 +77,11 @@ export function isTopology(value: unknown): value is Topology {
       x: unknown;
       y: unknown;
       config: unknown;
+      description?: unknown;
     }>;
     if (typeof n.id !== 'string' || n.id === '') return false;
     if (typeof n.label !== 'string') return false;
+    if (n.description !== undefined && typeof n.description !== 'string') return false;
     if (!NODE_KINDS.includes(n.kind as NodeKind)) return false;
     if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return false;
     if (typeof n.config !== 'object' || n.config === null) return false;

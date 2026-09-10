@@ -2676,6 +2676,7 @@ export interface InspectorProps {
   onChange: (id: string, patch: Partial<NodeConfig>) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, label: string) => void;
+  onDescribe?: (id: string, description: string) => void;
   /**
    * Fields a challenge is holding still, or undefined outside one.
    *
@@ -2756,6 +2757,7 @@ export function Inspector({
   onChange,
   onDelete,
   onRename,
+  onDescribe,
   lockedFields,
   selectedNodes,
   selectedEdgeCount = 0,
@@ -2874,6 +2876,7 @@ export function Inspector({
       onChange={onChange}
       onDelete={onDelete}
       onRename={onRename}
+      onDescribe={onDescribe}
       lockedFields={lockedFields}
       cleanCanvas={isClean}
     />
@@ -3165,6 +3168,7 @@ function SingleInspector({
   onChange,
   onDelete,
   onRename,
+  onDescribe,
   lockedFields,
   cleanCanvas = false,
 }: {
@@ -3173,6 +3177,7 @@ function SingleInspector({
   onChange: (id: string, patch: Partial<NodeConfig>) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, label: string) => void;
+  onDescribe?: (id: string, description: string) => void;
   lockedFields?: readonly string[];
   cleanCanvas?: boolean;
 }) {
@@ -3265,172 +3270,191 @@ function SingleInspector({
               renamed the node to something of their own, so that is when it
               appears. The glossary trigger is not lost either way: the blurb
               below always carries it. */}
-          {node.label.trim().toLowerCase() !== KIND_NAME[node.kind].toLowerCase() && (
+          {(cleanCanvas || node.label.trim().toLowerCase() !== KIND_NAME[node.kind].toLowerCase()) && (
             <span className="label ins-kind">
               <Term id={KIND_TERM[node.kind]}>{KIND_NAME[node.kind]}</Term>
             </span>
           )}
         </header>
 
-        <p className="ins-blurb">
-          <Term id={KIND_TERM[node.kind]}>{KIND_NAME[node.kind]}</Term>.{' '}
-          {KIND_BLURB[node.kind]}
-        </p>
-
-        {/* The headline meter: hidden in Clean Canvas mode */}
-        {!cleanCanvas && stats ? <VitalsMeter kind={node.kind} stats={stats} cfg={cfg} /> : null}
-
-        {/* Live Subsystem Panels: hidden in Clean Canvas mode */}
-        {!cleanCanvas && stats && node.kind === 'autoscaler' && <AutoscalerPanel stats={stats} />}
-        {!cleanCanvas && stats && node.kind === 'queue' && <QueuePanel stats={stats} />}
-        {!cleanCanvas && stats && node.kind === 'cron' && <CronPanel stats={stats} />}
-        {!cleanCanvas && stats && node.kind === 'region' && <RegionPanel stats={stats} />}
-        {!cleanCanvas && stats && node.kind !== 'queue' && node.kind !== 'autoscaler' && (
-          <UnitsPanel node={node} stats={stats} />
-        )}
-
-        {grouped.map((group) => (
-          <Section key={group.title} title={group.title}>
-            <div className="ins-fields">
-              {group.fields.map((field) => {
-                const spec = specFor(node.kind, field);
-                const locked = lockedFields?.includes(field) ?? false;
-                // Fields that only some kinds read are optional on NodeConfig,
-                // so a node saved by an older build can be missing one. Fall
-                // back to this kind's default rather than to the spec's
-                // minimum, which would silently show the student a value that
-                // is not the one the engine is actually running with.
-                const value = readField(node, field);
-                return spec.control === 'slider' ? (
-                  <SliderRow
-                    key={field}
-                    spec={spec}
-                    value={value}
-                    locked={locked}
-                    onChange={(v) => onChange(node.id, { [field]: v })}
-                  />
-                ) : (
-                  <NumberRow
-                    key={field}
-                    spec={spec}
-                    value={value}
-                    locked={locked}
-                    onChange={(v) => onChange(node.id, { [field]: v })}
-                  />
-                );
-              })}
-            </div>
+        {cleanCanvas ? (
+          <Section title="Function & Role">
+            <textarea
+              className="ins-textbox-body-field ins-node-desc-field"
+              value={node.description ?? ''}
+              placeholder="Describe what this component does in your architecture (e.g. Ingests client events, verifies tokens, caches user profiles)..."
+              rows={6}
+              spellCheck={false}
+              aria-label="Component function description"
+              onChange={(e) => onDescribe?.(node.id, e.target.value)}
+            />
+            <p className="ins-empty-hint">
+              Document this component's responsibilities, API contracts, or architectural purpose.
+            </p>
           </Section>
-        ))}
+        ) : (
+          <>
+            <p className="ins-blurb">
+              <Term id={KIND_TERM[node.kind]}>{KIND_NAME[node.kind]}</Term>.{' '}
+              {KIND_BLURB[node.kind]}
+            </p>
 
-        {!cleanCanvas && showCeiling && (
-          <Section title="What that works out to">
-            <div className="ins-stats">
-              <StatRow
-                label="Most it can finish"
-                term="capacity"
-                value={formatRate(maxThroughput)}
-              />
-              <p className="ins-expr">
-                {fleet > 1
-                  ? `${formatCount(fleet)} instances x ${formatCount(cfg.capacity)} slots ÷ ${serviceMsLabel}ms each`
-                  : `${formatCount(cfg.capacity)} at once ÷ ${serviceMsLabel}ms each`}
-              </p>
-              {headroom !== null && (
-                <StatRow
-                  label="Spare capacity"
-                  term="headroom"
-                  value={formatMultiple(headroom)}
-                  tone={toneClass(healthOfLoad(arrivals / maxThroughput))}
-                />
-              )}
-            </div>
-          </Section>
-        )}
+            {/* The headline meter: hidden in Clean Canvas mode */}
+            {stats ? <VitalsMeter kind={node.kind} stats={stats} cfg={cfg} /> : null}
 
-        {/* Right now live stats: hidden in Clean Canvas mode */}
-        {!cleanCanvas && node.kind !== 'cron' && node.kind !== 'autoscaler' && (
-          <Section title="Right now">
-            {stats ? (
-              <div className="ins-stats">
-                {/* Gate kinds hold no work of their own: in-flight and queued
-                    are structurally zero there and are dropped rather than
-                    printed as dead rows. */}
-                {!GATE_KINDS.has(node.kind) && (
-                  <>
-                    <StatRow
-                      label="Being handled now"
-                      value={formatCount(stats.inFlight)}
-                    />
-                    <StatRow
-                      label="Waiting in line"
-                      term={node.kind === 'queue' ? 'backlog' : 'queue-time'}
-                      value={formatCount(stats.queued)}
-                    />
-                  </>
-                )}
-                <StatRow
-                  label="Finishing"
-                  term="throughput"
-                  value={formatRate(stats.throughput)}
-                />
-                <StatRow
-                  label="Arriving"
-                  term="offered"
-                  value={formatRate(stats.arrivalRate)}
-                />
-                <KindStatRows kind={node.kind} stats={stats} />
-                <StatRow
-                  label="Typical request"
-                  term="p50"
-                  value={formatMs(stats.p50)}
-                />
-                <StatRow
-                  label="Slower requests"
-                  term="p95"
-                  value={formatMs(stats.p95)}
-                />
-                <StatRow
-                  label="Slowest requests"
-                  term="p99"
-                  value={formatMs(stats.p99)}
-                  tone={toneClass(healthOfLatency(stats.p99))}
-                />
-                <StatRow
-                  label="Errors"
-                  term="error-rate"
-                  value={formatPct(stats.errorRate)}
-                  tone={toneClass(healthOfErr(stats.errorRate))}
-                />
-                {stats.shedRate > 0 && (
-                  <StatRow
-                    label="Turned away"
-                    term="shed"
-                    value={formatRate(stats.shedRate)}
-                    tone="is-danger"
-                  />
-                )}
-                {stats.timeoutRate > 0 && (
-                  <StatRow
-                    label="Timed out"
-                    term="timeout"
-                    value={formatRate(stats.timeoutRate)}
-                    tone="is-danger"
-                  />
-                )}
-                <StatRow
-                  label="Completed, total"
-                  value={formatCount(stats.totalCompleted)}
-                />
-                <StatRow label="Failed, total" value={formatCount(stats.totalFailed)} />
-              </div>
-            ) : (
-              <p className="ins-blurb">
-                Nothing has reached this component yet. Press Play and it will start
-                reporting.
-              </p>
+            {/* Live Subsystem Panels */}
+            {stats && node.kind === 'autoscaler' && <AutoscalerPanel stats={stats} />}
+            {stats && node.kind === 'queue' && <QueuePanel stats={stats} />}
+            {stats && node.kind === 'cron' && <CronPanel stats={stats} />}
+            {stats && node.kind === 'region' && <RegionPanel stats={stats} />}
+            {stats && node.kind !== 'queue' && node.kind !== 'autoscaler' && (
+              <UnitsPanel node={node} stats={stats} />
             )}
-          </Section>
+
+            {grouped.map((group) => (
+              <Section key={group.title} title={group.title}>
+                <div className="ins-fields">
+                  {group.fields.map((field) => {
+                    const spec = specFor(node.kind, field);
+                    const locked = lockedFields?.includes(field) ?? false;
+                    // Fields that only some kinds read are optional on NodeConfig,
+                    // so a node saved by an older build can be missing one. Fall
+                    // back to this kind's default rather than to the spec's
+                    // minimum, which would silently show the student a value that
+                    // is not the one the engine is actually running with.
+                    const value = readField(node, field);
+                    return spec.control === 'slider' ? (
+                      <SliderRow
+                        key={field}
+                        spec={spec}
+                        value={value}
+                        locked={locked}
+                        onChange={(v) => onChange(node.id, { [field]: v })}
+                      />
+                    ) : (
+                      <NumberRow
+                        key={field}
+                        spec={spec}
+                        value={value}
+                        locked={locked}
+                        onChange={(v) => onChange(node.id, { [field]: v })}
+                      />
+                    );
+                  })}
+                </div>
+              </Section>
+            ))}
+
+            {showCeiling && (
+              <Section title="What that works out to">
+                <div className="ins-stats">
+                  <StatRow
+                    label="Most it can finish"
+                    term="capacity"
+                    value={formatRate(maxThroughput)}
+                  />
+                  <p className="ins-expr">
+                    {fleet > 1
+                      ? `${formatCount(fleet)} instances x ${formatCount(cfg.capacity)} slots ÷ ${serviceMsLabel}ms each`
+                      : `${formatCount(cfg.capacity)} at once ÷ ${serviceMsLabel}ms each`}
+                  </p>
+                  {headroom !== null && (
+                    <StatRow
+                      label="Spare capacity"
+                      term="headroom"
+                      value={formatMultiple(headroom)}
+                      tone={toneClass(healthOfLoad(arrivals / maxThroughput))}
+                    />
+                  )}
+                </div>
+              </Section>
+            )}
+
+            {/* Right now live stats */}
+            {node.kind !== 'cron' && node.kind !== 'autoscaler' && (
+              <Section title="Right now">
+                {stats ? (
+                  <div className="ins-stats">
+                    {/* Gate kinds hold no work of their own: in-flight and queued
+                        are structurally zero there and are dropped rather than
+                        printed as dead rows. */}
+                    {!GATE_KINDS.has(node.kind) && (
+                      <>
+                        <StatRow
+                          label="Being handled now"
+                          value={formatCount(stats.inFlight)}
+                        />
+                        <StatRow
+                          label="Waiting in line"
+                          term={node.kind === 'queue' ? 'backlog' : 'queue-time'}
+                          value={formatCount(stats.queued)}
+                        />
+                      </>
+                    )}
+                    <StatRow
+                      label="Finishing"
+                      term="throughput"
+                      value={formatRate(stats.throughput)}
+                    />
+                    <StatRow
+                      label="Arriving"
+                      term="offered"
+                      value={formatRate(stats.arrivalRate)}
+                    />
+                    <KindStatRows kind={node.kind} stats={stats} />
+                    <StatRow
+                      label="Typical request"
+                      term="p50"
+                      value={formatMs(stats.p50)}
+                    />
+                    <StatRow
+                      label="Slower requests"
+                      term="p95"
+                      value={formatMs(stats.p95)}
+                    />
+                    <StatRow
+                      label="Slowest requests"
+                      term="p99"
+                      value={formatMs(stats.p99)}
+                      tone={toneClass(healthOfLatency(stats.p99))}
+                    />
+                    <StatRow
+                      label="Errors"
+                      term="error-rate"
+                      value={formatPct(stats.errorRate)}
+                      tone={toneClass(healthOfErr(stats.errorRate))}
+                    />
+                    {stats.shedRate > 0 && (
+                      <StatRow
+                        label="Turned away"
+                        term="shed"
+                        value={formatRate(stats.shedRate)}
+                        tone="is-danger"
+                      />
+                    )}
+                    {stats.timeoutRate > 0 && (
+                      <StatRow
+                        label="Timed out"
+                        term="timeout"
+                        value={formatRate(stats.timeoutRate)}
+                        tone="is-danger"
+                      />
+                    )}
+                    <StatRow
+                      label="Completed, total"
+                      value={formatCount(stats.totalCompleted)}
+                    />
+                    <StatRow label="Failed, total" value={formatCount(stats.totalFailed)} />
+                  </div>
+                ) : (
+                  <p className="ins-blurb">
+                    Nothing has reached this component yet. Press Play and it will start
+                    reporting.
+                  </p>
+                )}
+              </Section>
+            )}
+          </>
         )}
       </div>
 
@@ -3562,7 +3586,12 @@ function MultiInspector({
           ))}
         </ul>
 
-        {sameKind ? (
+        {cleanCanvas ? (
+          <p className="ins-blurb">
+            {nodes.length === 1 ? '1 component' : `${formatCount(nodes.length)} components`} selected.
+            Select a single component to configure its name and function description, or delete the selection below.
+          </p>
+        ) : sameKind ? (
           <>
             <p className="ins-blurb">
               Changing anything below applies it to all {formatCount(nodes.length)} of
