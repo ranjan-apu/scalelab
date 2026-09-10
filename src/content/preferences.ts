@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { VendorId } from './vendors/types';
+import type { NodeKind } from '../sim/types';
 
 /**
  * User preferences.
@@ -56,6 +57,10 @@ export interface Preferences {
    * up with three meanings and no name for the third.
    */
   theme: ThemeChoice;
+  /** Group IDs of collapsed sections in the sidebar palette. */
+  collapsedGroups: string[];
+  /** Pinned node kinds appearing in the top Pinned section of the palette. */
+  pinnedKinds: NodeKind[];
 }
 
 /** What the reader picked. `system` defers to the OS. */
@@ -72,9 +77,50 @@ export const DEFAULT_PREFERENCES: Preferences = {
   // Follow the OS until told otherwise. Picking light as the default would
   // flash a bright page at someone whose machine is set to dark.
   theme: 'system',
+  collapsedGroups: [],
+  pinnedKinds: [],
 };
 
 const STORAGE_KEY = 'scalelab.preferences.v1';
+
+export const ALL_NODE_KINDS: readonly NodeKind[] = [
+  'client',
+  'producer',
+  'lb',
+  'service',
+  'cache',
+  'db',
+  'queue',
+  'worker',
+  'autoscaler',
+  'region',
+  'cdn',
+  'ratelimiter',
+  'breaker',
+  'replica',
+  'shard',
+  'objectstore',
+  'searchindex',
+  'timeseriesdb',
+  'graphdb',
+  'coldstorage',
+  'vectordb',
+  'streambroker',
+  'pubsub',
+  'websocket',
+  'apigateway',
+  'sidecar',
+  'lambda',
+  'cron',
+  'bulkhead',
+  'retryqueue',
+  'transcoder',
+  'edgecompute',
+  'writebehind',
+  'loadshedder',
+];
+
+const VALID_NODE_KINDS = new Set<string>(ALL_NODE_KINDS);
 
 const listeners = new Set<() => void>();
 let current: Preferences = load();
@@ -100,6 +146,8 @@ function load(): Preferences {
       minimap: bool(p.minimap, DEFAULT_PREFERENCES.minimap),
       vendor: vendor(p.vendor),
       theme: theme(p.theme),
+      collapsedGroups: stringArray(p.collapsedGroups, DEFAULT_PREFERENCES.collapsedGroups),
+      pinnedKinds: nodeKindArray(p.pinnedKinds, DEFAULT_PREFERENCES.pinnedKinds),
     };
   } catch {
     return DEFAULT_PREFERENCES;
@@ -108,6 +156,22 @@ function load(): Preferences {
 
 function bool(v: unknown, fallback: boolean): boolean {
   return typeof v === 'boolean' ? v : fallback;
+}
+
+function stringArray(v: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(v)) return fallback;
+  return v.filter((item): item is string => typeof item === 'string');
+}
+
+function nodeKindArray(v: unknown, fallback: NodeKind[]): NodeKind[] {
+  if (!Array.isArray(v)) return fallback;
+  const result: NodeKind[] = [];
+  for (const item of v) {
+    if (typeof item === 'string' && VALID_NODE_KINDS.has(item) && !result.includes(item as NodeKind)) {
+      result.push(item as NodeKind);
+    }
+  }
+  return result;
 }
 
 function vendor(v: unknown): VendorId {
@@ -146,8 +210,28 @@ export function setPreference<K extends keyof Preferences>(
   for (const l of listeners) l();
 }
 
-export function togglePreference(key: keyof Preferences): void {
+export type BooleanPreference = {
+  [K in keyof Preferences]: Preferences[K] extends boolean ? K : never;
+}[keyof Preferences];
+
+export function togglePreference(key: BooleanPreference): void {
   setPreference(key, !current[key]);
+}
+
+export function toggleGroupCollapsed(groupId: string): void {
+  const currentCollapsed = current.collapsedGroups;
+  const next = currentCollapsed.includes(groupId)
+    ? currentCollapsed.filter((id) => id !== groupId)
+    : [...currentCollapsed, groupId];
+  setPreference('collapsedGroups', next);
+}
+
+export function togglePinnedKind(kind: NodeKind): void {
+  const currentPinned = current.pinnedKinds;
+  const next = currentPinned.includes(kind)
+    ? currentPinned.filter((k) => k !== kind)
+    : [...currentPinned, kind];
+  setPreference('pinnedKinds', next);
 }
 
 function subscribe(fn: () => void): () => void {
@@ -185,5 +269,11 @@ export function __resetPreferences(): void {
   } catch {
     // Nothing to clear if storage is unavailable.
   }
+  for (const l of listeners) l();
+}
+
+/** Test seam. Reloads state from localStorage. */
+export function __reloadPreferencesForTesting(): void {
+  current = load();
   for (const l of listeners) l();
 }
