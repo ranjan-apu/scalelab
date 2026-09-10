@@ -534,6 +534,58 @@
 }
 
 /* --------------------------------------------------------------------------
+   Activity rail: the studio's stable command strip.
+
+   Hidden below laptop widths, where the floating canvas toggles and the
+   phone tab bar carry the same actions with larger touch targets. At
+   1024px and up the rail appears as an in-flow 52px strip and the
+   floating toggles retire, so panel controls live in exactly one place
+   that never moves with the diagram underneath.
+   -------------------------------------------------------------------------- */
+.app-activity {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .app-activity {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-1);
+    flex: none;
+    width: 52px;
+    padding: var(--sp-3) 0;
+    background: var(--surface);
+    border-right: var(--bw) solid var(--border);
+    z-index: 10;
+  }
+
+  .app-activity-btn {
+    color: var(--text-dim);
+  }
+
+  .app-activity-btn:hover {
+    color: var(--text);
+  }
+
+  .app-activity-btn.is-active {
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+
+  .app-activity-sep {
+    width: 20px;
+    height: 1px;
+    margin: var(--sp-1) 0;
+    background: var(--border);
+  }
+
+  .stage-toggle {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
    Panel slots.
    -------------------------------------------------------------------------- */
 

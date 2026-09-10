@@ -49,6 +49,7 @@ const GROUPS: Group[] = [
   {
     title: 'Design',
     rows: [
+      { keys: ['Ctrl+K', 'Cmd+K'], does: 'Focus the library search' },
       { keys: ['Drag a port'], does: 'Connect two components' },
       { keys: ['Click a port'], does: 'Arm a link; click the target to finish' },
       { keys: ['Double-click'], does: 'Rename a component in place' },

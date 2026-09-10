@@ -1,0 +1,84 @@
+/* Studio panel: the right dock's review of the whole design.
+   Lives inside the inspector slot (.ins-scroll), so it inherits the slot's
+   padding and scroll behaviour and only defines its own rows. */
+
+.stp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-4);
+}
+
+.stp-eyebrow {
+  margin: 0;
+}
+
+.stp-empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  line-height: var(--lh-prose);
+}
+
+.stp-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: var(--bw) solid var(--border);
+}
+
+.stp-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stp-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'kind usd'
+    'sku usd';
+  gap: 0 var(--sp-2);
+  align-items: center;
+  padding: var(--sp-2) 0;
+  border-bottom: var(--bw) solid var(--border);
+}
+
+.stp-line:last-child {
+  border-bottom: none;
+}
+
+.stp-line-kind {
+  grid-area: kind;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-med);
+  color: var(--text);
+}
+
+.stp-line-sku {
+  grid-area: sku;
+  font-size: var(--fs-sm);
+  color: var(--text-faint);
+}
+
+.stp-line-usd {
+  grid-area: usd;
+  font-size: var(--fs-num);
+}
+
+.stp-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+.stp-foot {
+  color: var(--text-faint);
+}
