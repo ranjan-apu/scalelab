@@ -188,6 +188,15 @@
   --text: #0f172a;
   --text-dim: #475569;
   --text-faint: #64748b;
+  --text-muted: var(--text-dim);
+
+  /* Convenience aliases for components and modals */
+  --r-full: var(--r-pill);
+  --fs-xs: 11px;
+  --fs-md: 14px;
+  --fw-bold: 650;
+  --surface-hover: var(--surface-2);
+  --surface-sunken: var(--surface-2);
 
   /* On a saturated fill (accent, danger) text is always white. */
   --text-on-fill: #ffffff;
@@ -646,6 +655,9 @@
   --text: #f8fafc;
   --text-dim: #94a3b8;
   --text-faint: #64748b;
+  --text-muted: var(--text-dim);
+  --surface-hover: var(--surface-2);
+  --surface-sunken: var(--surface-2);
   /* Ink used ON a saturated fill, so it inverts to the dark ground. */
   --text-on-fill: #090d16;
 
@@ -868,6 +880,9 @@
     --text: #f8fafc;
     --text-dim: #94a3b8;
     --text-faint: #64748b;
+    --text-muted: var(--text-dim);
+    --surface-hover: var(--surface-2);
+    --surface-sunken: var(--surface-2);
     --text-on-fill: #090d16;
 
     --cat-violet: #c084fc;

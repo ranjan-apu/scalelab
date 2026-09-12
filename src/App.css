@@ -1553,11 +1553,16 @@
     top: 0;
     left: 0;
     right: 0;
+    height: auto;
+    min-height: 44px;
+    padding-top: env(safe-area-inset-top, 0px);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0;
-    padding: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
     /* Clean bar spanning edge to edge */
     background: var(--surface);
     border-bottom: var(--bw) solid var(--border);
@@ -1636,21 +1641,27 @@
     justify-content: center;
   }
 
-  /* Mode Switcher on Row 2 */
-  .app-mode-switch {
+  /* Mode Switcher container on Row 2 (underneath branding & menu actions) */
+  .app-center-studio {
     order: 3;
     flex: 1 1 100%;
     width: 100%;
     display: flex;
+    justify-content: center;
+    padding: 0 var(--sp-3) var(--sp-2) var(--sp-3);
+    background: transparent;
+    box-sizing: border-box;
+  }
+
+  .app-mode-switch {
+    width: 100%;
+    display: flex;
     align-items: center;
     gap: 4px;
-    padding: 4px var(--sp-3) 6px var(--sp-3);
+    padding: 3px;
     background: var(--surface-2);
-    border-top: var(--bw) solid var(--border);
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
+    border: var(--bw) solid var(--border);
+    border-radius: var(--r-md);
     box-shadow: none;
     box-sizing: border-box;
   }

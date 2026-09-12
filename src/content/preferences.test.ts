@@ -36,6 +36,8 @@ describe('defaults', () => {
   it('starts with the visual helpers on', () => {
     expect(DEFAULT_PREFERENCES.sparklines).toBe(true);
     expect(DEFAULT_PREFERENCES.snapToGrid).toBe(true);
+    expect(DEFAULT_PREFERENCES.costEstimator).toBe(true);
+    expect(getPreferences().costEstimator).toBe(true);
   });
 });
 
@@ -116,6 +118,8 @@ describe('the tooltips preference gates the Term component', () => {
     // student's first screen, which is exactly what this preference exists to
     // prevent. If you mean to change it, change this test deliberately.
     expect(DEFAULT_PREFERENCES.tooltips).toBe(false);
+    expect(DEFAULT_PREFERENCES.cleanCanvas).toBe(false);
+    expect(DEFAULT_PREFERENCES.costEstimator).toBe(true);
     expect(DEFAULT_PREFERENCES.sparklines).toBe(true);
     expect(DEFAULT_PREFERENCES.snapToGrid).toBe(true);
     expect(DEFAULT_PREFERENCES.collapsedGroups).toEqual([]);
@@ -201,5 +205,24 @@ describe('collapsedGroups and pinnedKinds', () => {
 
     setCleanCanvas(false);
     expect(getPreferences().cleanCanvas).toBe(false);
+  });
+
+  it('toggles, sets, and persists costEstimator', () => {
+    expect(getPreferences().costEstimator).toBe(true);
+    togglePreference('costEstimator');
+    expect(getPreferences().costEstimator).toBe(false);
+
+    const raw = localStorage.getItem('scalelab.preferences.v1');
+    expect(raw).toBeTruthy();
+    expect(JSON.parse(raw as string).costEstimator).toBe(false);
+
+    __reloadPreferencesForTesting();
+    expect(getPreferences().costEstimator).toBe(false);
+
+    setPreference('costEstimator', true);
+    expect(getPreferences().costEstimator).toBe(true);
+
+    const raw2 = localStorage.getItem('scalelab.preferences.v1');
+    expect(JSON.parse(raw2 as string).costEstimator).toBe(true);
   });
 });
