@@ -47,6 +47,7 @@ import { PenToolbar } from './components/PenToolbar';
 import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { LABS } from './content/labs';
 import { Guide } from './components/guide';
+import type { GuideTab } from './components/guide/types';
 import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
 import {
@@ -717,6 +718,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
+  const [guideTab, setGuideTab] = useState<GuideTab>('overview');
   const [guideOpen, setGuideOpen] = useState(() => {
     try {
       // Clear legacy keys so the first-run policy below governs alone.
@@ -2560,7 +2562,10 @@ export default function App() {
       {
         label: 'Studio guide',
         icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
-        onSelect: () => setGuideOpen(true),
+        onSelect: () => {
+          setGuideTab('overview');
+          setGuideOpen(true);
+        },
       },
       {
         label: 'Your designs',
@@ -3637,7 +3642,10 @@ export default function App() {
             className="btn btn-icon app-activity-btn"
             aria-label="Open studio guide"
             title="Studio guide"
-            onClick={() => setGuideOpen(true)}
+            onClick={() => {
+              setGuideTab('overview');
+              setGuideOpen(true);
+            }}
           >
             <svg
               width="14"
@@ -3653,6 +3661,51 @@ export default function App() {
               <circle cx="12" cy="12" r="10" />
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="btn btn-icon app-activity-btn"
+            aria-label="Open interview practice"
+            title="Interview practice"
+            onClick={() => setInterviewOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h6" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="btn btn-icon app-activity-btn"
+            aria-label="Open concept lessons"
+            title="Concepts"
+            onClick={() => {
+              setGuideTab('concepts');
+              setGuideOpen(true);
+            }}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
             </svg>
           </button>
         </nav>
@@ -3984,6 +4037,7 @@ export default function App() {
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Guide
         open={guideOpen}
+        initialTab={guideTab}
         onClose={() => {
           setGuideOpen(false);
           try {

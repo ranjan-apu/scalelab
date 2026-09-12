@@ -176,6 +176,15 @@ describe('Guide component', () => {
     expect(typeof onPracticePack.mock.calls[0]![0]).toBe('string');
   });
 
+  it('opens on the requested initial tab', () => {
+    render(<Guide open={true} onClose={() => {}} initialTab="concepts" />);
+    expect(document.body.textContent).toContain('Concept Lessons');
+    const conceptsTab = Array.from(document.querySelectorAll('.gd-tab')).find((b) =>
+      b.textContent?.includes('Concepts'),
+    );
+    expect(conceptsTab?.classList.contains('is-active')).toBe(true);
+  });
+
   it('triggers onClose when close button clicked', () => {
     const onClose = vi.fn();
     render(<Guide open={true} onClose={onClose} />);
