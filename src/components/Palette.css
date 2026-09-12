@@ -324,51 +324,68 @@
 
    A grid rather than the component rail's single column of rows, because these
    are picked by SHAPE: nobody scans for the word "parallelogram", they look for
-   the parallelogram. A tile is a row for the purposes of a finger (44px), and
-   keeps the row classes so the drag card works unchanged. */
+   the parallelogram. Equal columns, so the two shapes in a row are always the
+   same width and the captions line up down the rail. */
 .pal-shapes {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, 1fr) rather than 1fr: a bare 1fr is minmax(auto, 1fr), whose
+     minimum is the column's MIN-CONTENT width, so one long word
+     ("Parallelogram") widens its column and the two halves of the rail stop
+     matching. Pinning the minimum to 0 makes the columns exactly equal and
+     lets a long caption wrap instead. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 0 8px 8px;
   list-style: none;
 }
 
-.pal-shape-tile {
+/* SELECTOR WEIGHT IS LOAD-BEARING HERE. A tile carries `.pal-row` so the drag
+   card keeps working, and `.pal-row` is defined further down this file: at
+   equal weight its padding, alignment and text-align would win on source order
+   alone and quietly re-lay the tile as a row (which is exactly what shipped
+   first). The compound `.pal-row.pal-shape-tile` outranks it, so the tile's own
+   layout holds wherever either block moves to. */
+.pal-row.pal-shape-tile {
   flex-direction: column;
+  justify-content: flex-start;
   align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-height: 62px;
-  padding: 8px 4px;
+  gap: 6px;
+  min-height: 76px;
+  padding: 10px 6px 8px;
   text-align: center;
 }
 
-/* The name is the only text in the tile, so it wraps rather than truncating:
-   "Parallel…" and "Parallelogram" are different shapes to the reader. */
-.pal-shape-tile .pal-names {
+/* The name block reserves TWO lines in every tile, so a one-line caption
+   ("Rectangle") and a two-line one ("Rounded rectangle") leave the outlines at
+   the same height across the whole grid instead of stepping down the column. */
+.pal-row.pal-shape-tile .pal-names {
+  flex: 0 0 auto;
   width: 100%;
+  min-height: 2.4em;
+  gap: 0;
+  align-items: center;
 }
 
-.pal-shape-tile .pal-name {
+.pal-row.pal-shape-tile .pal-name {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   line-height: 1.2;
   font-size: var(--fs-xs);
+  text-align: center;
 }
 
 /* A tile's glyph is the shape itself, so it is drawn larger than a component
    row's chip and takes the neutral whiteboard trio. */
-.pal-shape-tile .pal-glyph {
-  width: 30px;
-  height: 26px;
+.pal-row.pal-shape-tile .pal-glyph {
+  width: 34px;
+  height: 30px;
   font-size: 22px;
 }
 
 @media (pointer: coarse) {
-  .pal-shape-tile {
-    min-height: 76px;
+  .pal-row.pal-shape-tile {
+    min-height: 88px;
   }
 }
 

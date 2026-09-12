@@ -6702,6 +6702,12 @@ export default function Canvas({
    * system it is, which is what a reader is trying to work out about a
    * reconstruction they did not build themselves.
    *
+   * Both count COMPONENTS, and a whiteboard shape is not one. The two numbers
+   * have to agree -- the breakdown elaborates the total, and a total of 3
+   * beside a breakdown summing to 2 is a diagram that looks miscounted -- so
+   * the same filter that keeps "shapes" out of the breakdown keeps shapes out
+   * of the total. The rail's own component count uses the same group list.
+   *
    * Groups print in taxonomy order, not by size, so the line matches the
    * order of the rail and does not reshuffle itself every time a node is
    * dropped. Empty groups are left out: eleven of the twenty-three examples
@@ -6710,9 +6716,15 @@ export default function Canvas({
    * stores" is too long for a corner that also has to hold two totals and a
    * clock.
    */
+  const componentNodes = useMemo(
+    () => topology.nodes.filter((n) => n.kind !== 'shape'),
+    [topology.nodes],
+  );
+  const nodeCount = componentNodes.length;
+
   const nodeGroupSummary = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const n of topology.nodes) {
+    for (const n of componentNodes) {
       const group = groupOfKind(n.kind);
       if (group) counts.set(group.id, (counts.get(group.id) ?? 0) + 1);
     }
@@ -6722,7 +6734,7 @@ export default function Canvas({
     return COMPONENT_GROUPS.filter((g) => counts.has(g.id))
       .map((g) => `${counts.get(g.id)} ${g.id}`)
       .join(', ');
-  }, [topology.nodes]);
+  }, [componentNodes]);
 
   const detail: 0 | 1 | 2 = view.k >= DETAIL_ZOOM ? 2 : view.k >= MINIMAL_ZOOM ? 1 : 0;
   const showEdgeLabels = view.k >= 1;
@@ -7556,8 +7568,8 @@ export default function Canvas({
            surface reads as an oversight. */
         <div className="cv-ledger label" aria-hidden="true">
           <span>
-            {topology.nodes.length}{' '}
-            {topology.nodes.length === 1 ? 'component' : 'components'}
+            {nodeCount}{' '}
+            {nodeCount === 1 ? 'component' : 'components'}
           </span>
           {/* The breakdown elaborates the total above it, so it sits next to
               it rather than at the end. Commas inside one span, not the flex
