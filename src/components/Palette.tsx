@@ -1,10 +1,10 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, DragEvent, KeyboardEvent } from 'react';
-import type { NodeKind } from '../sim/types';
+import type { NodeKind, ShapeKind } from '../sim/types';
 import {
+  COMPONENT_GROUPS,
   ICON_BOX,
   ICON_STROKE,
-  KIND_GROUPS,
   KIND_ICON,
   KIND_NAME,
   KIND_TERM,
@@ -12,8 +12,12 @@ import {
   groupOfKind,
 } from './nodeVisuals';
 import type { KindGroup } from './nodeVisuals';
+import { SHAPE_KINDS, SHAPE_SPECS } from '../sim/shapes';
+import { SHAPE_DND_MIME } from './shapeGeometry';
+import { SHAPE_ICONS } from './shapeIcons';
 import { Term } from './Tooltip';
 import {
+  setPaletteMode,
   toggleGroupCollapsed,
   togglePinnedKind,
   usePreference,
@@ -80,6 +84,7 @@ const KIND_HINT: Record<NodeKind, string> = {
   edgecompute: 'Answers what it can at the edge itself',
   writebehind: 'Acks writes fast; a crash loses the buffer',
   loadshedder: 'Under load, drops low-priority traffic first',
+  shape: 'A plain box, circle or arrow: no behaviour, just geometry',
 };
 
 /**
@@ -273,12 +278,86 @@ const ANN_ROWS: {
 ];
 
 /**
+ * One tile in the shapes library.
+ *
+ * The row classes are NOT new: `.pal-row`, `.pal-glyph` and `.pal-name` are
+ * what the floating drag card reads when a row is picked up (see buildCard), so
+ * a shapes tile is carried with the same card a component row is, with no
+ * second implementation to keep in step.
+ */
+function ShapeTile({
+  shape,
+  onAdd,
+  onDragStart,
+  onDragEnd,
+}: {
+  shape: ShapeKind;
+  onAdd: (shape: ShapeKind) => void;
+  onDragStart: (e: DragEvent<HTMLButtonElement>, shape: ShapeKind) => void;
+  onDragEnd: () => void;
+}) {
+  const spec = SHAPE_SPECS[shape];
+  return (
+    <li className="pal-item">
+      <button
+        type="button"
+        className="pal-row pal-shape-tile"
+        // The neutral whiteboard trio, from the same [data-kind] contract every
+        // component row uses.
+        data-kind="shape"
+        draggable
+        onDragStart={(e) => onDragStart(e, shape)}
+        onDragEnd={onDragEnd}
+        onClick={() => onAdd(shape)}
+        onKeyDown={(e) => {
+          // Restored explicitly, because Firefox drops the implicit Space
+          // activation on a draggable button -- the same reason a component
+          // row restores it.
+          if (e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault();
+            onAdd(shape);
+          }
+        }}
+        title={spec.hint}
+      >
+        <span className="pal-glyph">
+          <svg
+            width="1.1em"
+            height="1.1em"
+            viewBox={`0 0 ${ICON_BOX} ${ICON_BOX}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={ICON_STROKE}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            role="presentation"
+            aria-hidden="true"
+          >
+            {SHAPE_ICONS[shape].map((d) => (
+              <path key={d} d={d} />
+            ))}
+          </svg>
+        </span>
+        <span className="pal-names">
+          <span className="pal-name">{spec.name}</span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function handleShapeDragStart(event: DragEvent<HTMLButtonElement>, shape: ShapeKind) {
+  const dt = event.dataTransfer;
+  // Must match what Canvas checks for in onDragOver / onDrop.
+  dt.setData(SHAPE_DND_MIME, shape);
+  dt.effectAllowed = 'copy';
+  startCarry(event);
+}
+
+/**
  * Does `kind` match the typed query?
  *
  * Matches the display name, the one-line hint and the group title, so
- * "melting" finds the Control group's contents and "stale" finds read
- * replicas. Searching only the names would fail exactly the student this
- * is for: someone who knows the problem they have but not what the
  * component is called.
  *
  * Substring rather than fuzzy. A 33-item list is small enough that a
@@ -300,6 +379,12 @@ function matchesKind(
 export interface PaletteProps {
   /** Add a node of `kind` to the canvas at a default position. */
   onAdd: (kind: NodeKind) => void;
+  /**
+   * Place a whiteboard shape at the centre of the view. Optional so a shell
+   * (or a test) that wires no shapes simply has no shapes library, exactly as
+   * onAddAnnotation behaves.
+   */
+  onAddShape?: (shape: ShapeKind) => void;
   /**
    * Arm the note or section tool. The next drag on the canvas draws the
    * shape; clicking the row again disarms.
@@ -465,7 +550,13 @@ const CATEGORY_CHIPS = [
   { id: 'control', label: 'Control' },
 ] as const;
 
-export function Palette({ onAdd, onAddAnnotation, armedTool, searchFocusSignal }: PaletteProps) {
+export function Palette({
+  onAdd,
+  onAddShape,
+  onAddAnnotation,
+  armedTool,
+  searchFocusSignal,
+}: PaletteProps) {
   /**
    * Whether the hover explanations are on. With them OFF (the default) the
    * per-row "?" mark is not rendered at all: <Term> degrades to its bare
@@ -477,9 +568,23 @@ export function Palette({ onAdd, onAddAnnotation, armedTool, searchFocusSignal }
   const hintsOn = usePreference('tooltips');
   const collapsedGroups = usePreference('collapsedGroups');
   const pinnedKinds = usePreference('pinnedKinds');
+  /**
+   * Which library the rail offers. Persisted, and the writer (setPaletteMode)
+   * also drives Clean Canvas: picking up the shapes is whiteboarding.
+   */
+  const mode = usePreference('paletteMode');
+  const shapesMode = mode === 'shapes';
 
+  /**
+   * The components, WITHOUT the whiteboard group.
+   *
+   * KIND_GROUPS carries one more shelf than the rail offers here (the shapes
+   * group) so the taxonomy stays total and groupOfKind works for every kind.
+   * Everything that means "the system" filters it out through COMPONENT_GROUPS
+   * rather than comparing ids.
+   */
   const totalKinds = useMemo(
-    () => KIND_GROUPS.reduce((n, g) => n + g.kinds.length, 0),
+    () => COMPONENT_GROUPS.reduce((n, g) => n + g.kinds.length, 0),
     [],
   );
 
@@ -517,8 +622,8 @@ export function Palette({ onAdd, onAddAnnotation, armedTool, searchFocusSignal }
    * learned where to find it next time without the search box.
    */
   const groups = useMemo(() => {
-    if (!needle) return KIND_GROUPS;
-    return KIND_GROUPS.map((g) => ({
+    if (!needle) return COMPONENT_GROUPS;
+    return COMPONENT_GROUPS.map((g) => ({
       ...g,
       kinds: g.kinds.filter((k) => matchesKind(k, g, needle)),
     })).filter((g) => g.kinds.length > 0);
@@ -578,11 +683,64 @@ export function Palette({ onAdd, onAddAnnotation, armedTool, searchFocusSignal }
             disclosure in a 224px rail is a filing cabinet, not a tool. */}
         <div className="pal-section">
           <p className="label pal-heading">
-            Library{' '}
+            {shapesMode ? 'Shapes' : 'Library'}{' '}
             <span className="pal-heading-count">
-              {needle ? `${matchCount} of ${totalKinds}` : totalKinds}
+              {shapesMode
+                ? SHAPE_KINDS.length
+                : needle
+                  ? `${matchCount} of ${totalKinds}`
+                  : totalKinds}
             </span>
           </p>
+
+          {/*
+            Which library the rail is offering.
+
+            A segmented control rather than a switch, because these are two
+            equal shelves and neither is "off": the components are the system
+            design palette, the shapes are the whiteboard. It sits above
+            everything else because it changes what everything else means --
+            and because a mode you have to hunt for is one you will not find.
+          */}
+          <div className="pal-mode-switch" role="tablist" aria-label="Library">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!shapesMode}
+              className={`pal-mode-btn${!shapesMode ? ' is-active' : ''}`}
+              onClick={() => setPaletteMode('components')}
+              title="System design components: boxes that behave"
+            >
+              Components
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={shapesMode}
+              className={`pal-mode-btn${shapesMode ? ' is-active' : ''}`}
+              onClick={() => setPaletteMode('shapes')}
+              title="Shapes: a plain whiteboard of boxes, circles and arrows"
+            >
+              Shapes
+            </button>
+          </div>
+
+          {shapesMode && onAddShape && (
+            <div className="pal-shapes">
+              {SHAPE_KINDS.map((shape) => (
+                <ShapeTile
+                  key={shape}
+                  shape={shape}
+                  onAdd={onAddShape}
+                  onDragStart={handleShapeDragStart}
+                  onDragEnd={endCarry}
+                />
+              ))}
+            </div>
+          )}
+
+          {!shapesMode && (
+            <>
 
           {/* Thirty-three rows is more than a person scans, and the rail had
               no way to ask for one by name. A plain text input rather than a
@@ -759,6 +917,8 @@ export function Palette({ onAdd, onAddAnnotation, armedTool, searchFocusSignal }
               </div>
             );
           })}
+            </>
+          )}
 
           {/*
             Annotation rows: the documentation layer. Same affordances as a

@@ -611,6 +611,21 @@ function baseConfig(kind: NodeKind): Omit<NodeConfig, keyof typeof EXTRA_DEFAULT
         lowPriorityShare: 0.3,
         priorityReserve: 0.3,
       };
+    case 'shape':
+      // Every knob here is inert by construction: a shape admits as passthru,
+      // so it never takes a slot, never queues and never fails. The zeroes
+      // make that visible in the Inspector rather than mysterious.
+      return {
+        capacity: 1,
+        serviceMs: 0,
+        serviceCv: 0,
+        queueLimit: 0,
+        hitRate: 0,
+        errorRate: 0,
+        timeoutMs: 0,
+        retries: 0,
+        rps: 0,
+      };
     default:
       return {
         capacity: 1,
@@ -661,6 +676,9 @@ const DEFAULT_LABEL: Record<NodeKind, string> = {
   edgecompute: 'Edge Compute',
   writebehind: 'Write-Behind Cache',
   loadshedder: 'Load Shedder',
+  // Empty on purpose: a blank box is what a whiteboard wants, and this is the
+  // label makeNode would use if a shape were ever built through makeNode.
+  shape: '',
 };
 
 let nodeCounter = 0;

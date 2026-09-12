@@ -55,6 +55,10 @@ export const KIND_COSTS: Record<NodeKind, KindCost> = {
   edgecompute: { sku: 'Lambda@Edge', usdPerMo: 30 },
   writebehind: { sku: 'ElastiCache t4g.medium', usdPerMo: 55 },
   loadshedder: { sku: 'Gateway policy', usdPerMo: 0 },
+  // A sketch is not deployed anywhere, so there is nothing to bill. It takes
+  // the same zero-as-unbilled path as a breaker or a routing policy rather
+  // than a misleading $0 line.
+  shape: { sku: 'Sketch, not deployed', usdPerMo: 0 },
 };
 
 export interface CostLine {

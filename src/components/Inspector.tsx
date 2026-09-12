@@ -12,6 +12,7 @@ import type {
   NodeConfig,
   NodeKind,
   NodeStats,
+  ShapeKind,
   SimEdge,
   SimNode,
   SystemStats,
@@ -20,7 +21,9 @@ import type {
 } from '../sim/types';
 import { TRAFFIC_PATTERNS } from '../sim/types';
 import { defaultConfig } from '../sim/presets';
-import { KIND_NAME, KIND_TERM } from './nodeVisuals';
+import { SHAPE_KINDS, SHAPE_SPECS } from '../sim/shapes';
+import { KIND_NAME, KIND_TERM, ICON_BOX, ICON_STROKE } from './nodeVisuals';
+import { SHAPE_ICONS } from './shapeIcons';
 import {
   NA,
   formatCount,
@@ -343,6 +346,10 @@ const FIELDS_BY_KIND: Record<NodeKind, Field[]> = {
   // The limiter's bucket plus the two priority knobs that turn it from
   // fair refusal into deliberate triage.
   loadshedder: ['rateLimitRps', 'burst', 'lowPriorityShare', 'priorityReserve'],
+  // A shape has no knobs at all. An empty list rather than a fake one: there
+  // is no mechanism behind a box, so there is nothing truthful to tune, and
+  // the panel says so instead of offering zeroes dressed as settings.
+  shape: [],
 };
 
 /**
@@ -448,6 +455,8 @@ const KIND_BLURB: Record<NodeKind, string> = {
     'Acknowledges writes from memory and flushes them to the store later. The caller sees a one-millisecond write; the store sees the same load smoothed. Crash it, and every write still in the buffer is lost after being confirmed.',
   loadshedder:
     'A token bucket that refuses by priority: low-priority traffic must leave a reserve untouched, so under saturation it is dropped first while the traffic that matters keeps being admitted. Degradation as a policy, not an accident.',
+  shape:
+    'A plain box, circle or arrow for sketching. It carries no traffic and cannot fail, so a wire through it adds no latency: draw the idea first, then replace the boxes that need to think with real components.',
 };
 
 /* ------------------------------------------------------------------ *
@@ -2829,6 +2838,8 @@ export interface InspectorProps {
    * it does.
    */
   lockedFields?: readonly string[];
+  /** Swap a whiteboard shape's body. Ignored for every component kind. */
+  onSetShape?: (id: string, shape: ShapeKind) => void;
 
   /* ---- multi-selection: all optional, all additive ---------------- *
    * The canvas rewrite made a multi-selection reachable, but the shell
@@ -2913,6 +2924,7 @@ export function Inspector({
   onDelete,
   onRename,
   onDescribe,
+  onSetShape,
   lockedFields,
   selectedNodes,
   selectedEdgeCount = 0,
@@ -3058,6 +3070,7 @@ export function Inspector({
       onDelete={onDelete}
       onRename={onRename}
       onDescribe={onDescribe}
+      onSetShape={onSetShape}
       lockedFields={lockedFields}
       cleanCanvas={isClean}
     />
@@ -3350,6 +3363,7 @@ function SingleInspector({
   onDelete,
   onRename,
   onDescribe,
+  onSetShape,
   lockedFields,
   cleanCanvas = false,
 }: {
@@ -3359,6 +3373,8 @@ function SingleInspector({
   onDelete: (id: string) => void;
   onRename: (id: string, label: string) => void;
   onDescribe?: (id: string, description: string) => void;
+  /** Swap a whiteboard shape's body. Ignored for every component kind. */
+  onSetShape?: (id: string, shape: ShapeKind) => void;
   lockedFields?: readonly string[];
   cleanCanvas?: boolean;
 }) {
@@ -3458,6 +3474,53 @@ function SingleInspector({
           )}
         </header>
 
+          {/*
+            A shape's body, swappable in place.
+
+            The rail picks a shape by outline, so the picker here repeats that
+            outline rather than naming geometric figures: someone who wants a
+            diamond looks for a diamond. Swapping keeps the box, the shade and
+            the label, because changing your mind about the outline is not
+            changing your mind about anything else.
+          */}
+          {node.kind === 'shape' && (
+            <Section title="Shape">
+              <div className="ins-shape-row" role="radiogroup" aria-label="Shape">
+                {SHAPE_KINDS.map((s) => {
+                  const active = (node.shape ?? 'rect') === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      aria-label={SHAPE_SPECS[s].name}
+                      title={SHAPE_SPECS[s].name}
+                      className={`ins-shape-btn${active ? ' is-active' : ''}`}
+                      onClick={() => onSetShape?.(node.id, s)}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox={`0 0 ${ICON_BOX} ${ICON_BOX}`}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={ICON_STROKE}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        {SHAPE_ICONS[s].map((d) => (
+                          <path key={d} d={d} />
+                        ))}
+                      </svg>
+                    </button>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
+
         {cleanCanvas ? (
           <Section title="Function & Role">
             <textarea
@@ -3551,8 +3614,13 @@ function SingleInspector({
               </Section>
             )}
 
-            {/* Right now live stats */}
-            {node.kind !== 'cron' && node.kind !== 'autoscaler' && (
+            {/* Right now live stats. A shape is excluded for the same reason
+                the cron and the autoscaler are: every number in here would be
+                a structural zero, and a panel of zeroes reads as a broken
+                component rather than as a box with no mechanism behind it. */}
+            {node.kind !== 'cron' &&
+              node.kind !== 'autoscaler' &&
+              node.kind !== 'shape' && (
               <Section title="Right now">
                 {stats ? (
                   <div className="ins-stats">
@@ -3645,7 +3713,7 @@ function SingleInspector({
           className="btn btn-danger ins-delete"
           onClick={() => onDelete(node.id)}
         >
-          Delete component
+          Delete {node.kind === 'shape' ? 'shape' : 'component'}
         </button>
       </div>
     </aside>

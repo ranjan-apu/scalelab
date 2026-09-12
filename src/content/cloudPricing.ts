@@ -28,7 +28,19 @@ export interface CloudCostEstimate {
   components: ComponentCost[];
 }
 
-const SKU_MAP: Record<NodeKind, { aws: CloudSku; gcp: CloudSku; azure: CloudSku }> = {
+/**
+ * Kinds that map onto something a provider actually bills for.
+ *
+ * Sketches are excluded rather than given a zero-cost SKU: a whiteboard box is
+ * not deployed anywhere, and a "Rectangle, $0" row in a cloud bill would be
+ * noise in the one panel whose job is to talk about infrastructure.
+ */
+type DeployableKind = Exclude<NodeKind, 'shape'>;
+
+const SKU_MAP: Record<
+  DeployableKind,
+  { aws: CloudSku; gcp: CloudSku; azure: CloudSku }
+> = {
   client: {
     aws: { provider: 'aws', serviceName: 'Route 53 + Client', skuName: 'DNS / Edge Routing', monthlyBaseCost: 5, perInstanceCost: 0 },
     gcp: { provider: 'gcp', serviceName: 'Cloud DNS', skuName: 'Public Hosted Zone', monthlyBaseCost: 5, perInstanceCost: 0 },
@@ -208,6 +220,9 @@ export function calculateCloudCosts(topology: Topology): CloudCostEstimate {
   const components: ComponentCost[] = [];
 
   for (const n of topology.nodes) {
+    // Sketches are not infrastructure: they are not estimated, not listed,
+    // and not counted in any total.
+    if (n.kind === 'shape') continue;
     const sku = SKU_MAP[n.kind] ?? SKU_MAP.service;
     const instances = Math.max(1, n.config.instances ?? 1);
 

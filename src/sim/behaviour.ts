@@ -399,6 +399,34 @@ const worker: ComponentBehaviour = {
   creditsJoinCompletion: true,
 };
 
+/**
+ * A plain shape: a box drawn on a whiteboard that happens to be wired up.
+ *
+ * It is a zero-cost hop and nothing else. `passthru` draws a service time but
+ * never takes a slot and never queues, so with `serviceMs: 0` (what
+ * defaultConfig gives it) a request crossing a shape costs exactly nothing.
+ * That is what makes drawing a box mid-chain between two real components
+ * safe: the numbers a student reads afterwards are the components' numbers,
+ * not the decoration's.
+ *
+ * It fans out to everything downstream like a service, so a chain of shapes
+ * in front of a real component simply delivers to it.
+ *
+ * `servesRequests: false` because there is no server here to report a
+ * utilisation for. A shape reading "0% util" forever would be the same kind
+ * of lie the autoscaler used to tell before its own readout was fixed.
+ */
+const shape: ComponentBehaviour = {
+  kind: 'shape',
+  servesRequests: false,
+  generatesLoad: false,
+  pullsFromQueues: false,
+  buffersForConsumers: false,
+  pump: 'none',
+  creditsJoinCompletion: true,
+  onAdmit: () => 'passthru',
+};
+
 const ALL: ComponentBehaviour[] = [
   client,
   producer,
@@ -407,6 +435,7 @@ const ALL: ComponentBehaviour[] = [
   cache,
   queue,
   worker,
+  shape,
   ...EDGE_BEHAVIOURS,
   ...CONTROL_BEHAVIOURS,
 ];

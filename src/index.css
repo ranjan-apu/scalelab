@@ -1462,6 +1462,115 @@ h4 {
   --k-ink: var(--kind-loadshedder-ink);
 }
 
+/* whiteboard
+   The shapes set is not a component kind, so it deliberately has no
+   --kind-shape-* quartet: it borrows the core surface ramp instead, which is
+   already contrast-checked and already redefined per theme. It keeps the SAME
+   four locals every other kind sets, so the canvas, the rail's glyph and the
+   minimap stay on one contract, and a tone below simply restates them. */
+[data-kind='shape'] {
+  --k-fill: var(--surface);
+  --k-line: var(--border);
+  --k-stroke: var(--border-strong);
+  --k-ink: var(--text);
+}
+
+/* A toned shape restyles the same four locals from the annotation shades the
+   sections and text boxes already offer, so the two colour vocabularies stay
+   one vocabulary. Higher specificity than the neutral rule above, so the
+   chosen tone always wins; a shape with no tone matches nothing here and
+   keeps its neutral face. */
+[data-kind='shape'][data-tone='0'] {
+  --k-fill: var(--ann-0-fill);
+  --k-line: var(--ann-0-line);
+  --k-stroke: var(--ann-0-line);
+  --k-ink: var(--ann-0-ink);
+}
+
+[data-kind='shape'][data-tone='1'] {
+  --k-fill: var(--ann-1-fill);
+  --k-line: var(--ann-1-line);
+  --k-stroke: var(--ann-1-line);
+  --k-ink: var(--ann-1-ink);
+}
+
+[data-kind='shape'][data-tone='2'] {
+  --k-fill: var(--ann-2-fill);
+  --k-line: var(--ann-2-line);
+  --k-stroke: var(--ann-2-line);
+  --k-ink: var(--ann-2-ink);
+}
+
+[data-kind='shape'][data-tone='3'] {
+  --k-fill: var(--ann-3-fill);
+  --k-line: var(--ann-3-line);
+  --k-stroke: var(--ann-3-line);
+  --k-ink: var(--ann-3-ink);
+}
+
+[data-kind='shape'][data-tone='4'] {
+  --k-fill: var(--ann-4-fill);
+  --k-line: var(--ann-4-line);
+  --k-stroke: var(--ann-4-line);
+  --k-ink: var(--ann-4-ink);
+}
+
+[data-kind='shape'][data-tone='5'] {
+  --k-fill: var(--ann-5-fill);
+  --k-line: var(--ann-5-line);
+  --k-stroke: var(--ann-5-line);
+  --k-ink: var(--ann-5-ink);
+}
+
+[data-kind='shape'][data-tone='6'] {
+  --k-fill: var(--ann-6-fill);
+  --k-line: var(--ann-6-line);
+  --k-stroke: var(--ann-6-line);
+  --k-ink: var(--ann-6-ink);
+}
+
+[data-kind='shape'][data-tone='7'] {
+  --k-fill: var(--ann-7-fill);
+  --k-line: var(--ann-7-line);
+  --k-stroke: var(--ann-7-line);
+  --k-ink: var(--ann-7-ink);
+}
+
+[data-kind='shape'][data-tone='8'] {
+  --k-fill: var(--ann-8-fill);
+  --k-line: var(--ann-8-line);
+  --k-stroke: var(--ann-8-line);
+  --k-ink: var(--ann-8-ink);
+}
+
+[data-kind='shape'][data-tone='9'] {
+  --k-fill: var(--ann-9-fill);
+  --k-line: var(--ann-9-line);
+  --k-stroke: var(--ann-9-line);
+  --k-ink: var(--ann-9-ink);
+}
+
+[data-kind='shape'][data-tone='10'] {
+  --k-fill: var(--ann-10-fill);
+  --k-line: var(--ann-10-line);
+  --k-stroke: var(--ann-10-line);
+  --k-ink: var(--ann-10-ink);
+}
+
+[data-kind='shape'][data-tone='11'] {
+  --k-fill: var(--ann-11-fill);
+  --k-line: var(--ann-11-line);
+  --k-stroke: var(--ann-11-line);
+  --k-ink: var(--ann-11-ink);
+}
+
+[data-kind='shape'][data-tone='12'] {
+  --k-fill: var(--ann-12-fill);
+  --k-line: var(--ann-12-line);
+  --k-stroke: var(--ann-12-line);
+  --k-ink: var(--ann-12-ink);
+}
+
 [data-kind='ratelimiter'] {
   --k-fill: var(--kind-ratelimiter-fill);
   --k-line: var(--kind-ratelimiter-line);

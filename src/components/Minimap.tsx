@@ -1,6 +1,7 @@
 import { memo, useCallback, useMemo, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { SimNode } from '../sim/types';
+import { nodeH, nodeW } from '../sim/nodeBox';
 import './Minimap.css';
 
 /* ==========================================================================
@@ -17,8 +18,10 @@ import './Minimap.css';
    and every detail added is another thing that can disagree with the canvas.
    ========================================================================== */
 
-const NODE_W = 184;
-const NODE_H = 88;
+/* The node box comes from sim/nodeBox.ts rather than being restated here: a
+   whiteboard shape is whatever size it was dragged to, and a map that drew
+   every node at the component default would put a 400x300 box in the wrong
+   place on its own map. */
 
 export interface MinimapProps {
   nodes: readonly SimNode[];
@@ -51,8 +54,8 @@ export const Minimap = memo(function Minimap({
     for (const n of nodes) {
       if (n.x < minX) minX = n.x;
       if (n.y < minY) minY = n.y;
-      if (n.x + NODE_W > maxX) maxX = n.x + NODE_W;
-      if (n.y + NODE_H > maxY) maxY = n.y + NODE_H;
+      if (n.x + nodeW(n) > maxX) maxX = n.x + nodeW(n);
+      if (n.y + nodeH(n) > maxY) maxY = n.y + nodeH(n);
     }
     return {
       x: minX - PAD,
@@ -147,13 +150,17 @@ export const Minimap = memo(function Minimap({
           key={n.id}
           className="mm-node"
           data-kind={n.kind}
+          // A toned shape keeps its colour on the map too: the tone rules are
+          // written against these two attributes globally (see index.css), so
+          // the map agrees with the canvas without a second palette.
+          data-tone={n.tone}
           style={{
             left: (n.x - world.x) * fit.k,
             top: (n.y - world.y) * fit.k,
             // A node under about 2px reads as dirt on the screen rather than
             // as a component, so the marks have a floor.
-            width: Math.max(2, NODE_W * fit.k),
-            height: Math.max(2, NODE_H * fit.k),
+            width: Math.max(2, nodeW(n) * fit.k),
+            height: Math.max(2, nodeH(n) * fit.k),
           }}
         />
       ))}

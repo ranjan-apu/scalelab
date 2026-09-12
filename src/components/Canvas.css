@@ -1569,6 +1569,84 @@
   outline: none;
 }
 
+/* A shape's label is painted centred in its face, so its in-place editor is
+   centred too: the caret has to land where the words were, or the first
+   keystroke reads as the text jumping sideways. */
+.cv-rename.is-shape {
+  text-align: center;
+}
+
+/* ==========================================================================
+   Whiteboard shapes.
+
+   A shape borrows `.cv-node` for every interaction state -- hover ports,
+   focus ring, the link states, the entrance fade -- and paints its own body
+   from the same --k-* trio every component kind uses. The body path carries
+   BOTH `.cv-node-body` and `.cv-shape-body`, so a shape is affirmed green as a
+   link target, dimmed as an invalid one and dashed as a link source by the
+   same rules a component is, with no second set of states to keep in step.
+
+   Sizing is the one thing a shape does not share: it is whatever size it was
+   dragged to, and every geometry value below is in world px so it scales with
+   the zoom exactly as a component's does.
+   ========================================================================== */
+
+.cv-shape-body {
+  fill: var(--k-fill, var(--surface));
+  stroke: var(--k-stroke, var(--border-strong));
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  transition:
+    stroke var(--dur-fast) var(--ease),
+    fill var(--dur-fast) var(--ease);
+}
+
+/* The cylinder's top ellipse. A second curve rather than part of the body
+   path, because it has to stay visible when the body is only outlined. */
+.cv-shape-detail {
+  fill: none;
+  stroke: var(--k-stroke, var(--border-strong));
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+/* The linear shapes. A line has no interior to fill, so the pointer target is
+   the stroke itself: an invisible 16px stroke under the visible 2px one. At
+   2px a diagonal is a target nobody can hit, and a horizontal line (0 tall)
+   would have no clickable geometry at all. */
+.cv-shape-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 16;
+  stroke-linecap: round;
+  cursor: grab;
+}
+
+.cv-shape-line {
+  fill: none;
+  stroke: var(--k-stroke, var(--border-strong));
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.cv-shape-head {
+  fill: var(--k-stroke, var(--border-strong));
+  stroke: none;
+  pointer-events: none;
+}
+
+/* A shape's caption. Centred by the renderer (text-anchor="middle"), so the
+   only job here is the ink and the refusal to be selected as text. */
+.cv-shape-label {
+  fill: var(--k-ink, var(--text));
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ==========================================================================
    Annotations: sections and notes.
 

@@ -1,4 +1,4 @@
-import { isTopology } from './clipboard';
+import { isTopology, sanitizeTopology } from './clipboard';
 import { sanitizeAnnotations } from './sim/annotations';
 import type { Topology } from './sim/types';
 
@@ -79,6 +79,10 @@ function parseEntry(raw: unknown): SavedDesign | null {
   const annotations = sanitizeAnnotations(
     (e.topology as { annotations?: unknown }).annotations,
   );
+  // Nodes are bounded before they are carried: a stored shape box out of
+  // range is clamped rather than trusted, exactly as it is on the way in
+  // through a file or a link.
+  const clean = sanitizeTopology(e.topology);
   return {
     id: e.id,
     name:
@@ -90,8 +94,8 @@ function parseEntry(raw: unknown): SavedDesign | null {
     // Rebuilt field by field, so nothing the entry carried beyond these
     // three reaches the engine.
     topology: {
-      nodes: e.topology.nodes,
-      edges: e.topology.edges,
+      nodes: clean.nodes,
+      edges: clean.edges,
       ...(annotations.length > 0 ? { annotations } : {}),
     },
   };
