@@ -48,6 +48,7 @@ import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { LABS } from './content/labs';
 import { packToCanvasDoc } from './content/packDoc';
 import { Guide } from './components/guide';
+import { ConceptsView } from './components/concepts';
 import type { GuideTab } from './components/guide/types';
 import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
@@ -746,6 +747,14 @@ export default function App() {
 
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [interviewOpen, setInterviewOpen] = useState(false);
+  const [conceptsOpen, setConceptsOpen] = useState(false);
+  const [conceptInitialId, setConceptInitialId] = useState<string | null>(null);
+
+  const openConcepts = useCallback((id?: string) => {
+    if (id) setConceptInitialId(id);
+    setConceptsOpen(true);
+  }, []);
+
   /** Pack preselected when practice opens from a concept lesson. Cleared on close. */
   const [pendingPackId, setPendingPackId] = useState<string | null>(null);
 
@@ -2680,6 +2689,11 @@ export default function App() {
         onSelect: () => setInterviewOpen(true),
       },
       {
+        label: 'Concept Academy',
+        icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
+        onSelect: () => openConcepts(),
+      },
+      {
         label: 'Glossary',
         icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
         ...(coarse ? {} : { hint: '?' }),
@@ -3737,32 +3751,6 @@ export default function App() {
           <button
             type="button"
             className="btn btn-icon app-activity-btn"
-            aria-label="Open studio guide"
-            title="Studio guide"
-            onClick={() => {
-              setGuideTab('overview');
-              setGuideOpen(true);
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon app-activity-btn"
             aria-label="Open interview practice"
             title="Interview practice"
             onClick={() => setInterviewOpen(true)}
@@ -3783,13 +3771,10 @@ export default function App() {
           </button>
           <button
             type="button"
-            className="btn btn-icon app-activity-btn"
-            aria-label="Open concept lessons"
-            title="Concepts"
-            onClick={() => {
-              setGuideTab('concepts');
-              setGuideOpen(true);
-            }}
+            className={`btn btn-icon app-activity-btn${conceptsOpen ? ' is-active' : ''}`}
+            aria-label="Open concept academy"
+            title="Concept Academy"
+            onClick={() => openConcepts()}
           >
             <svg
               width="14"
@@ -3805,6 +3790,34 @@ export default function App() {
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
             </svg>
           </button>
+          <div className="app-activity-end">
+            <button
+              type="button"
+              className="btn btn-icon app-activity-btn"
+              aria-label="Open studio guide"
+              title="Studio guide"
+              onClick={() => {
+                setGuideTab('overview');
+                setGuideOpen(true);
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            </button>
+          </div>
         </nav>
         <PanelSlot
           open={layout.library}
@@ -4154,6 +4167,25 @@ export default function App() {
         onPracticePack={(packId) => {
           setPendingPackId(packId);
           setGuideOpen(false);
+          setInterviewOpen(true);
+        }}
+        onOpenConceptsAcademy={(id) => {
+          setGuideOpen(false);
+          openConcepts(id);
+        }}
+      />
+      <ConceptsView
+        open={conceptsOpen}
+        initialConceptId={conceptInitialId}
+        onClose={() => setConceptsOpen(false)}
+        onLoadDemoPreset={(presetId, pattern) => {
+          const preset = PRESETS.find((p) => p.id === presetId);
+          if (preset) handleLoadLab(preset, pattern);
+        }}
+        onPinSection={handlePinSection}
+        onOpenGlossary={(id) => openGlossary(id)}
+        onPracticePack={(packId) => {
+          setPendingPackId(packId);
           setInterviewOpen(true);
         }}
       />

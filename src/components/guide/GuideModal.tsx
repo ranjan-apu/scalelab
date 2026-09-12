@@ -60,6 +60,7 @@ export function GuideModal({
   onPinSection,
   onOpenGlossary,
   onPracticePack,
+  onOpenConceptsAcademy,
   initialTab,
 }: GuideProps) {
   const { mounted, closing, unmount } = usePresence(open);
@@ -187,6 +188,7 @@ export function GuideModal({
               onPinSection={onPinSection}
               onOpenGlossary={onOpenGlossary}
               onPracticePack={onPracticePack}
+              onOpenConceptsAcademy={onOpenConceptsAcademy}
             />
           )}
           {activeTab === 'presets' && (

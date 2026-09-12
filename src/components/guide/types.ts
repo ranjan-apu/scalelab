@@ -31,4 +31,6 @@ export interface GuideProps {
   onOpenGlossary?: (id: string) => void;
   /** Jump to interview practice with one pack preselected. */
   onPracticePack?: (packId: string) => void;
+  /** Open the dedicated full-page Concept Academy reader. */
+  onOpenConceptsAcademy?: (id?: string) => void;
 }
