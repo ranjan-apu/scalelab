@@ -155,12 +155,6 @@
 .st-segmented {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-}
-
-/* Four choices rather than three. A modifier instead of a second component,
-   because the only difference is the column count. */
-.st-segmented-4 {
-  grid-template-columns: repeat(4, 1fr);
   gap: 2px;
   padding: 2px;
   background: var(--surface-2);
@@ -168,9 +162,18 @@
   border-radius: var(--r-btn);
 }
 
+/* Four choices rather than three. A modifier instead of a second component,
+   because the only difference is the column count. */
+.st-segmented-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .st-seg {
-  height: 30px;
-  border: none;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: var(--bw) solid transparent;
   border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-dim);
@@ -180,17 +183,38 @@
   cursor: pointer;
   transition:
     background-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease);
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
 }
 
 .st-seg:hover:not(.is-active) {
   color: var(--text);
+  background: var(--sheen);
 }
 
 .st-seg.is-active {
   background: var(--surface);
   color: var(--text);
+  font-weight: var(--fw-bold, 650);
+  border-color: var(--border);
   box-shadow: var(--shadow-sm);
+}
+
+:root[data-theme='dark'] .st-seg.is-active {
+  background: var(--surface-3);
+  color: var(--text);
+  border-color: var(--line-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .st-seg.is-active {
+    background: var(--surface-3);
+    color: var(--text);
+    border-color: var(--line-3);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
 }
 
 .st-seg:focus-visible {
