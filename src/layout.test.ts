@@ -14,15 +14,18 @@ describe('Layout invariants for Palette mode switch and Simulation Dock / Zoom c
     expect(paletteCss).toMatch(/\.pal-mode-btn\s*\{[^}]*line-height:\s*var\(--lh-sm\)/);
   });
 
-  it('Elevates .cv-zoom in simulation mode across all desktop/laptop viewports to prevent dock collision', () => {
-    // .app-body.is-sim .cv-zoom must be elevated above the floating simulation dock
+  it('Positions dock to utilize left empty space and clears zoom controls on the right', () => {
+    // Dock is centered between rail and zoom controls with left offset and max-width bounds
     expect(appCss).toMatch(
-      /\.app-body\.is-sim\s+\.cv-zoom\s*\{[^}]*bottom:\s*calc\(var\(--sp-4\)\s*\+\s*76px\s*\+\s*var\(--sp-2\)\)/,
+      /\.app-body\.has-library\s+\.app-sim-dock\s*\{[^}]*left:\s*calc\(50%\s*\+\s*4px\)/,
+    );
+    expect(appCss).toMatch(
+      /\.app-body\.has-library\s+\.app-sim-dock\s*\{[^}]*max-width:\s*calc\(100vw\s*-\s*var\(--rail-w\)\s*-\s*220px\)/,
     );
 
-    // .app-body.is-sim.has-metrics .cv-zoom must be elevated above metrics strip and dock
+    // Zoom cluster elevates on compact tablet viewports (<= 1050px) to prevent overlap
     expect(appCss).toMatch(
-      /\.app-body\.is-sim\.has-metrics\s+\.cv-zoom\s*\{[^}]*bottom:\s*calc\(var\(--strip-h\)\s*\+\s*var\(--sp-3\)\s*\+\s*76px\s*\+\s*var\(--sp-2\)\)/,
+      /@media\s*\(min-width:\s*721px\)\s+and\s+\(max-width:\s*1050px\)\s*\{[\s\S]*?\.app-body\.is-sim\s+\.cv-zoom\s*\{[^}]*bottom:\s*calc\(var\(--sp-4\)\s*\+\s*76px\s*\+\s*var\(--sp-2\)\)/,
     );
 
     // .cv-zoom in Canvas.css has z-index: 20

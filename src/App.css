@@ -856,20 +856,28 @@
     transition: left var(--dur-base) var(--ease), bottom var(--dur-base) var(--ease), max-width var(--dur-base) var(--ease);
   }
 
-  /* Center dock relative to remaining visible canvas when side panels are open */
+  /* Center dock relative to remaining visible canvas, utilizing left empty space and clearing zoom controls */
+  .app-sim-dock {
+    left: calc(50% - 40px);
+    max-width: calc(100vw - 260px);
+  }
+
+  /* When left library rail is open: center between rail and zoom controls */
   .app-body.has-library .app-sim-dock {
-    left: calc(50% + var(--rail-w) / 2);
-    max-width: calc(100vw - var(--rail-w) - 48px);
+    left: calc(50% + 4px);
+    max-width: calc(100vw - var(--rail-w) - 220px);
   }
 
+  /* When inspector is open: offset left to balance against the inspector panel and zoom controls */
   .app-body.has-inspector .app-sim-dock {
-    left: calc(50% - var(--ins-w) / 2);
-    max-width: calc(100vw - var(--ins-w) - 48px);
+    left: calc(50% - (var(--ins-w) + 120px) / 2);
+    max-width: calc(100vw - var(--ins-w) - 220px);
   }
 
+  /* When both library and inspector are open: center between rails with clearance for zoom controls */
   .app-body.has-library.has-inspector .app-sim-dock {
-    left: calc(50% + (var(--rail-w) - var(--ins-w)) / 2);
-    max-width: calc(100vw - var(--rail-w) - var(--ins-w) - 48px);
+    left: calc(50% + (var(--rail-w) - var(--ins-w) - 120px) / 2);
+    max-width: calc(100vw - var(--rail-w) - var(--ins-w) - 140px);
   }
 
   /* Lift dock above the charts strip when metrics panel is open */
@@ -988,6 +996,16 @@
 }
 
 /* Tablet & compact viewports: ensure dock sizing fits narrower viewports */
+@media (min-width: 721px) and (max-width: 1400px) {
+  .app-sim-dock {
+    padding: 6px 16px;
+  }
+
+  .app-sim-dock .traffic {
+    gap: var(--sp-3);
+  }
+}
+
 @media (min-width: 721px) and (max-width: 1050px) {
   .app-sim-dock {
     padding: 6px 14px;
@@ -998,8 +1016,28 @@
   }
 
   .app-sim-dock .traffic-load {
-    flex: 0 1 240px;
-    min-width: 160px;
+    flex: 0 1 200px;
+    min-width: 150px;
+  }
+
+  /* On compact tablets, elevate zoom cluster so it stays accessible when canvas width is narrow */
+  .app-body.is-sim .cv-zoom {
+    bottom: calc(var(--sp-4) + 76px + var(--sp-2));
+  }
+
+  .app-body.is-sim.has-metrics .cv-zoom {
+    bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
+  }
+}
+
+/* When both library and inspector panels are open on compact screens, elevate zoom to prevent crowding */
+@media (min-width: 1051px) and (max-width: 1240px) {
+  .app-body.is-sim.has-library.has-inspector .cv-zoom {
+    bottom: calc(var(--sp-4) + 76px + var(--sp-2));
+  }
+
+  .app-body.is-sim.has-library.has-inspector.has-metrics .cv-zoom {
+    bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
   }
 }
 
@@ -1097,15 +1135,6 @@
 
 .app-body .mm {
   top: calc(32px + var(--sp-2));
-}
-
-/* Elevate zoom cluster above the floating simulation dock to prevent overlap */
-.app-body.is-sim .cv-zoom {
-  bottom: calc(var(--sp-4) + 76px + var(--sp-2));
-}
-
-.app-body.is-sim.has-metrics .cv-zoom {
-  bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
 }
 
 .cv-ledger,
