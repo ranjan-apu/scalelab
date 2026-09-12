@@ -723,6 +723,14 @@
     background: var(--border);
   }
 
+  .app-activity-end {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-1);
+  }
+
   /* The left slot is absolute, so it ignores the in-flow rail and would
      paint over it. Re-anchor past the rail at this breakpoint. Doubled
      specificity: the base slot rule later in this file would otherwise win

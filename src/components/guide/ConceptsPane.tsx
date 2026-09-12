@@ -13,6 +13,7 @@ interface ConceptsPaneProps {
   onPinSection?: (title: string, text: string) => void;
   onOpenGlossary?: (id: string) => void;
   onPracticePack?: (packId: string) => void;
+  onOpenConceptsAcademy?: (id?: string) => void;
 }
 
 const TRACKS: { id: ConceptTrack; label: string; blurb: string }[] = [
@@ -46,6 +47,7 @@ function ConceptDetail({
   onPinSection,
   onOpenGlossary,
   onPracticePack,
+  onOpenConceptsAcademy,
 }: { lesson: ConceptLesson; onBack: () => void } & Omit<ConceptsPaneProps, 'onClose'> & {
   onClose: () => void;
 }) {
@@ -62,6 +64,20 @@ function ConceptDetail({
       <p className="gd-subtext">
         {trackLabel(lesson.track)} · {CONCEPTS.length} lessons in the library
       </p>
+      {onOpenConceptsAcademy && (
+        <div style={{ margin: 'var(--sp-2) 0 var(--sp-3)' }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm btn-full"
+            onClick={() => {
+              onClose();
+              onOpenConceptsAcademy(lesson.id);
+            }}
+          >
+            📖 Open Full Blog Deep Dive &amp; Diagrams →
+          </button>
+        </div>
+      )}
       <p>{lesson.summary}</p>
 
       <div className="gd-subsection">
@@ -218,6 +234,21 @@ export function ConceptsPane(props: ConceptsPaneProps) {
         Short lessons behind every practice pack: when to reach for an idea, what goes
         wrong, and which runnable preset proves it. {CONCEPTS.length} lessons.
       </p>
+
+      {props.onOpenConceptsAcademy && (
+        <div style={{ marginBottom: 'var(--sp-3)' }}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm btn-full"
+            onClick={() => {
+              onClose();
+              props.onOpenConceptsAcademy?.();
+            }}
+          >
+            📖 Open Dedicated Concept Academy (Deep Dives &amp; Diagrams) →
+          </button>
+        </div>
+      )}
 
       <div className="gd-actions-row">
         <input

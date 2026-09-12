@@ -60,6 +60,7 @@ export function GuideModal({
   onPinSection,
   onOpenGlossary,
   onPracticePack,
+  onOpenConceptsAcademy,
 }: GuideProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -181,6 +182,7 @@ export function GuideModal({
               onPinSection={onPinSection}
               onOpenGlossary={onOpenGlossary}
               onPracticePack={onPracticePack}
+              onOpenConceptsAcademy={onOpenConceptsAcademy}
             />
           )}
           {activeTab === 'presets' && (
