@@ -96,3 +96,66 @@ describe('Settings component — theme switcher', () => {
     expect(css).toMatch(/@media\s*\(prefers-color-scheme:\s*dark\)\s*\{[^}]*background:\s*var\(--surface-3\)/);
   });
 });
+
+describe('Settings component — architectural advisor & HLD RFC toggles', () => {
+  it('renders toggles for Architectural advisor and HLD RFC export', () => {
+    render(<Settings open={true} onClose={() => {}} />);
+
+    const switches = document.querySelectorAll<HTMLButtonElement>('button.st-switch');
+    const labels = Array.from(switches).map((s) => s.querySelector('.st-row-label')?.textContent?.trim());
+
+    expect(labels).toContain('Architectural advisor');
+    expect(labels).toContain('High-Level Design (HLD) RFC export');
+  });
+
+  it('toggles advisor preference when switch is clicked', () => {
+    render(<Settings open={true} onClose={() => {}} />);
+
+    const switches = document.querySelectorAll<HTMLButtonElement>('button.st-switch');
+    const advisorSwitch = Array.from(switches).find(
+      (s) => s.querySelector('.st-row-label')?.textContent?.trim() === 'Architectural advisor',
+    );
+    expect(advisorSwitch).toBeDefined();
+    expect(advisorSwitch?.getAttribute('aria-checked')).toBe('true');
+
+    act(() => {
+      advisorSwitch?.click();
+    });
+
+    expect(getPreferences().advisor).toBe(false);
+  });
+
+  it('toggles hldRfc preference when switch is clicked and hides export RFC button', () => {
+    const onExportHldMarkdown = () => {};
+    render(
+      <Settings
+        open={true}
+        onClose={() => {}}
+        onExportHldMarkdown={onExportHldMarkdown}
+      />,
+    );
+
+    let exportHldBtn = Array.from(document.querySelectorAll<HTMLButtonElement>('.st-action')).find(
+      (btn) => btn.textContent?.includes('Export Architecture Design RFC'),
+    );
+    expect(exportHldBtn).toBeDefined();
+
+    const switches = document.querySelectorAll<HTMLButtonElement>('button.st-switch');
+    const hldSwitch = Array.from(switches).find(
+      (s) => s.querySelector('.st-row-label')?.textContent?.trim() === 'High-Level Design (HLD) RFC export',
+    );
+    expect(hldSwitch).toBeDefined();
+
+    act(() => {
+      hldSwitch?.click();
+    });
+
+    expect(getPreferences().hldRfc).toBe(false);
+
+    // Re-render or check updated state
+    exportHldBtn = Array.from(document.querySelectorAll<HTMLButtonElement>('.st-action')).find(
+      (btn) => btn.textContent?.includes('Export Architecture Design RFC'),
+    );
+    expect(exportHldBtn).toBeUndefined();
+  });
+});

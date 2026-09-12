@@ -79,6 +79,20 @@ export interface Preferences {
    * AWS, GCP, and Azure for the canvas architecture. ON by default.
    */
   costEstimator: boolean;
+  /**
+   * Architectural Advisor (Resilience linter).
+   *
+   * Inspects topology for single points of failure (SPOFs), bottlenecks,
+   * and distributed resilience risks. ON by default.
+   */
+  advisor: boolean;
+  /**
+   * High-Level Design (HLD) RFC Export feature.
+   *
+   * Displays the HLD RFC header button to generate markdown RFC specs.
+   * ON by default.
+   */
+  hldRfc: boolean;
 }
 
 /** What the reader picked. `system` defers to the OS. */
@@ -100,6 +114,8 @@ export const PALETTE_MODES: readonly PaletteMode[] = ['components', 'shapes'];
 
 export const DEFAULT_PREFERENCES: Preferences = {
   costEstimator: true,
+  advisor: true,
+  hldRfc: true,
   cleanCanvas: false,
   tooltips: false,
   sparklines: true,
@@ -174,6 +190,8 @@ function load(): Preferences {
     // only that one preference rather than the whole set.
     return {
       costEstimator: bool(p.costEstimator, DEFAULT_PREFERENCES.costEstimator),
+      advisor: bool(p.advisor, DEFAULT_PREFERENCES.advisor),
+      hldRfc: bool(p.hldRfc, DEFAULT_PREFERENCES.hldRfc),
       cleanCanvas: bool(p.cleanCanvas, DEFAULT_PREFERENCES.cleanCanvas),
       tooltips: bool(p.tooltips, DEFAULT_PREFERENCES.tooltips),
       sparklines: bool(p.sparklines, DEFAULT_PREFERENCES.sparklines),
