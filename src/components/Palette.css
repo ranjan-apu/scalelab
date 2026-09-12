@@ -284,7 +284,7 @@
 .pal-mode-switch {
   display: flex;
   gap: 2px;
-  margin: 0 12px 10px;
+  margin: 10px 14px 8px;
   padding: 3px;
   border: var(--bw) solid var(--border);
   border-radius: var(--r-md);
@@ -305,6 +305,7 @@
   font-family: var(--sans);
   font-size: var(--fs-sm);
   font-weight: var(--fw-med);
+  line-height: var(--lh-sm);
   cursor: pointer;
   transition:
     color var(--dur-fast) var(--ease),

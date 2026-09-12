@@ -987,7 +987,7 @@
   }
 }
 
-/* Tablet & compact viewports: ensure dock never clips, collides, or overlaps zoom controls */
+/* Tablet & compact viewports: ensure dock sizing fits narrower viewports */
 @media (min-width: 721px) and (max-width: 1050px) {
   .app-sim-dock {
     padding: 6px 14px;
@@ -1000,15 +1000,6 @@
   .app-sim-dock .traffic-load {
     flex: 0 1 240px;
     min-width: 160px;
-  }
-
-  /* Elevate zoom cluster above the floating simulation dock to prevent overlap */
-  .app-body.is-sim .cv-zoom {
-    bottom: calc(var(--sp-4) + 76px + var(--sp-2));
-  }
-
-  .app-body.is-sim.has-metrics .cv-zoom {
-    bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
   }
 }
 
@@ -1106,6 +1097,15 @@
 
 .app-body .mm {
   top: calc(32px + var(--sp-2));
+}
+
+/* Elevate zoom cluster above the floating simulation dock to prevent overlap */
+.app-body.is-sim .cv-zoom {
+  bottom: calc(var(--sp-4) + 76px + var(--sp-2));
+}
+
+.app-body.is-sim.has-metrics .cv-zoom {
+  bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
 }
 
 .cv-ledger,
