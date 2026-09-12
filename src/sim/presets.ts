@@ -3966,6 +3966,38 @@ export const PRESETS: Preset[] = [
     topology: stripe,
   },
   {
+    id: 'photofeed',
+    name: 'Photo Feed: media posts and home timeline',
+    tagline: 'Blob uploads, edge delivery and precomputed feeds',
+    description:
+      'A photo-sharing feed starter: media bytes travel to object storage and out through edge caches while the follow graph fans posted items into precomputed home timelines. Watch edge hit rate decide origin load, and celebrity posts strain the fan-out workers.',
+    topology: twitter,
+  },
+  {
+    id: 'auction',
+    name: 'Auction Room: bids under contention',
+    tagline: 'One item, many bidders, a single winner',
+    description:
+      'An auction-room starter: a waiting room meters the closing-seconds rush, atomic bid registration decides a single winner, and idempotent retries make redelivered bids safe. Watch lock contention and queue depth decide whether the close stays fair.',
+    topology: ticketmasterTopology,
+  },
+  {
+    id: 'livefirehose',
+    name: 'Live Firehose: comments at broadcast speed',
+    tagline: 'Buffer the burst, then fan out in order',
+    description:
+      'A live-comment starter: connection holders absorb the broadcast burst, a buffer smooths the burst, and fan-out workers push ordered comments to every viewer. Watch consumer lag, not error rate, when the goal goes in.',
+    topology: discord,
+  },
+  {
+    id: 'topk',
+    name: 'Trending Now: windowed top-K rankings',
+    tagline: 'Count the stream, serve the precomputed board',
+    description:
+      'A trending-board starter: view events stream into windowed counters while rankings serve from precomputed sorted sets. Watch aggregation lag versus serving latency when a video goes viral mid-window.',
+    topology: leetcodeTopology,
+  },
+  {
     id: 'whatsapp',
     name: 'WhatsApp: store and forward',
     tagline: 'Messages that wait instead of failing',
