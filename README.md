@@ -139,13 +139,29 @@ npm run dev
 
 Open `http://localhost:5173` to explore ScaleLab.
 
+### Landing page + playground (one `dist/`)
+
+The marketing landing page is a zero-JS [Astro](https://astro.build) site in `landing/`
+built for speed and SEO. `npm run build` emits both sites into the same `dist/`:
+
+| URL | Source | Output |
+| :--- | :--- | :--- |
+| `/` | `landing/` (Astro) | `dist/index.html` |
+| `/app/` | Vite + React playground | `dist/app/index.html` |
+
+Point the domain (CNAME) at any static host serving `dist/` and the landing
+opens at the root; its buttons link into `/app/` for the playground.
+
 ### Available Scripts
 
 | Command | Action |
 | :--- | :--- |
-| `npm run dev` | Local dev server with hot module replacement |
-| `npm run build` | Typecheck and build the production bundle into `dist/` |
-| `npm run preview` | Preview the production build locally |
+| `npm run dev` | Landing (`:4321`) + playground (`:5173`) together |
+| `npm run dev:app` / `npm run dev:landing` | One server at a time |
+| `npm run build` | Typecheck, then Astro landing + Vite app into `dist/` |
+| `npm run build:app` / `npm run build:landing` | One site at a time |
+| `npm run preview` | Preview the full `dist/` locally |
+| `npm run preview:app` | Preview only the playground build |
 | `npm test` | Run the Vitest suite |
 | `npm run typecheck` | Standalone TypeScript checking |
 
