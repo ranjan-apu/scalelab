@@ -81,8 +81,11 @@
   --sp-3: 12px;
   --sp-4: 16px;
   --sp-5: 20px;
+  --sp-6: 24px;
   --sp-7: 28px;
+  --sp-8: 32px;
   --sp-10: 40px;
+  --sp-12: 48px;
 
   /* Radii. Soft enough to feel welcoming, tight enough to stay adult.
        2    small filled marks (8px swatches), where 6 would read as a circle
