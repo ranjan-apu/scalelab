@@ -351,19 +351,19 @@
 
 /* Article Lead & Sections */
 .concepts-scenario-box {
-  padding: var(--sp-5) var(--sp-6);
+  padding: var(--sp-5, 20px) var(--sp-6, 24px);
   border-radius: var(--r-md);
   background: var(--surface);
   border-left: 4px solid var(--accent);
   border-top: var(--bw) solid var(--border);
   border-right: var(--bw) solid var(--border);
   border-bottom: var(--bw) solid var(--border);
-  margin-bottom: var(--sp-8);
+  margin-bottom: var(--sp-8, 32px);
 }
 
 .concepts-scenario-title {
-  margin: 0 0 var(--sp-2);
-  font-size: var(--fs-sm);
+  margin: 0 0 var(--sp-2, 8px);
+  font-size: var(--fs-xs, 12px);
   font-weight: var(--fw-bold, 700);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -372,7 +372,7 @@
 
 .concepts-scenario-text {
   margin: 0;
-  font-size: var(--fs-md);
+  font-size: var(--fs-base, 14px);
   line-height: 1.75;
   color: var(--text);
 }
