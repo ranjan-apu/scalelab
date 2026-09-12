@@ -2302,7 +2302,10 @@ export default function App() {
     const title =
       architectureTitle.trim() ||
       (presetId ? (PRESETS.find((p) => p.id === presetId)?.name ?? 'System Architecture') : 'System Architecture');
-    const md = exportToHldMarkdown(topology, { systemName: title });
+    const md = exportToHldMarkdown(topology, {
+      systemName: title,
+      includeCostEstimate: costEstimator,
+    });
     const stem = title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -2316,7 +2319,7 @@ export default function App() {
       text: 'Exported Architecture Design RFC document (.md)',
       id: toastSeq.current,
     });
-  }, [topology, architectureTitle, presetId]);
+  }, [topology, architectureTitle, presetId, costEstimator]);
 
   /**
    * What the menu offers.
@@ -2838,7 +2841,13 @@ export default function App() {
   const selectedStats =
     selectedNode && snapshot ? (snapshot.nodes[selectedNode.id] ?? null) : null;
 
-  const cloudCostEstimate = useMemo(() => calculateCloudCosts(topology), [topology]);
+  const cloudCostEstimate = useMemo(
+    () =>
+      costEstimator
+        ? calculateCloudCosts(topology)
+        : { totalAws: 0, totalGcp: 0, totalAzure: 0, components: [] },
+    [topology, costEstimator],
+  );
   const architecturalFindings = useMemo(() => auditTopology(topology), [topology]);
   const spofCount = useMemo(
     () => architecturalFindings.filter((f) => f.severity === 'critical').length,
@@ -3676,6 +3685,8 @@ export default function App() {
             onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
             cleanCanvas={cleanCanvas}
             topology={topology}
+            costEstimator={costEstimator}
+            onOpenSettings={() => setSettingsOpen(true)}
             edge={selectedEdge}
             sourceNode={edgeSourceNode}
             targetNode={edgeTargetNode}

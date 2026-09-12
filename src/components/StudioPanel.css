@@ -64,7 +64,7 @@
 .stp-line-sku {
   grid-area: sku;
   font-size: var(--fs-sm);
-  color: var(--text-faint);
+  color: var(--text-dim);
 }
 
 .stp-line-usd {
@@ -80,5 +80,16 @@
 }
 
 .stp-foot {
-  color: var(--text-faint);
+  color: var(--text-dim);
+}
+
+.stp-disabled {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.stp-settings-btn {
+  align-self: flex-start;
+  margin-top: var(--sp-1);
 }
