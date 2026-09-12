@@ -51,6 +51,11 @@ interface ToggleRow {
 function toggles(coarse: boolean): ToggleRow[] {
   return [
     {
+      key: 'costEstimator',
+      label: 'Cloud cost estimator',
+      hint: 'Calculate and show estimated multi-cloud infrastructure spend across AWS, GCP, and Azure.',
+    },
+    {
       key: 'cleanCanvas',
       label: 'Clean canvas (design mode)',
       hint: 'Hide live requests and telemetry counters, showing a clean architectural diagram like Excalidraw or draw.io.',

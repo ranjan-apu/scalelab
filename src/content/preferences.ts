@@ -57,6 +57,13 @@ export interface Preferences {
   collapsedGroups: string[];
   /** Pinned node kinds appearing in the top Pinned section of the palette. */
   pinnedKinds: NodeKind[];
+  /**
+   * Multi-Cloud Infrastructure Cost Estimator.
+   *
+   * Calculates and displays estimated monthly infrastructure spend across
+   * AWS, GCP, and Azure for the canvas architecture. ON by default.
+   */
+  costEstimator: boolean;
 }
 
 /** What the reader picked. `system` defers to the OS. */
@@ -65,6 +72,7 @@ export type ThemeChoice = 'light' | 'dark' | 'system';
 export const THEME_CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];
 
 export const DEFAULT_PREFERENCES: Preferences = {
+  costEstimator: true,
   cleanCanvas: false,
   tooltips: false,
   sparklines: true,
@@ -137,6 +145,7 @@ function load(): Preferences {
     // Each key is validated on its own, so an unknown or corrupt field costs
     // only that one preference rather than the whole set.
     return {
+      costEstimator: bool(p.costEstimator, DEFAULT_PREFERENCES.costEstimator),
       cleanCanvas: bool(p.cleanCanvas, DEFAULT_PREFERENCES.cleanCanvas),
       tooltips: bool(p.tooltips, DEFAULT_PREFERENCES.tooltips),
       sparklines: bool(p.sparklines, DEFAULT_PREFERENCES.sparklines),

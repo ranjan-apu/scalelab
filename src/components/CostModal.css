@@ -100,7 +100,7 @@
 
 .cost-provider-unit {
   font-size: 11px;
-  color: var(--text-faint);
+  color: var(--text-dim);
 }
 
 .cost-modal-table-wrap {
@@ -142,7 +142,7 @@
 }
 
 .cost-sku-detail {
-  color: var(--text-faint);
+  color: var(--text-dim);
   font-size: 11px;
 }
 
@@ -163,6 +163,6 @@
 
 .cost-modal-hint {
   font-size: 11px;
-  color: var(--text-faint);
+  color: var(--text-dim);
   margin: 0;
 }

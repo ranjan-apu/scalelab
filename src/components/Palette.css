@@ -306,7 +306,7 @@
 
 .pal-category-chip.is-active {
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border-color: var(--accent);
   font-weight: 600;
 }

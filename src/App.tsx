@@ -659,6 +659,7 @@ export default function App() {
      genuine external-system synchronisation rather than derived state. */
   const themeChoice = usePreference('theme');
   const cleanCanvas = usePreference('cleanCanvas');
+  const costEstimator = usePreference('costEstimator');
   useEffect(() => {
     applyTheme(themeChoice);
   }, [themeChoice]);
@@ -2297,6 +2298,26 @@ export default function App() {
     setToast({ text: 'Created a new empty canvas', id: toastSeq.current });
   }, [replaceDesign, presetId, topology.nodes.length]);
 
+  const handleExportHldMarkdown = useCallback(() => {
+    const title =
+      architectureTitle.trim() ||
+      (presetId ? (PRESETS.find((p) => p.id === presetId)?.name ?? 'System Architecture') : 'System Architecture');
+    const md = exportToHldMarkdown(topology, { systemName: title });
+    const stem = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    downloadBlob(
+      new Blob([md], { type: 'text/markdown;charset=utf-8' }),
+      `${stem || 'hld-architecture'}-rfc.md`,
+    );
+    toastSeq.current += 1;
+    setToast({
+      text: 'Exported Architecture Design RFC document (.md)',
+      id: toastSeq.current,
+    });
+  }, [topology, architectureTitle, presetId]);
+
   /**
    * What the menu offers.
    *
@@ -2353,13 +2374,32 @@ export default function App() {
               onSelect: () => setShortcutsOpen(true),
             },
           ]),
+      ...(costEstimator
+        ? [
+            {
+              label: 'Cost estimate',
+              icon: 'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z',
+              onSelect: () => setCostModalOpen(true),
+            },
+          ]
+        : []),
+      {
+        label: 'Resilience advisor',
+        icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10',
+        onSelect: () => setAdvisorDrawerOpen(true),
+      },
+      {
+        label: 'Export HLD RFC',
+        icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z',
+        onSelect: handleExportHldMarkdown,
+      },
       {
         label: 'Settings',
         icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1 2.83-2.83l.06-.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
         onSelect: () => setSettingsOpen(true),
       },
     ],
-    [handleNewCanvas, openGlossary, coarse],
+    [handleNewCanvas, openGlossary, coarse, handleExportHldMarkdown, costEstimator],
   );
 
   /* ---------------- design files ----------------
@@ -2445,26 +2485,6 @@ export default function App() {
         setToast({ text: 'Could not copy to clipboard.', id: toastSeq.current });
       });
   }, [topology]);
-
-  const handleExportHldMarkdown = useCallback(() => {
-    const title =
-      architectureTitle.trim() ||
-      (presetId ? (PRESETS.find((p) => p.id === presetId)?.name ?? 'System Architecture') : 'System Architecture');
-    const md = exportToHldMarkdown(topology, { systemName: title });
-    const stem = title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    downloadBlob(
-      new Blob([md], { type: 'text/markdown;charset=utf-8' }),
-      `${stem || 'hld-architecture'}-rfc.md`,
-    );
-    toastSeq.current += 1;
-    setToast({
-      text: 'Exported Architecture Design RFC document (.md)',
-      id: toastSeq.current,
-    });
-  }, [topology, architectureTitle, presetId]);
 
   const importDesign = useCallback(
     async (file: File) => {
@@ -3151,16 +3171,18 @@ export default function App() {
           </div>
 
           <div className="app-studio-telemetry" role="region" aria-label="Studio insights">
-            <button
-              type="button"
-              className="app-studio-pill-btn app-cost-pill"
-              title="Multi-Cloud Monthly Spend Estimate across AWS, GCP, Azure"
-              onClick={() => setCostModalOpen(true)}
-            >
-              <span className="app-studio-pill-icon" aria-hidden="true">☁️</span>
-              <span className="app-studio-pill-val">${cloudCostEstimate.totalAws.toLocaleString()}/mo</span>
-              <span className="app-studio-pill-tag">AWS</span>
-            </button>
+            {costEstimator && (
+              <button
+                type="button"
+                className="app-studio-pill-btn app-cost-pill"
+                title="Multi-Cloud Monthly Spend Estimate across AWS, GCP, Azure"
+                onClick={() => setCostModalOpen(true)}
+              >
+                <span className="app-studio-pill-icon" aria-hidden="true">☁️</span>
+                <span className="app-studio-pill-val">${cloudCostEstimate.totalAws.toLocaleString()}/mo</span>
+                <span className="app-studio-pill-tag">AWS</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -3795,11 +3817,13 @@ export default function App() {
         onExportHldMarkdown={handleExportHldMarkdown}
       />
 
-      <CostModal
-        open={costModalOpen}
-        onClose={() => setCostModalOpen(false)}
-        topology={topology}
-      />
+      {costEstimator && (
+        <CostModal
+          open={costModalOpen}
+          onClose={() => setCostModalOpen(false)}
+          topology={topology}
+        />
+      )}
 
       <AdvisorDrawer
         open={advisorDrawerOpen}
