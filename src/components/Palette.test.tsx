@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { act } from 'react';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { Palette } from './Palette';
@@ -253,5 +255,48 @@ describe('Palette pinned items', () => {
     });
 
     expect(onAdd).toHaveBeenCalledWith('cache');
+  });
+
+  it('renders library mode switch and switches between Components and Shapes', () => {
+    const onAdd = vi.fn();
+    const onAddShape = vi.fn();
+    render(<Palette onAdd={onAdd} onAddShape={onAddShape} />);
+
+    const modeSwitch = document.querySelector('.pal-mode-switch');
+    expect(modeSwitch).toBeTruthy();
+
+    const buttons = modeSwitch?.querySelectorAll<HTMLButtonElement>('.pal-mode-btn');
+    expect(buttons?.length).toBe(2);
+
+    const compBtn = buttons?.[0];
+    const shapesBtn = buttons?.[1];
+
+    expect(compBtn?.textContent?.trim()).toBe('Components');
+    expect(shapesBtn?.textContent?.trim()).toBe('Shapes');
+    expect(compBtn?.classList.contains('is-active')).toBe(true);
+    expect(shapesBtn?.classList.contains('is-active')).toBe(false);
+
+    // Click Shapes mode
+    act(() => {
+      shapesBtn?.click();
+    });
+
+    expect(getPreferences().paletteMode).toBe('shapes');
+    expect(shapesBtn?.classList.contains('is-active')).toBe(true);
+    expect(compBtn?.classList.contains('is-active')).toBe(false);
+  });
+
+  it('verifies Palette.css styles .pal-mode-switch with top margin and alignment', () => {
+    const cssPath = resolve(__dirname, 'Palette.css');
+    const css = readFileSync(cssPath, 'utf8');
+
+    // .pal-mode-switch must have top margin, 14px horizontal margins matching search, and proper styling
+    expect(css).toMatch(/\.pal-mode-switch\s*\{[^}]*margin:\s*10px\s+14px\s+8px/);
+    expect(css).toMatch(/\.pal-mode-switch\s*\{[^}]*gap:\s*2px/);
+    expect(css).toMatch(/\.pal-mode-switch\s*\{[^}]*border-radius:\s*var\(--r-md\)/);
+
+    // .pal-mode-btn must have 50/50 sizing (flex: 1 1 0) and centered vertical alignment
+    expect(css).toMatch(/\.pal-mode-btn\s*\{[^}]*flex:\s*1\s+1\s+0/);
+    expect(css).toMatch(/\.pal-mode-btn\s*\{[^}]*line-height:\s*var\(--lh-sm\)/);
   });
 });
