@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import type { Topology } from '../sim/types';
 import { KIND_NAME } from './nodeVisuals';
 import { formatUsdPerMo, topologyCost } from '../sim/costs';
+import { usePreference } from '../content/preferences';
 import './StudioPanel.css';
 
 /* ------------------------------------------------------------------ *
@@ -16,20 +17,49 @@ import './StudioPanel.css';
 
 export interface StudioPanelProps {
   topology: Topology;
+  costEstimator?: boolean;
+  onOpenSettings?: () => void;
 }
 
-export function StudioPanel({ topology }: StudioPanelProps) {
-  const cost = useMemo(() => topologyCost(topology), [topology]);
+export function StudioPanel({
+  topology,
+  costEstimator: costEstimatorProp,
+  onOpenSettings,
+}: StudioPanelProps) {
+  const costEstimatorPref = usePreference('costEstimator');
+  const costEstimator = costEstimatorProp ?? costEstimatorPref;
+  const cost = useMemo(
+    () => (costEstimator ? topologyCost(topology) : null),
+    [topology, costEstimator],
+  );
 
   return (
     <div className="stp">
       <p className="label stp-eyebrow">Studio review</p>
-      {topology.nodes.length === 0 ? (
+      {!costEstimator ? (
+        <div className="stp-disabled">
+          <p className="stp-empty">
+            Cloud cost estimation is turned off in Settings.
+          </p>
+          <p className="stp-note">
+            Enable &ldquo;Cloud cost estimator&rdquo; in Settings to view projected infrastructure spend across AWS, GCP, and Azure for this architecture.
+          </p>
+          {onOpenSettings && (
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost stp-settings-btn"
+              onClick={onOpenSettings}
+            >
+              Open Settings
+            </button>
+          )}
+        </div>
+      ) : topology.nodes.length === 0 ? (
         <p className="stp-empty">
           Your design review lives here. Add components and it will estimate
           monthly cost, flag weak spots, and draft your RFC.
         </p>
-      ) : (
+      ) : cost ? (
         <>
           <div className="stp-hero">
             <span className="label">Est. cloud cost</span>
@@ -66,7 +96,7 @@ export function StudioPanel({ topology }: StudioPanelProps) {
             Planning estimates, not a quote.
           </p>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

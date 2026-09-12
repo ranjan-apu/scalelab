@@ -2902,6 +2902,8 @@ export interface InspectorProps {
   targetNode?: SimNode | null;
   onUpdateEdge?: (id: string, patch: Partial<SimEdge>) => void;
   onDeleteEdge?: (id: string) => void;
+  costEstimator?: boolean;
+  onOpenSettings?: () => void;
 }
 
 export function Inspector({
@@ -2938,6 +2940,8 @@ export function Inspector({
   targetNode,
   onUpdateEdge,
   onDeleteEdge,
+  costEstimator,
+  onOpenSettings,
 }: InspectorProps) {
   const cleanCanvasPref = usePreference('cleanCanvas');
   const isClean = cleanCanvas ?? cleanCanvasPref;
@@ -3017,7 +3021,11 @@ export function Inspector({
               </p>
             </>
           ) : topology ? (
-            <StudioPanel topology={topology} />
+            <StudioPanel
+              topology={topology}
+              costEstimator={costEstimator}
+              onOpenSettings={onOpenSettings}
+            />
           ) : (
             <p className="ins-empty">
               Select a component on the canvas and its settings will appear here.
