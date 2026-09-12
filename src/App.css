@@ -888,9 +888,9 @@
     max-width: calc(100vw - var(--rail-w) - var(--ins-w) - 140px);
   }
 
-  /* Lift dock above the charts strip when metrics panel is open */
+  /* Lift dock cleanly above the charts strip when metrics panel is open */
   .app-body.has-metrics .app-sim-dock {
-    bottom: calc(var(--strip-h) + var(--sp-3));
+    bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-4));
   }
 }
 
@@ -1034,19 +1034,27 @@
   }
 
   .app-body.is-sim.has-metrics .cv-zoom {
-    bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
+    bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-4) + 58px + var(--sp-2));
   }
 }
 
-/* When both library and inspector panels are open on compact screens, elevate zoom to prevent crowding */
-@media (min-width: 1051px) and (max-width: 1240px) {
+/* On mid-sized viewports or when panels are open, elevate zoom to prevent crowding */
+@media (min-width: 1051px) and (max-width: 1350px) {
+  .app-body.is-sim.has-metrics .cv-zoom {
+    bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-4) + 58px + var(--sp-2));
+  }
+
   .app-body.is-sim.has-library.has-inspector .cv-zoom {
     bottom: calc(var(--sp-4) + 76px + var(--sp-2));
   }
 
   .app-body.is-sim.has-library.has-inspector.has-metrics .cv-zoom {
-    bottom: calc(var(--strip-h) + var(--sp-3) + 76px + var(--sp-2));
+    bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-4) + 58px + var(--sp-2));
   }
+}
+
+.app-body.is-sim.has-library.has-inspector.has-metrics .cv-zoom {
+  bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-4) + 58px + var(--sp-2));
 }
 
 /* --------------------------------------------------------------------------
@@ -1120,20 +1128,23 @@
 }
 
 .app-body.has-metrics .stage-toggle-metrics {
-  bottom: calc(var(--strip-h) + var(--sp-2));
+  bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-2));
 }
 
 .app-body.has-library .cv-ledger {
   left: calc(var(--rail-w) + var(--sp-2) + 32px + var(--sp-2));
 }
 
-.app-body.has-metrics .cv-ledger,
+.app-body.has-metrics .cv-ledger {
+  bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-2));
+}
+
 .app-body.has-metrics .cv-zoom {
-  bottom: calc(var(--strip-h) + var(--sp-2));
+  bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-4));
 }
 
 .app-body.has-metrics .cv-format {
-  bottom: calc(var(--strip-h) + var(--sp-2) + 32px + var(--sp-2));
+  bottom: calc(var(--strip-h) + var(--sp-3) + var(--sp-2) + 32px + var(--sp-2));
 }
 
 .app-body.has-inspector .cv-zoom,
