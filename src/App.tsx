@@ -46,6 +46,7 @@ import { InterviewPractice } from './components/InterviewPractice';
 import { PenToolbar } from './components/PenToolbar';
 import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { LABS } from './content/labs';
+import { packToCanvasDoc } from './content/packDoc';
 import { Guide } from './components/guide';
 import type { GuideTab } from './components/guide/types';
 import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
@@ -83,6 +84,7 @@ import {
   NEW_NOTE_TEXT,
   NEW_TEXTBOX_TEXT,
   NEW_TEXTBOX_TITLE,
+  layoutTextBox,
 } from './components/annotationLayout';
 import type { InterviewTemplate } from './components/annotationLayout';
 import type { AnnotationTool } from './components/Palette';
@@ -2504,6 +2506,101 @@ export default function App() {
     [replaceDesign],
   );
 
+  /**
+   * Practice on canvas: drop the whole interview track of one pack onto a
+   * fresh canvas as a two-column spread (scope and contract left, design
+   * and depth right), in a single undo step. Text only, no preset.
+   */
+  const handlePinPracticePack = useCallback(
+    (packId: string) => {
+      const pack = INTERVIEW_PACKS.find((p) => p.id === packId);
+      if (!pack) return;
+      const live = topoLiveRef.current;
+      const hasWork =
+        live.nodes.length > 0 ||
+        live.edges.length > 0 ||
+        (live.annotations ?? []).length > 0;
+      if (
+        hasWork &&
+        !window.confirm(
+          'Practice on canvas replaces what is on the canvas with this interview. Your design is not saved anywhere else. Continue?',
+        )
+      ) {
+        return;
+      }
+      setArchitectureTitle(pack.title);
+      replaceDesign({ nodes: [], edges: [], annotations: [] }, null, 'practice on canvas');
+
+      const COL_W = TEXTBOX_DEFAULT_WIDTH;
+      const GAP = GRID * 4;
+      const PAD = GRID * 2;
+      const gx = (v: number) => Math.round(v / GRID) * GRID;
+      const boxH = (title: string, text: string) => {
+        const content = layoutTextBox(text, title, COL_W).contentH;
+        return Math.ceil(Math.max(TEXTBOX_DEFAULT_HEIGHT, content) / GRID) * GRID;
+      };
+      const doc = packToCanvasDoc(pack);
+      const centre = viewCenterRef.current?.() ?? { x: 240, y: 200 };
+      const totalW = COL_W * 2 + GAP;
+      const x0 = gx(centre.x - totalW / 2);
+      let y = gx(centre.y);
+      const items: Annotation[] = [];
+      const addBox = (x: number, yy: number, w: number, title: string, text: string) => {
+        const h = boxH(title, text);
+        const id = freshAnnId('textbox');
+        items.push({
+          id,
+          kind: 'textbox',
+          title,
+          text,
+          x,
+          y: yy,
+          width: w,
+          height: h,
+          size: 'md',
+          tone: 1,
+        });
+        return { id, h };
+      };
+
+      const header = addBox(x0, y, totalW, doc.header.title, doc.header.text);
+      y += header.h + GAP;
+      const rowY = y;
+      let ly = y;
+      for (const b of doc.left) ly += addBox(x0, ly, COL_W, b.title, b.text).h + GAP;
+      const leftH = ly - GAP - rowY;
+      let ry = y;
+      for (const b of doc.right) ry += addBox(x0 + COL_W + GAP, ry, COL_W, b.title, b.text).h + GAP;
+      const rightH = ry - GAP - rowY;
+      items.push({
+        id: freshAnnId('section'),
+        kind: 'section',
+        label: 'Scope & Contract',
+        x: x0 - PAD,
+        y: rowY - PAD,
+        width: Math.max(COL_W + PAD * 2, SECTION_MIN_WIDTH),
+        height: Math.max(leftH + PAD * 2, SECTION_MIN_HEIGHT),
+        tone: 0,
+      });
+      items.push({
+        id: freshAnnId('section'),
+        kind: 'section',
+        label: 'Design & Depth',
+        x: x0 + COL_W + GAP - PAD,
+        y: rowY - PAD,
+        width: Math.max(COL_W + PAD * 2, SECTION_MIN_WIDTH),
+        height: Math.max(rightH + PAD * 2, SECTION_MIN_HEIGHT),
+        tone: 1,
+      });
+
+      history.commit('practice on canvas content', snapRef.current);
+      setAnnotations(items);
+      setSelectedIds(new Set([header.id]));
+      setInterviewOpen(false);
+    },
+    [freshAnnId, history, replaceDesign],
+  );
+
   const handleNewCanvas = useCallback(() => {
     const madeSomething = presetId === null && topology.nodes.length > 0;
     if (
@@ -4135,6 +4232,7 @@ export default function App() {
         snapshot={snapshot}
         topology={topology}
         onLoadLab={handleLoadLab}
+        onPracticeOnCanvas={handlePinPracticePack}
       />
     </div>
   );

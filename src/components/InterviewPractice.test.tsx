@@ -195,6 +195,20 @@ describe('InterviewPractice', () => {
     expect(document.body.textContent).toContain('All checks pass');
   });
 
+  it('offers Practice on canvas for the current pack', () => {
+    const onPracticeOnCanvas = vi.fn();
+    render(<InterviewPractice {...baseProps()} onPracticeOnCanvas={onPracticeOnCanvas} />);
+    const practice = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Practice on canvas',
+    );
+    expect(practice).toBeDefined();
+    act(() => {
+      practice?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(onPracticeOnCanvas).toHaveBeenCalledTimes(1);
+    expect(onPracticeOnCanvas.mock.calls[0]![0]).toBe(INTERVIEW_PACKS[0]!.id);
+  });
+
   it('preselects a pack when jumping from a concept', () => {
     render(<InterviewPractice {...baseProps()} initialPackId="seat-hold" />);
     expect(document.body.textContent).toContain(
