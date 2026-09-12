@@ -3,6 +3,7 @@ export type GuideTab =
   | 'building'
   | 'traffic'
   | 'resilience'
+  | 'concepts'
   | 'presets'
   | 'shortcuts';
 

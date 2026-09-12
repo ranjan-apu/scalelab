@@ -14,7 +14,15 @@
  * preset that loads as the working starter, so practice always ends on a
  * system the reader can actually run load against. Structural tests in
  * interviewPacks.test.ts keep every reference honest.
+ *
+ * The three original packs live in this file. The full library lives in
+ * ./packs/* and is aggregated below, so App.tsx keeps importing one symbol.
  */
+import { CORE_PACKS } from './packs/core';
+import { SOCIAL_PACKS } from './packs/social';
+import { REALTIME_PACKS } from './packs/realtime';
+import { TRANSACTION_PACKS } from './packs/transactions';
+import { MEDIA_INFRA_PACKS } from './packs/media-infra';
 
 export interface PackCheckpoint {
   /** A scoping question to ask before designing anything. */
@@ -53,6 +61,10 @@ export interface InterviewPack {
   title: string;
   tagline: string;
   difficulty: 'Core' | 'Popular' | 'Hard';
+  /** Concept lesson ids introduced by this pack (see concepts.ts). */
+  concepts?: string[];
+  /** Pattern ids exercised by this pack (see concepts.ts pattern track). */
+  patterns?: string[];
   /** Minutes a real interview gives this problem. */
   minutes: number;
   prompt: string;
@@ -71,7 +83,7 @@ export interface InterviewPack {
   deepDives: PackDeepDive[];
 }
 
-export const INTERVIEW_PACKS: readonly InterviewPack[] = [
+const FOUNDING_PACKS: readonly InterviewPack[] = [
   {
     id: 'timeline',
     title: 'Timeline Feed',
@@ -350,3 +362,15 @@ export const INTERVIEW_PACKS: readonly InterviewPack[] = [
     ],
   },
 ];
+
+export const INTERVIEW_PACKS: readonly InterviewPack[] = [
+  ...FOUNDING_PACKS,
+  ...CORE_PACKS,
+  ...SOCIAL_PACKS,
+  ...REALTIME_PACKS,
+  ...TRANSACTION_PACKS,
+  ...MEDIA_INFRA_PACKS,
+];
+
+/** Every pack id, for labs and tests that must cover the whole library. */
+export const INTERVIEW_PACK_IDS: readonly string[] = INTERVIEW_PACKS.map((p) => p.id);

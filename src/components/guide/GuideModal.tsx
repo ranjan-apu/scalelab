@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { usePresence } from '../presence';
 import type { GuideProps, GuideTab, TabDef } from './types';
 import { OverviewPane } from './OverviewPane';
+import { ConceptsPane } from './ConceptsPane';
 import { BuildingPane } from './BuildingPane';
 import { TrafficPane } from './TrafficPane';
 import { ResiliencePane } from './ResiliencePane';
@@ -30,6 +31,12 @@ const TABS: TabDef[] = [
     id: 'resilience',
     label: 'Health & Resilience',
     icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10M9 12l2 2 4-4',
+  },
+  {
+    id: 'concepts',
+    label: 'Concepts',
+    badge: '34',
+    icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z',
   },
   {
     id: 'presets',
@@ -162,6 +169,9 @@ export function GuideModal({
           {activeTab === 'building' && <BuildingPane />}
           {activeTab === 'traffic' && <TrafficPane />}
           {activeTab === 'resilience' && <ResiliencePane />}
+          {activeTab === 'concepts' && (
+            <ConceptsPane onClose={onClose} onOpenInterview={onOpenInterview} />
+          )}
           {activeTab === 'presets' && (
             <PresetsPane
               onClose={onClose}

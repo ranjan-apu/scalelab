@@ -116,6 +116,85 @@ describe('InterviewPractice', () => {
     expect((text as string).length).toBeGreaterThan(0);
   });
 
+  it('searches and filters the problem library', () => {
+    render(<InterviewPractice {...baseProps()} />);
+    const search = document.querySelector('.iv-packs-filter input') as HTMLInputElement;
+    expect(search).not.toBeNull();
+    expect(document.querySelectorAll('.iv-pack').length).toBe(INTERVIEW_PACKS.length);
+
+    act(() => {
+      search.focus();
+      // React 19 reads the native setter path; dispatch an input event instead.
+      const native = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+      native.call(search, 'auction');
+      search.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const shown = Array.from(document.querySelectorAll('.iv-pack'));
+    expect(shown.length).toBeGreaterThanOrEqual(1);
+    expect(shown.length).toBeLessThan(INTERVIEW_PACKS.length);
+    expect(document.body.textContent).toContain('Auction');
+  });
+
+  it('shows the lab step only for packs with labs, and grades it live', async () => {
+    const { LABS } = await import('../content/labs');
+    const { Engine } = await import('../sim/engine');
+    const onLoadLab = vi.fn();
+    const props = { ...baseProps(), labs: LABS, onLoadLab };
+    render(<InterviewPractice {...props} />);
+
+    // Jump to the cache-service pack, whose lab setup is the cache-aside preset.
+    const target = Array.from(document.querySelectorAll('.iv-pack')).find((b) =>
+      b.textContent?.includes('Distributed Cache Service'),
+    );
+    expect(target).toBeDefined();
+    act(() => {
+      target?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    // The sixth step appears only when the pack has a lab.
+    const steps = Array.from(document.querySelectorAll('.iv-step'));
+    expect(steps.map((s) => s.textContent)).toContain('6Practice Lab');
+    act(() => {
+      steps[5]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.body.textContent).toContain('Size for the head');
+
+    // Grading is disabled with no snapshot.
+    const runDisabled = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Run checks',
+    );
+    expect(runDisabled?.hasAttribute('disabled')).toBe(true);
+
+    // Load-lab offers the preset plus the lab traffic scenario.
+    const loadLab = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.startsWith('Load lab'),
+    );
+    expect(loadLab).toBeDefined();
+    act(() => {
+      loadLab?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(onLoadLab).toHaveBeenCalledTimes(1);
+    expect(onLoadLab.mock.calls[0]![0].id).toBe('cache-aside');
+    expect(onLoadLab.mock.calls[0]![1]).toBe('steady');
+
+    // A real engine run over the lab setup passes the calibrated checks.
+    const topo = structuredClone(PRESETS.find((p) => p.id === 'cache-aside')!.topology);
+    const engine = new Engine(topo, 7);
+    for (let i = 0; i < 60 * 60; i += 1) engine.advance(1000 / 60);
+    const snapshot = engine.snapshot();
+    act(() => {
+      root.render(<InterviewPractice {...props} snapshot={snapshot} topology={topo} />);
+    });
+    const run = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Run checks',
+    );
+    expect(run?.hasAttribute('disabled')).toBe(false);
+    act(() => {
+      run?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.body.textContent).toContain('All checks pass');
+  });
+
   it('switches packs and resets to requirements', () => {
     render(<InterviewPractice {...baseProps()} />);
     const steps = Array.from(document.querySelectorAll('.iv-step'));

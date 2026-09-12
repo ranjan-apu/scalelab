@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Preset } from '../sim/presets';
+import type { SimSnapshot, Topology, TrafficPattern } from '../sim/types';
 import type { InterviewPack } from '../content/interviewPacks';
+import { CONCEPTS_BY_ID } from '../content/concepts';
+import {
+  evaluateLab,
+  labPassed,
+  type CheckResult,
+  type PracticeLab,
+} from '../content/labs';
 import { usePresence } from './presence';
 import './InterviewPractice.css';
 
@@ -11,7 +19,9 @@ import './InterviewPractice.css';
    A guided session per pack, in the order real interviews run: scope the
    problem through checkpoints, fix functional and non-functional
    requirements, name the entities, sign the API contract, build the high
-   level design on the canvas, then harden it in deep dives.
+   level design on the canvas, then harden it in deep dives. A sixth Lab step
+   turns the design into a graded exercise: load the lab setup, work the
+   tasks, and run checks against the live simulation snapshot.
  *
    Two actions make practice concrete instead of reading material. "Load
    starter" drops the linked simulation preset onto the canvas, so the design
@@ -26,6 +36,7 @@ const STEPS = [
   'API Design',
   'High-Level Design',
   'Deep Dives',
+  'Practice Lab',
 ] as const;
 
 export interface InterviewPracticeProps {
@@ -36,10 +47,195 @@ export interface InterviewPracticeProps {
   activePresetId: string | null;
   onLoadPreset: (preset: Preset) => void;
   onPinSection: (title: string, text: string) => void;
+  /** All practice labs; matched to packs by packId. */
+  labs?: readonly PracticeLab[];
+  /** Live simulation snapshot used to grade lab checks. */
+  snapshot?: SimSnapshot | null;
+  /** Current canvas topology, for node-scoped lab checks. */
+  topology?: Topology | null;
+  /** Load a lab setup: preset plus traffic scenario for every source. */
+  onLoadLab?: (preset: Preset, pattern: TrafficPattern) => void;
 }
 
 function bullets(lines: readonly string[]): string {
   return lines.map((l) => `• ${l}`).join('\n');
+}
+
+const LAB_DONE_KEY = 'scalelab-lab-done-v1';
+
+function readDoneLabs(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(LAB_DONE_KEY) ?? '{}') as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+function formatActual(check: CheckResult['check'], actual: number): string {
+  if (!Number.isFinite(actual)) return 'n/a';
+  if (check.metric === 'errorRate' || check.metric === 'goodputRatio' || check.metric === 'hitRate') {
+    return `${(actual * 100).toFixed(1)}%`;
+  }
+  if (check.metric === 'utilization') return `${(actual * 100).toFixed(0)}%`;
+  return `${actual}ms`;
+}
+
+function LabPane({
+  lab,
+  pack,
+  preset,
+  activePresetId,
+  snapshot,
+  topology,
+  onLoadLab,
+  onPinSection,
+}: {
+  lab: PracticeLab;
+  pack: InterviewPack;
+  preset?: Preset;
+  activePresetId: string | null;
+  snapshot?: SimSnapshot | null;
+  topology?: Topology | null;
+  onLoadLab?: (preset: Preset, pattern: TrafficPattern) => void;
+  onPinSection: (title: string, text: string) => void;
+}) {
+  const [ticked, setTicked] = useState<Set<number>>(new Set());
+  const [results, setResults] = useState<CheckResult[] | null>(null);
+
+  useEffect(() => {
+    setTicked(new Set());
+    setResults(null);
+  }, [lab.id]);
+
+  const toggleTask = (i: number) => {
+    setTicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
+
+  const runChecks = () => {
+    if (!snapshot || !topology) return;
+    const graded = evaluateLab(snapshot, topology, lab);
+    setResults(graded);
+    if (labPassed(graded)) {
+      try {
+        localStorage.setItem(LAB_DONE_KEY, JSON.stringify({ ...readDoneLabs(), [lab.id]: true }));
+      } catch {
+        /* persistence is a nicety, not the lesson */
+      }
+    }
+  };
+
+  const canGrade = !!snapshot && !!topology;
+  const passed = results !== null && labPassed(results);
+
+  return (
+    <>
+      <section className="iv-section" aria-label="Lab objective">
+        <div className="iv-section-head">
+          <h3>{lab.title}</h3>
+          {preset && onLoadLab && (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => onLoadLab(preset, lab.scenario)}
+            >
+              {activePresetId === preset.id
+                ? 'Lab setup on canvas'
+                : `Load lab: ${preset.name} + ${lab.scenario}`}
+            </button>
+          )}
+        </div>
+        <p className="iv-hint">{lab.objective}</p>
+        {lab.conceptIds.length > 0 && (
+          <p className="iv-hint">
+            Builds on:{' '}
+            {lab.conceptIds
+              .map((id) => CONCEPTS_BY_ID.get(id)?.title ?? id)
+              .join(', ')}
+            . Find each one in the Guide under Concepts.
+          </p>
+        )}
+      </section>
+
+      <section className="iv-section" aria-label="Lab tasks">
+        <div className="iv-section-head">
+          <h3>Tasks</h3>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() =>
+              onPinSection(
+                `${pack.title}: lab tasks`,
+                lab.tasks.map((t, i) => `${i + 1}. ${t.title}: ${t.detail}`).join('\n'),
+              )
+            }
+          >
+            Pin to canvas
+          </button>
+        </div>
+        <ul className="iv-list">
+          {lab.tasks.map((t, i) => (
+            <li key={t.title}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={ticked.has(i)}
+                  onChange={() => toggleTask(i)}
+                />{' '}
+                <strong>{t.title}</strong>
+              </label>
+              <span className="iv-decides">{t.detail}</span>
+              {t.hint && <span className="iv-decides">Hint: {t.hint}</span>}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="iv-section" aria-label="Lab checks">
+        <div className="iv-section-head">
+          <h3>Checks</h3>
+          <button
+            type="button"
+            className="btn btn-sm"
+            disabled={!canGrade}
+            title={canGrade ? 'Grade against the live simulation' : 'Open a canvas with traffic running first'}
+            onClick={runChecks}
+          >
+            Run checks
+          </button>
+        </div>
+        {!canGrade && (
+          <p className="iv-hint">Load the lab setup so the simulation runs, then grade here.</p>
+        )}
+        <ul className="iv-list">
+          {lab.checks.map((c) => {
+            const r = results?.find((x) => x.check.id === c.id);
+            return (
+              <li key={c.id}>
+                <strong>{c.label}</strong>
+                {r && (
+                  <span className="iv-decides">
+                    {r.pass ? '✓' : '✗'} measured {formatActual(c, r.actual)}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {results && (
+          <p className="iv-hint">
+            {passed
+              ? 'All checks pass. Lab complete: the system holds its SLO under the scenario.'
+              : `${results.filter((r) => !r.pass).length} check(s) failing. Adjust the design on the canvas and run again.`}
+          </p>
+        )}
+      </section>
+    </>
+  );
 }
 
 export function InterviewPractice({
@@ -50,11 +246,17 @@ export function InterviewPractice({
   activePresetId,
   onLoadPreset,
   onPinSection,
+  labs = [],
+  snapshot = null,
+  topology = null,
+  onLoadLab,
 }: InterviewPracticeProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [packId, setPackId] = useState<string>(packs[0]?.id ?? '');
   const [step, setStep] = useState(0);
+  const [query, setQuery] = useState('');
+  const [difficulty, setDifficulty] = useState<'all' | 'Core' | 'Popular' | 'Hard'>('all');
 
   /* Reset on OPEN rather than on close, so the session is not blanked out
      from under the reader while the dialog is still sliding away. */
@@ -62,6 +264,8 @@ export function InterviewPractice({
     if (open) {
       setPackId(packs[0]?.id ?? '');
       setStep(0);
+      setQuery('');
+      setDifficulty('all');
     }
   }, [open, packs]);
 
@@ -81,6 +285,19 @@ export function InterviewPractice({
     };
   }, [open ]);
 
+  const filteredPacks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return packs.filter((p) => {
+      if (difficulty !== 'all' && p.difficulty !== difficulty) return false;
+      if (!q) return true;
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.tagline.toLowerCase().includes(q) ||
+        p.id.includes(q.replace(/\s+/g, '-'))
+      );
+    });
+  }, [packs, query, difficulty]);
+
   const pack = useMemo(
     () => packs.find((p) => p.id === packId) ?? packs[0],
     [packs, packId],
@@ -88,6 +305,14 @@ export function InterviewPractice({
   const starter = useMemo(
     () => presets.find((p) => p.id === pack?.hldPresetId),
     [presets, pack],
+  );
+  const lab = useMemo(
+    () => labs.find((l) => l.packId === pack?.id),
+    [labs, pack],
+  );
+  const labPreset = useMemo(
+    () => presets.find((p) => p.id === lab?.setupPresetId),
+    [presets, lab],
   );
 
   if (!mounted || !pack) return null;
@@ -102,6 +327,8 @@ export function InterviewPractice({
     onLoadPreset(starter);
     onClose();
   };
+
+  const visibleSteps = lab ? STEPS : STEPS.slice(0, 5);
 
   return createPortal(
     <div
@@ -144,28 +371,52 @@ export function InterviewPractice({
         </header>
 
         <div className="iv-body">
-          <ul className="iv-packs" aria-label="Practice problems">
-            {packs.map((p) => {
-              const active = p.id === pack.id;
-              return (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    className={`iv-pack${active ? ' is-active' : ''}`}
-                    aria-current={active ? 'true' : undefined}
-                    onClick={() => selectPack(p.id)}
-                  >
-                    <span className="iv-pack-name">{p.title}</span>
-                    <span className="iv-pack-tagline">{p.tagline}</span>
-                    <span className="iv-pack-meta">
-                      <span className="iv-pack-diff">{p.difficulty}</span>
-                      <span className="iv-pack-min">{p.minutes} min</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="iv-packs-col">
+            <div className="iv-packs-filter">
+              <input
+                type="search"
+                placeholder="Search problems…"
+                aria-label="Search practice problems"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <select
+                aria-label="Filter by difficulty"
+                value={difficulty}
+                onChange={(e) => setDifficulty(e.target.value as typeof difficulty)}
+              >
+                <option value="all">All levels</option>
+                <option value="Core">Core</option>
+                <option value="Popular">Popular</option>
+                <option value="Hard">Hard</option>
+              </select>
+            </div>
+            <ul className="iv-packs" aria-label="Practice problems">
+              {filteredPacks.map((p) => {
+                const active = p.id === pack.id;
+                return (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      className={`iv-pack${active ? ' is-active' : ''}`}
+                      aria-current={active ? 'true' : undefined}
+                      onClick={() => selectPack(p.id)}
+                    >
+                      <span className="iv-pack-name">{p.title}</span>
+                      <span className="iv-pack-tagline">{p.tagline}</span>
+                      <span className="iv-pack-meta">
+                        <span className="iv-pack-diff">{p.difficulty}</span>
+                        <span className="iv-pack-min">{p.minutes} min</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {filteredPacks.length === 0 && (
+              <p className="iv-hint">No problems match. Try a broader search.</p>
+            )}
+          </div>
 
           <div className="iv-content">
             <div className="iv-prompt">
@@ -173,7 +424,7 @@ export function InterviewPractice({
             </div>
 
             <div className="iv-steps" role="tablist" aria-label="Interview stages">
-              {STEPS.map((label, i) => (
+              {visibleSteps.map((label, i) => (
                 <button
                   key={label}
                   type="button"
@@ -427,6 +678,19 @@ export function InterviewPractice({
                     ))}
                   </ul>
                 </section>
+              )}
+
+              {step === 5 && lab && (
+                <LabPane
+                  lab={lab}
+                  pack={pack}
+                  preset={labPreset}
+                  activePresetId={activePresetId}
+                  snapshot={snapshot}
+                  topology={topology}
+                  onLoadLab={onLoadLab}
+                  onPinSection={onPinSection}
+                />
               )}
             </div>
           </div>

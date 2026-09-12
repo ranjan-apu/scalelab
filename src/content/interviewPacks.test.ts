@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INTERVIEW_PACKS } from './interviewPacks';
+import { CONCEPTS_BY_ID } from './concepts';
 import { PRESETS } from '../sim/presets';
 
 /**
@@ -11,8 +12,8 @@ import { PRESETS } from '../sim/presets';
  */
 
 describe('interview packs', () => {
-  it('ships at least one pack', () => {
-    expect(INTERVIEW_PACKS.length).toBeGreaterThan(0);
+  it('ships the full library of 37 packs', () => {
+    expect(INTERVIEW_PACKS.length).toBe(37);
   });
 
   it('uses unique ids', () => {
@@ -62,5 +63,21 @@ describe('interview packs', () => {
       expect(pack.minutes, pack.id).toBeLessThanOrEqual(60);
       expect(['Core', 'Popular', 'Hard']).toContain(pack.difficulty);
     }
+  });
+
+  it('links only to concepts and patterns that exist', () => {
+    for (const pack of INTERVIEW_PACKS) {
+      for (const c of pack.concepts ?? []) {
+        expect(CONCEPTS_BY_ID.has(c), `${pack.id} concept ${c}`).toBe(true);
+      }
+      for (const p of pack.patterns ?? []) {
+        const pattern = CONCEPTS_BY_ID.get(p);
+        expect(pattern?.track, `${pack.id} pattern ${p}`).toBe('pattern');
+      }
+    }
+  });
+
+  it('carries no external brand strings', () => {
+    expect(JSON.stringify(INTERVIEW_PACKS)).not.toMatch(/hello.?interview/i);
   });
 });

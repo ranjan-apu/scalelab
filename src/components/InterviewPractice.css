@@ -506,3 +506,41 @@
     flex-wrap: wrap;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Pack browser: search + difficulty filter above the scrollable list
+   -------------------------------------------------------------------------- */
+
+.iv-packs-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 0;
+  min-width: 0;
+}
+
+.iv-packs-filter {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.iv-packs-filter input[type='search'] {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: var(--r-btn);
+  border: var(--bw) solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.iv-packs-filter select {
+  max-width: 110px;
+  padding: 6px 4px;
+  border-radius: var(--r-btn);
+  border: var(--bw) solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}

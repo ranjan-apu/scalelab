@@ -719,3 +719,24 @@ kbd {
 :root[data-theme='dark'] .gd-tab.is-active::after {
   background: var(--accent);
 }
+
+/* Concepts pane: search + filter row reuses theme inputs. */
+.gd-search {
+  flex: 1;
+  min-width: 160px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.gd-actions-row select {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+}

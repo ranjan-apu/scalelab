@@ -42,6 +42,7 @@ import { Examples } from './components/Examples';
 import { InterviewPractice } from './components/InterviewPractice';
 import { PenToolbar } from './components/PenToolbar';
 import { INTERVIEW_PACKS } from './content/interviewPacks';
+import { LABS } from './content/labs';
 import { Guide } from './components/guide';
 import { cloneSubgraph, isTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
@@ -2282,6 +2283,26 @@ export default function App() {
     [replaceDesign],
   );
 
+  /**
+   * Load a practice-lab setup: the preset topology plus the lab traffic
+   * scenario stamped onto every source, in one history entry. Stamping
+   * before replaceDesign (rather than a pattern change after) keeps the
+   * load undoable in a single step.
+   */
+  const handleLoadLab = useCallback(
+    (preset: Preset, pattern: TrafficPattern) => {
+      const fresh = structuredClone(preset.topology);
+      for (const node of fresh.nodes) {
+        if (node.kind === 'client' || node.kind === 'producer') {
+          node.config.traffic = pattern;
+        }
+      }
+      setArchitectureTitle(preset.name);
+      replaceDesign(fresh, preset.id, 'lab setup load');
+    },
+    [replaceDesign],
+  );
+
   const handleNewCanvas = useCallback(() => {
     const madeSomething = presetId === null && topology.nodes.length > 0;
     if (
@@ -3862,6 +3883,10 @@ export default function App() {
         activePresetId={presetId}
         onLoadPreset={handleLoadPreset}
         onPinSection={handlePinSection}
+        labs={LABS}
+        snapshot={snapshot}
+        topology={topology}
+        onLoadLab={handleLoadLab}
       />
     </div>
   );

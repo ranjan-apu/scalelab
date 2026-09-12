@@ -72,6 +72,21 @@ describe('Guide component', () => {
     expect(document.body.textContent).toContain('1-Click Focus & Mitigate');
   });
 
+  it('switches to Concepts tab and searches the lesson library', () => {
+    render(<Guide open={true} onClose={() => {}} />);
+    const buttons = Array.from(document.querySelectorAll('.gd-tab'));
+    const conceptsTab = buttons.find((b) => b.textContent?.includes('Concepts'));
+    expect(conceptsTab).toBeDefined();
+
+    act(() => {
+      conceptsTab?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain('Concept Lessons');
+    expect(document.body.textContent).toContain('Caching');
+    expect(document.body.textContent).toContain('34 lessons');
+  });
+
   it('triggers onClose when close button clicked', () => {
     const onClose = vi.fn();
     render(<Guide open={true} onClose={onClose} />);
