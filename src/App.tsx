@@ -674,9 +674,12 @@ export default function App() {
   const [designsOpen, setDesignsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => {
     try {
-      // Clear legacy localStorage key so session-scoped policy governs
+      // Clear legacy keys so the first-run policy below governs alone.
       localStorage.removeItem('scalelab.guide-dismissed');
-      return sessionStorage.getItem('scalelab.guide-dismissed') !== 'true';
+      sessionStorage.removeItem('scalelab.guide-dismissed');
+      // First launch ever: the guide opens by itself. Afterwards it only
+      // opens from the sidebar, never automatically.
+      return localStorage.getItem('scalelab.guide-seen-v1') !== 'true';
     } catch {
       return true; // If storage is unavailable, show the guide anyway.
     }
@@ -694,6 +697,8 @@ export default function App() {
 
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [interviewOpen, setInterviewOpen] = useState(false);
+  /** Pack preselected when practice opens from a concept lesson. Cleared on close. */
+  const [pendingPackId, setPendingPackId] = useState<string | null>(null);
 
   /**
    * The pen as currently held. Session state, reset every visit by
@@ -3263,31 +3268,6 @@ export default function App() {
         <div className="app-island app-island-menu">
           <button
             type="button"
-            className="app-guide-btn"
-            title="Help: Interactive guide & manual"
-            aria-label="Help: Studio guide"
-            onClick={() => setGuideOpen(true)}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <span className="app-guide-label">Help</span>
-          </button>
-
-          <button
-            type="button"
             className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
             title="Share design: copy link to clipboard"
             aria-label="Share design"
@@ -3808,13 +3788,24 @@ export default function App() {
         onClose={() => {
           setGuideOpen(false);
           try {
-            sessionStorage.setItem('scalelab.guide-dismissed', 'true');
+            localStorage.setItem('scalelab.guide-seen-v1', 'true');
           } catch {
             /* quota / private browsing */
           }
         }}
         onOpenExamples={() => setExamplesOpen(true)}
         onOpenInterview={() => setInterviewOpen(true)}
+        onLoadDemoPreset={(presetId, pattern) => {
+          const preset = PRESETS.find((p) => p.id === presetId);
+          if (preset) handleLoadLab(preset, pattern);
+        }}
+        onPinSection={handlePinSection}
+        onOpenGlossary={(id) => openGlossary(id)}
+        onPracticePack={(packId) => {
+          setPendingPackId(packId);
+          setGuideOpen(false);
+          setInterviewOpen(true);
+        }}
       />
       {/* The real file input, kept off screen. A bare one cannot be styled,
           so the Settings row calls click() on this. It lives beside the
@@ -3877,7 +3868,11 @@ export default function App() {
       />
       <InterviewPractice
         open={interviewOpen}
-        onClose={() => setInterviewOpen(false)}
+        onClose={() => {
+          setInterviewOpen(false);
+          setPendingPackId(null);
+        }}
+        initialPackId={pendingPackId ?? undefined}
         packs={INTERVIEW_PACKS}
         presets={PRESETS}
         activePresetId={presetId}

@@ -195,6 +195,13 @@ describe('InterviewPractice', () => {
     expect(document.body.textContent).toContain('All checks pass');
   });
 
+  it('preselects a pack when jumping from a concept', () => {
+    render(<InterviewPractice {...baseProps()} initialPackId="seat-hold" />);
+    expect(document.body.textContent).toContain(
+      'Design ticket sales for events with 100k seats',
+    );
+  });
+
   it('switches packs and resets to requirements', () => {
     render(<InterviewPractice {...baseProps()} />);
     const steps = Array.from(document.querySelectorAll('.iv-step'));

@@ -87,6 +87,95 @@ describe('Guide component', () => {
     expect(document.body.textContent).toContain('34 lessons');
   });
 
+  it('opens a concept lesson with the full teaching shape', () => {
+    render(<Guide open={true} onClose={() => {}} />);
+    const buttons = Array.from(document.querySelectorAll('.gd-tab'));
+    act(() => {
+      buttons
+        .find((b) => b.textContent?.includes('Concepts'))
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const open = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.getAttribute('aria-label') === 'Open lesson: Caching',
+    );
+    expect(open).toBeDefined();
+    act(() => {
+      open?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain('Reach for it when');
+    expect(document.body.textContent).toContain('Watch out for');
+    expect(document.body.textContent).toContain('See it run');
+    expect(document.body.textContent).toContain('Ask yourself');
+    expect(document.body.textContent).toContain('Practice it');
+
+    const back = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.getAttribute('aria-label') === 'Back to concepts',
+    );
+    act(() => {
+      back?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.body.textContent).toContain('Concept Lessons');
+  });
+
+  it('wires lesson actions: demo, pin, glossary, and practice jump', () => {
+    const onClose = vi.fn();
+    const onLoadDemoPreset = vi.fn();
+    const onPinSection = vi.fn();
+    const onOpenGlossary = vi.fn();
+    const onPracticePack = vi.fn();
+    render(
+      <Guide
+        open={true}
+        onClose={onClose}
+        onLoadDemoPreset={onLoadDemoPreset}
+        onPinSection={onPinSection}
+        onOpenGlossary={onOpenGlossary}
+        onPracticePack={onPracticePack}
+      />,
+    );
+    const buttons = Array.from(document.querySelectorAll('.gd-tab'));
+    act(() => {
+      buttons
+        .find((b) => b.textContent?.includes('Concepts'))
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    act(() => {
+      Array.from(document.querySelectorAll('button'))
+        .find((b) => b.getAttribute('aria-label') === 'Open lesson: Caching')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const demo = Array.from(document.querySelectorAll('button')).find((b) =>
+      b.textContent?.startsWith('Open demo'),
+    );
+    act(() => {
+      demo?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(onLoadDemoPreset).toHaveBeenCalledTimes(1);
+    expect(onLoadDemoPreset.mock.calls[0]![0]).toBe('cache-aside');
+    expect(onClose).toHaveBeenCalled();
+
+    const pin = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Pin lesson to canvas',
+    );
+    act(() => {
+      pin?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(onPinSection).toHaveBeenCalledTimes(1);
+    expect(onPinSection.mock.calls[0]![0]).toBe('Caching');
+
+    const practice = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Practice →',
+    );
+    expect(practice).toBeDefined();
+    act(() => {
+      practice?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(onPracticePack).toHaveBeenCalledTimes(1);
+    expect(typeof onPracticePack.mock.calls[0]![0]).toBe('string');
+  });
+
   it('triggers onClose when close button clicked', () => {
     const onClose = vi.fn();
     render(<Guide open={true} onClose={onClose} />);

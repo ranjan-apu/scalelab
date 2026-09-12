@@ -1,3 +1,5 @@
+import type { TrafficPattern } from '../../sim/types';
+
 export type GuideTab =
   | 'overview'
   | 'building'
@@ -19,4 +21,12 @@ export interface GuideProps {
   onClose: () => void;
   onOpenExamples?: () => void;
   onOpenInterview?: () => void;
+  /** Load a concept demo: preset plus traffic scenario for every source. */
+  onLoadDemoPreset?: (presetId: string, pattern: TrafficPattern) => void;
+  /** Pin a lesson section onto the canvas as a textbox. */
+  onPinSection?: (title: string, text: string) => void;
+  /** Open the glossary focused on one term. */
+  onOpenGlossary?: (id: string) => void;
+  /** Jump to interview practice with one pack preselected. */
+  onPracticePack?: (packId: string) => void;
 }

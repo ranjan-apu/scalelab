@@ -55,6 +55,8 @@ export interface InterviewPracticeProps {
   topology?: Topology | null;
   /** Load a lab setup: preset plus traffic scenario for every source. */
   onLoadLab?: (preset: Preset, pattern: TrafficPattern) => void;
+  /** Preselect one pack when the dialog opens (e.g. jumping from a concept). */
+  initialPackId?: string;
 }
 
 function bullets(lines: readonly string[]): string {
@@ -250,6 +252,7 @@ export function InterviewPractice({
   snapshot = null,
   topology = null,
   onLoadLab,
+  initialPackId,
 }: InterviewPracticeProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -262,12 +265,16 @@ export function InterviewPractice({
      from under the reader while the dialog is still sliding away. */
   useEffect(() => {
     if (open) {
-      setPackId(packs[0]?.id ?? '');
+      const initial =
+        initialPackId && packs.some((p) => p.id === initialPackId)
+          ? initialPackId
+          : (packs[0]?.id ?? '');
+      setPackId(initial);
       setStep(0);
       setQuery('');
       setDifficulty('all');
     }
-  }, [open, packs]);
+  }, [open, packs, initialPackId]);
 
   /* Focus return, mirroring the examples gallery. */
   useEffect(() => {

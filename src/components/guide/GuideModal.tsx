@@ -56,6 +56,10 @@ export function GuideModal({
   onClose,
   onOpenExamples,
   onOpenInterview,
+  onLoadDemoPreset,
+  onPinSection,
+  onOpenGlossary,
+  onPracticePack,
 }: GuideProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -170,7 +174,14 @@ export function GuideModal({
           {activeTab === 'traffic' && <TrafficPane />}
           {activeTab === 'resilience' && <ResiliencePane />}
           {activeTab === 'concepts' && (
-            <ConceptsPane onClose={onClose} onOpenInterview={onOpenInterview} />
+            <ConceptsPane
+              onClose={onClose}
+              onOpenInterview={onOpenInterview}
+              onLoadDemoPreset={onLoadDemoPreset}
+              onPinSection={onPinSection}
+              onOpenGlossary={onOpenGlossary}
+              onPracticePack={onPracticePack}
+            />
           )}
           {activeTab === 'presets' && (
             <PresetsPane
