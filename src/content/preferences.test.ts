@@ -38,6 +38,10 @@ describe('defaults', () => {
     expect(DEFAULT_PREFERENCES.snapToGrid).toBe(true);
     expect(DEFAULT_PREFERENCES.costEstimator).toBe(true);
     expect(getPreferences().costEstimator).toBe(true);
+    expect(DEFAULT_PREFERENCES.advisor).toBe(true);
+    expect(getPreferences().advisor).toBe(true);
+    expect(DEFAULT_PREFERENCES.hldRfc).toBe(true);
+    expect(getPreferences().hldRfc).toBe(true);
   });
 });
 

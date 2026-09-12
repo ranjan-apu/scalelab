@@ -56,6 +56,16 @@ function toggles(coarse: boolean): ToggleRow[] {
       hint: 'Calculate and show estimated multi-cloud infrastructure spend across AWS, GCP, and Azure.',
     },
     {
+      key: 'advisor',
+      label: 'Architectural advisor',
+      hint: 'Inspect active topology for distributed systems anti-patterns, single points of failure (SPOFs), and bottlenecks.',
+    },
+    {
+      key: 'hldRfc',
+      label: 'High-Level Design (HLD) RFC export',
+      hint: 'Show the HLD RFC header button to export architecture specification documents.',
+    },
+    {
       key: 'cleanCanvas',
       label: 'Clean canvas (design mode)',
       hint: 'Hide live requests and telemetry counters, showing a clean architectural diagram like Excalidraw or draw.io.',
@@ -257,7 +267,7 @@ export function Settings({
             </div>
           </section>
 
-          {(onExport || onImport || onExportImage || onExportMermaid) && (
+          {(onExport || onImport || onExportImage || onExportMermaid || (prefs.hldRfc && onExportHldMarkdown)) && (
             <section className="st-group">
               <h3 className="st-group-title">Your design</h3>
               <div className="st-actions">
@@ -313,7 +323,7 @@ export function Settings({
                     </span>
                   </button>
                 )}
-                {onExportHldMarkdown && (
+                {prefs.hldRfc && onExportHldMarkdown && (
                   <button type="button" className="st-action" onClick={onExportHldMarkdown}>
                     <Glyph d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />
                     <span className="st-action-text">

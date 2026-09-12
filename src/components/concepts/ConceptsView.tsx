@@ -181,23 +181,25 @@ export function ConceptsView({
                   <span className="concepts-track-title">{info.label}</span>
                   <span className="concepts-track-badge">{lessons.length}</span>
                 </div>
-                {lessons.map((lesson) => {
-                  const isActive = lesson.id === activeArticle.id;
-                  return (
-                    <button
-                      key={lesson.id}
-                      type="button"
-                      className={`concepts-nav-item${isActive ? ' is-active' : ''}`}
-                      onClick={() => setSelectedId(lesson.id)}
-                      aria-current={isActive ? 'page' : undefined}
-                    >
-                      <span className="truncate">{lesson.title}</span>
-                      <span className="concepts-nav-item-meta">
-                        {lesson.track === 'core' ? 'Foundational' : 'Dive'}
-                      </span>
-                    </button>
-                  );
-                })}
+                <div className="concepts-track-items">
+                  {lessons.map((lesson) => {
+                    const isActive = lesson.id === activeArticle.id;
+                    return (
+                      <button
+                        key={lesson.id}
+                        type="button"
+                        className={`concepts-nav-item${isActive ? ' is-active' : ''}`}
+                        onClick={() => setSelectedId(lesson.id)}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        <span className="truncate">{lesson.title}</span>
+                        <span className="concepts-nav-item-meta">
+                          {lesson.track === 'core' ? 'Foundational' : 'Dive'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
