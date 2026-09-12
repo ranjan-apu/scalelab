@@ -61,10 +61,16 @@ export function GuideModal({
   onOpenGlossary,
   onPracticePack,
   onOpenConceptsAcademy,
+  initialTab,
 }: GuideProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
-  const [activeTab, setActiveTab] = useState<GuideTab>('overview');
+  const [activeTab, setActiveTab] = useState<GuideTab>(initialTab ?? 'overview');
+
+  /* A rail button can request a tab (e.g. Concepts); apply it on open. */
+  useEffect(() => {
+    if (open) setActiveTab(initialTab ?? 'overview');
+  }, [open, initialTab]);
 
   /* Restore opener focus on close */
   useEffect(() => {

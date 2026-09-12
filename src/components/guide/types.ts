@@ -19,6 +19,8 @@ export interface TabDef {
 export interface GuideProps {
   open: boolean;
   onClose: () => void;
+  /** Tab selected when the dialog opens. Defaults to overview. */
+  initialTab?: GuideTab;
   onOpenExamples?: () => void;
   onOpenInterview?: () => void;
   /** Load a concept demo: preset plus traffic scenario for every source. */

@@ -57,6 +57,8 @@ export interface InterviewPracticeProps {
   onLoadLab?: (preset: Preset, pattern: TrafficPattern) => void;
   /** Preselect one pack when the dialog opens (e.g. jumping from a concept). */
   initialPackId?: string;
+  /** Drop the whole current pack onto a fresh canvas as a two-column doc. */
+  onPracticeOnCanvas?: (packId: string) => void;
 }
 
 function bullets(lines: readonly string[]): string {
@@ -253,6 +255,7 @@ export function InterviewPractice({
   topology = null,
   onLoadLab,
   initialPackId,
+  onPracticeOnCanvas,
 }: InterviewPracticeProps) {
   const { mounted, closing, unmount } = usePresence(open);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -371,6 +374,16 @@ export function InterviewPractice({
             </p>
           </div>
           <div className="iv-head-actions">
+            {onPracticeOnCanvas && (
+              <button
+                type="button"
+                className="btn"
+                title="Drop the whole interview onto a fresh canvas"
+                onClick={() => pack && onPracticeOnCanvas(pack.id)}
+              >
+                Practice on canvas
+              </button>
+            )}
             <button type="button" className="btn" onClick={onClose}>
               Close
             </button>

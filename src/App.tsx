@@ -46,8 +46,10 @@ import { InterviewPractice } from './components/InterviewPractice';
 import { PenToolbar } from './components/PenToolbar';
 import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { LABS } from './content/labs';
+import { packToCanvasDoc } from './content/packDoc';
 import { Guide } from './components/guide';
 import { ConceptsView } from './components/concepts';
+import type { GuideTab } from './components/guide/types';
 import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
 import {
@@ -83,6 +85,7 @@ import {
   NEW_NOTE_TEXT,
   NEW_TEXTBOX_TEXT,
   NEW_TEXTBOX_TITLE,
+  layoutTextBox,
 } from './components/annotationLayout';
 import type { InterviewTemplate } from './components/annotationLayout';
 import type { AnnotationTool } from './components/Palette';
@@ -718,6 +721,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [designsOpen, setDesignsOpen] = useState(false);
+  const [guideTab, setGuideTab] = useState<GuideTab>('overview');
   const [guideOpen, setGuideOpen] = useState(() => {
     try {
       // Clear legacy keys so the first-run policy below governs alone.
@@ -2511,6 +2515,101 @@ export default function App() {
     [replaceDesign],
   );
 
+  /**
+   * Practice on canvas: drop the whole interview track of one pack onto a
+   * fresh canvas as a two-column spread (scope and contract left, design
+   * and depth right), in a single undo step. Text only, no preset.
+   */
+  const handlePinPracticePack = useCallback(
+    (packId: string) => {
+      const pack = INTERVIEW_PACKS.find((p) => p.id === packId);
+      if (!pack) return;
+      const live = topoLiveRef.current;
+      const hasWork =
+        live.nodes.length > 0 ||
+        live.edges.length > 0 ||
+        (live.annotations ?? []).length > 0;
+      if (
+        hasWork &&
+        !window.confirm(
+          'Practice on canvas replaces what is on the canvas with this interview. Your design is not saved anywhere else. Continue?',
+        )
+      ) {
+        return;
+      }
+      setArchitectureTitle(pack.title);
+      replaceDesign({ nodes: [], edges: [], annotations: [] }, null, 'practice on canvas');
+
+      const COL_W = TEXTBOX_DEFAULT_WIDTH;
+      const GAP = GRID * 4;
+      const PAD = GRID * 2;
+      const gx = (v: number) => Math.round(v / GRID) * GRID;
+      const boxH = (title: string, text: string) => {
+        const content = layoutTextBox(text, title, COL_W).contentH;
+        return Math.ceil(Math.max(TEXTBOX_DEFAULT_HEIGHT, content) / GRID) * GRID;
+      };
+      const doc = packToCanvasDoc(pack);
+      const centre = viewCenterRef.current?.() ?? { x: 240, y: 200 };
+      const totalW = COL_W * 2 + GAP;
+      const x0 = gx(centre.x - totalW / 2);
+      let y = gx(centre.y);
+      const items: Annotation[] = [];
+      const addBox = (x: number, yy: number, w: number, title: string, text: string) => {
+        const h = boxH(title, text);
+        const id = freshAnnId('textbox');
+        items.push({
+          id,
+          kind: 'textbox',
+          title,
+          text,
+          x,
+          y: yy,
+          width: w,
+          height: h,
+          size: 'md',
+          tone: 1,
+        });
+        return { id, h };
+      };
+
+      const header = addBox(x0, y, totalW, doc.header.title, doc.header.text);
+      y += header.h + GAP;
+      const rowY = y;
+      let ly = y;
+      for (const b of doc.left) ly += addBox(x0, ly, COL_W, b.title, b.text).h + GAP;
+      const leftH = ly - GAP - rowY;
+      let ry = y;
+      for (const b of doc.right) ry += addBox(x0 + COL_W + GAP, ry, COL_W, b.title, b.text).h + GAP;
+      const rightH = ry - GAP - rowY;
+      items.push({
+        id: freshAnnId('section'),
+        kind: 'section',
+        label: 'Scope & Contract',
+        x: x0 - PAD,
+        y: rowY - PAD,
+        width: Math.max(COL_W + PAD * 2, SECTION_MIN_WIDTH),
+        height: Math.max(leftH + PAD * 2, SECTION_MIN_HEIGHT),
+        tone: 0,
+      });
+      items.push({
+        id: freshAnnId('section'),
+        kind: 'section',
+        label: 'Design & Depth',
+        x: x0 + COL_W + GAP - PAD,
+        y: rowY - PAD,
+        width: Math.max(COL_W + PAD * 2, SECTION_MIN_WIDTH),
+        height: Math.max(rightH + PAD * 2, SECTION_MIN_HEIGHT),
+        tone: 1,
+      });
+
+      history.commit('practice on canvas content', snapRef.current);
+      setAnnotations(items);
+      setSelectedIds(new Set([header.id]));
+      setInterviewOpen(false);
+    },
+    [freshAnnId, history, replaceDesign],
+  );
+
   const handleNewCanvas = useCallback(() => {
     const madeSomething = presetId === null && topology.nodes.length > 0;
     if (
@@ -2569,7 +2668,10 @@ export default function App() {
       {
         label: 'Studio guide',
         icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
-        onSelect: () => setGuideOpen(true),
+        onSelect: () => {
+          setGuideTab('overview');
+          setGuideOpen(true);
+        },
       },
       {
         label: 'Your designs',
@@ -3648,6 +3750,27 @@ export default function App() {
           </button>
           <button
             type="button"
+            className="btn btn-icon app-activity-btn"
+            aria-label="Open interview practice"
+            title="Interview practice"
+            onClick={() => setInterviewOpen(true)}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h6" />
+            </svg>
+          </button>
+          <button
+            type="button"
             className={`btn btn-icon app-activity-btn${conceptsOpen ? ' is-active' : ''}`}
             aria-label="Open concept academy"
             title="Concept Academy"
@@ -3673,7 +3796,10 @@ export default function App() {
               className="btn btn-icon app-activity-btn"
               aria-label="Open studio guide"
               title="Studio guide"
-              onClick={() => setGuideOpen(true)}
+              onClick={() => {
+                setGuideTab('overview');
+                setGuideOpen(true);
+              }}
             >
               <svg
                 width="14"
@@ -4021,6 +4147,7 @@ export default function App() {
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Guide
         open={guideOpen}
+        initialTab={guideTab}
         onClose={() => {
           setGuideOpen(false);
           try {
@@ -4137,6 +4264,7 @@ export default function App() {
         snapshot={snapshot}
         topology={topology}
         onLoadLab={handleLoadLab}
+        onPracticeOnCanvas={handlePinPracticePack}
       />
     </div>
   );
