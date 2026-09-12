@@ -32,7 +32,37 @@ export type NodeKind =
   | 'transcoder'
   | 'edgecompute'
   | 'writebehind'
-  | 'loadshedder';
+  | 'loadshedder'
+  /**
+   * A plain geometric shape: the whiteboard layer.
+   *
+   * One kind rather than ten (`shape-rect`, `shape-ellipse`, ...) because the
+   * difference between them is drawing, not behaviour: every one of them is
+   * the same zero-cost pass-through hop, and the registry would otherwise
+   * need ten identical entries in every total Record the typechecker
+   * enforces. The geometry is `SimNode.shape`.
+   */
+  | 'shape';
+
+/**
+ * Which body a `'shape'` node draws.
+ *
+ * `line` and `arrow` are the two linear ones: they draw a single stroke
+ * between two opposite corners of their box, with the corner pair chosen by
+ * `SimNode.flipX` / `flipY`, and their handles are endpoints rather than
+ * sides.
+ */
+export type ShapeKind =
+  | 'rect'
+  | 'roundrect'
+  | 'ellipse'
+  | 'diamond'
+  | 'triangle'
+  | 'hexagon'
+  | 'parallelogram'
+  | 'cylinder'
+  | 'line'
+  | 'arrow';
 
 /** Tunable knobs per node kind. Not every field applies to every kind. */
 export interface NodeConfig {
@@ -565,6 +595,39 @@ export interface SimNode {
    * (responsibilities, contracts, functional role).
    */
   description?: string;
+
+  /* ---- geometry, for `kind: 'shape'` only --------------------------- *
+   * A shape is a node so it can be wired up like one, but unlike a
+   * component it has no fixed body: a whiteboard box is whatever size it was
+   * dragged to, and a circle is not a 184x88 rounded rect.
+   *
+   * Absent on every component, which is what keeps their geometry exactly
+   * what it always was -- `nodeW`/`nodeH` in nodeBox.ts fall back to the
+   * canvas constants.
+   * ------------------------------------------------------------------- */
+
+  /** Which body to draw. Absent means a plain rectangle. */
+  shape?: ShapeKind;
+  /** Body width in world px. Absent means the component default (NODE_W). */
+  width?: number;
+  /** Body height in world px. Absent means the component default (NODE_H). */
+  height?: number;
+  /**
+   * Shade index for a shape's fill, line and label, resolved per theme by the
+   * stylesheet exactly as a section's `tone` is. Absent means the neutral
+   * `[data-kind='shape']` trio.
+   */
+  tone?: number;
+  /**
+   * Which corner pair a `line` / `arrow` runs between.
+   *
+   * Stored as flips rather than as two absolute endpoints so the box stays
+   * the single source of geometry: an endpoint drag recomputes x, y, width,
+   * height AND these two flags from two points, and nothing can go stale
+   * against the other.
+   */
+  flipX?: boolean;
+  flipY?: boolean;
 }
 
 export type EdgeProtocol =

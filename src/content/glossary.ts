@@ -306,6 +306,15 @@ export const GLOSSARY: GlossaryEntry[] = [
     see: ['worker', 'backlog', 'async'],
   },
   {
+    id: 'shape',
+    term: 'Shape',
+    short: 'A plain box, circle or arrow with no behaviour',
+    why: 'Shapes are for thinking out loud: sketch the boxes first, then decide which of them need to become real components. A shape carries no traffic, cannot fail, and a request crossing one costs nothing, so sketching on a live diagram changes none of its numbers.',
+    category: 'component',
+    aliases: ['shapes', 'whiteboard', 'box', 'sketch'],
+    see: ['service'],
+  },
+  {
     id: 'async',
     term: 'Asynchronous',
     short: 'Answering before the work is finished',

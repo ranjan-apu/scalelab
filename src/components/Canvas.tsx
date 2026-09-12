@@ -28,7 +28,7 @@ import type {
 import {
   ICON_BOX,
   ICON_STROKE,
-  KIND_GROUPS,
+  COMPONENT_GROUPS,
   KIND_ICON,
   KIND_NAME,
   NODE_DND_MIME,
@@ -89,6 +89,16 @@ import { inkHitTest, inkPathD, inkWorldBounds } from './sketchGeometry';
 import { INK_MAX_POINTS, INK_MIN_SAMPLES, INK_MIN_SPACING, ERASER_DEFAULT_WIDTH } from '../sim/sketch';
 import type { PenSettings } from '../sim/sketch';
 import type { AnnotationTool } from './Palette';
+import { NODE_H, NODE_W, nodeH, nodeW } from '../sim/nodeBox';
+import { SHAPE_MIN_W, SHAPE_SPECS, isLinearShape, isShapeKind, shapeMinH } from '../sim/shapes';
+import {
+  SHAPE_DND_MIME,
+  layoutShapeLabel,
+  lineEndpoints,
+  shapeGeometry,
+  withLineEndpoints,
+} from './shapeGeometry';
+import type { ShapeKind } from '../sim/types';
 import {
   SECTION_MIN_HEIGHT,
   SECTION_MIN_WIDTH,
@@ -132,8 +142,11 @@ import './Canvas.css';
  * three pairs.
  * ------------------------------------------------------------------ */
 
-export const NODE_W = 184;
-export const NODE_H = 88;
+/* The default component box. Defined in sim/nodeBox.ts, because the minimap
+   and the shell's placement maths need the same numbers and this module is a
+   large thing to import for two of them; re-exported here so every existing
+   call site and importer keeps working unchanged. */
+export { NODE_W, NODE_H };
 /** Studio card radius. 12px reads as a product surface rather than a
  * simulator box, and still leaves the header-band path and selection ring
  * (both derived from this constant) geometrically consistent. */
@@ -296,7 +309,6 @@ const PORT_R = 5;
  * dot so the dot still paints at its true size.
  */
 const PORT_HIT_R = 15;
-const PORT_CY = NODE_H / 2;
 
 const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 2.5;
@@ -496,6 +508,30 @@ export interface CanvasProps {
    */
   onScaleNote?: (id: string, x: number, width: number, scale: number) => void;
   /**
+   * Drop a whiteboard shape at a world point. The shell mints the node: the
+   * canvas knows where the pointer landed and what was dragged, and nothing
+   * about ids or history, exactly as with onDropNode.
+   */
+  onDropShape?: (shape: ShapeKind, x: number, y: number) => void;
+  /**
+   * One frame of a shape resize. `box` is already grid-placed and inside the
+   * bounds the shape allows; `flipX`/`flipY` are present only for a line or an
+   * arrow, where the drag is an endpoint move and the diagonal can invert.
+   */
+  onResizeShape?: (
+    id: string,
+    box: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      flipX?: boolean;
+      flipY?: boolean;
+    },
+  ) => void;
+  /** Recolour a shape. `tone` is a palette index, never a colour. */
+  onSetShapeTone?: (id: string, tone: number) => void;
+  /**
    * Restyle a note. Every field is optional so one handler serves the whole
    * toolbar; `tone: null` clears the colour, and bold toggles rather than
    * being set, because the button reports a press, not a target state.
@@ -568,10 +604,17 @@ export interface CanvasProps {
 const snap = (v: number) => Math.round(v / GRID) * GRID;
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 
-const outPort = (n: SimNode) => ({ x: n.x + NODE_W, y: n.y + PORT_CY });
+const outPort = (n: SimNode) => ({ x: n.x + nodeW(n), y: n.y + nodeH(n) / 2 });
 
-/** A node's box in the router's terms. */
-const nodeRect = (n: SimNode) => ({ x: n.x, y: n.y, w: NODE_W, h: NODE_H });
+/**
+ * A node's box in the router's terms.
+ *
+ * Per-node rather than the constants, because a shape is whatever size it was
+ * dragged to. `nodeRect` in sim/nodeBox.ts is the one definition; this is the
+ * same function, kept under its local name because every router call site
+ * reads it as "the box, in the router's terms".
+ */
+const nodeRect = (n: SimNode) => ({ x: n.x, y: n.y, w: nodeW(n), h: nodeH(n) });
 
 const EMPTY_SELECTION: ReadonlySet<string> = new Set<string>();
 
@@ -669,11 +712,20 @@ export function readoutFor(
   s: NodeStats,
   cfg: NodeConfig,
   backlog = 0,
-): Readout {
+): Readout | null {
   const util = clamp(s.utilization, 0, 1);
   const losing = s.shedRate + s.timeoutRate > 0;
 
   switch (kind) {
+    /* A shape has NO readout, and null is the honest answer rather than a
+       triple of zeroes. The rules above say never to show a number that is
+       structurally always zero for a kind; a shape is the limit case of that,
+       because it has no mechanism at all -- it is a box. Callers draw nothing
+       where this is null, so a shape is a clean face and the components around
+       it keep their numbers. */
+    case 'shape':
+      return null;
+
     case 'client':
     case 'producer': {
       const err = clamp(s.errorRate, 0, 1);
@@ -1709,6 +1761,17 @@ interface EdgeViewProps {
    * the parent, which buckets anchors and staggers the collisions.
    */
   labelDy: number;
+  /**
+   * The two endpoints' box sizes, in world px.
+   *
+   * Passed rather than assumed, because a whiteboard shape is whatever size it
+   * was dragged to: routing a wire to a 400x300 box using the 184x88 component
+   * constants would leave the arrowhead floating in the middle of it.
+   */
+  aw: number;
+  ah: number;
+  bw: number;
+  bh: number;
 }
 
 const EdgeView = memo(function EdgeView({
@@ -1725,19 +1788,24 @@ const EdgeView = memo(function EdgeView({
   targetHealth,
   showLabel,
   labelDy,
+  aw,
+  ah,
+  bw,
+  bh,
 }: EdgeViewProps) {
   // The router arrives axis-aligned from whichever side it picked, so the
   // arrowhead is one of four fixed triangles and needs no trigonometry.
   // Memoised on the raw coordinates (scalars, so the memo around EdgeView
-  // keeps working): a route only recomputes when an endpoint node moves.
+  // keeps working): a route only recomputes when an endpoint node moves or is
+  // resized.
   const route: EdgeRoute = useMemo(
     () =>
       routeEdge(
-        { x: ax, y: ay, w: NODE_W, h: NODE_H },
-        { x: bx, y: by, w: NODE_W, h: NODE_H },
+        { x: ax, y: ay, w: aw, h: ah },
+        { x: bx, y: by, w: bw, h: bh },
         lane,
       ),
-    [ax, ay, bx, by, lane],
+    [ax, ay, aw, ah, bx, by, bw, bh, lane],
   );
   const d = route.d;
 
@@ -2852,9 +2920,294 @@ const QueueVessel = memo(function QueueVessel({
 });
 
 /* ------------------------------------------------------------------ *
- * Node
+ * Ports and the whiteboard shape body
  * ------------------------------------------------------------------ */
 
+/**
+ * A node's two link ports: input on the left edge, output on the right.
+ *
+ * Extracted so a component and a shape wear the SAME ports. A box that could
+ * be dragged but not wired would be exactly what this feature was asked not
+ * to be: a shape the rest of the diagram cannot reach.
+ *
+ * Each port is TWO circles: a transparent 15px hit disc and the 5px dot that
+ * is actually seen. The hit disc is what the pointerdown router finds via
+ * closest('[data-hit]'), so aiming is forgiving while the drawing stays
+ * precise. The hit disc is drawn first so the visible dot paints over it. The
+ * dots stay at zero opacity until hover, focus, selection or a link gesture,
+ * rules written against `.cv-node` in Canvas.css -- which is why both bodies
+ * carry that class.
+ */
+const NodePorts = memo(function NodePorts({
+  id,
+  w,
+  h,
+}: {
+  id: string;
+  w: number;
+  h: number;
+}) {
+  const cy = h / 2;
+  return (
+    <>
+      <circle
+        className="cv-port-hit"
+        cx={0}
+        cy={cy}
+        r={PORT_HIT_R}
+        data-hit="port-in"
+        data-id={id}
+      />
+      <circle className="cv-port cv-port-in" cx={0} cy={cy} r={PORT_R} />
+      <circle
+        className="cv-port-hit"
+        cx={w}
+        cy={cy}
+        r={PORT_HIT_R}
+        data-hit="port-out"
+        data-id={id}
+      />
+      <circle className="cv-port cv-port-out" cx={w} cy={cy} r={PORT_R} />
+    </>
+  );
+});
+
+interface ShapeBodyProps {
+  node: SimNode;
+  selected: boolean;
+  linking: boolean;
+  /** Ready-made link classes, so the two bodies cannot disagree about them. */
+  linkClass: string;
+  entering: boolean;
+  /** 2 = full, 1 = header + meter only, 0 = name + meter. */
+  detail: 0 | 1 | 2;
+  onKeyDown: (e: React.KeyboardEvent<SVGGElement>) => void;
+}
+
+/**
+ * One whiteboard shape.
+ *
+ * A shape is a node, so it keeps the whole node contract -- `data-hit="node"`,
+ * `data-id`, `cv-node`, the keyboard handler, the ports -- and therefore
+ * selects, drags, marquees, links, groups and deletes through exactly the
+ * same code as a component. What it does NOT have is anything to say: no
+ * header band, no meter, no readout, no sparkline, no status marks and no
+ * instance structure, because there is no mechanism behind it.
+ *
+ * Everything it draws comes from `shapeGeometry`, which is a pure function of
+ * the box and the flips, so a shape's appearance is a value rather than a
+ * pile of conditional JSX.
+ */
+const ShapeBody = memo(function ShapeBody({
+  node,
+  selected,
+  linking,
+  linkClass,
+  entering,
+  detail,
+  onKeyDown,
+}: ShapeBodyProps) {
+  const w = nodeW(node);
+  const h = nodeH(node);
+  const linear = isLinearShape(node.shape);
+
+  const { geo, label, ring } = useMemo(() => {
+    const g = shapeGeometry(node.shape, w, h, node.flipX, node.flipY);
+    // The ring is the same outline, inflated by the gap the components use, so
+    // a selected box, circle or diamond is outlined in its OWN shape rather
+    // than by a rectangle that contradicts it.
+    const r = shapeGeometry(
+      node.shape,
+      w + RING_GAP * 2,
+      h + RING_GAP * 2,
+      node.flipX,
+      node.flipY,
+    );
+    return { geo: g, label: layoutShapeLabel(node.label, g.label), ring: r };
+  }, [node.shape, node.label, w, h, node.flipX, node.flipY]);
+
+  // The label block is centred in the face the geometry allows it.
+  const labelTop = geo.label.y + Math.max(0, (geo.label.h - label.height) / 2);
+  const showLabel = detail >= 1 && label.lines.length > 0;
+
+  return (
+    <g
+      className={`cv-node cv-shape${linear ? ' is-linear' : ''}${
+        selected ? ' is-selected' : ''
+      }${linking ? ' is-linking' : ''}${entering ? ' is-entering' : ''}${linkClass}`}
+      transform={`translate(${node.x},${node.y})`}
+      tabIndex={0}
+      role="button"
+      aria-label={[
+        KIND_NAME[node.kind],
+        node.shape ? SHAPE_SPECS[node.shape].name : null,
+        node.label,
+      ]
+        .filter(Boolean)
+        .join(', ')}
+      aria-pressed={selected}
+      data-hit="node"
+      data-id={node.id}
+      data-kind={node.kind}
+      data-tone={node.tone}
+      onKeyDown={onKeyDown}
+    >
+      {/*
+        A line's ring would be a degenerate box around a diagonal, which reads
+        as a mistake rather than as a selection. The linear shapes say they are
+        selected by their handles and by an accent stroke instead (Phase 4).
+      */}
+      {selected && !linear && <path className="cv-node-ring" d={ring.body ?? undefined} />}
+
+      {geo.body && <path className="cv-node-body cv-shape-body" d={geo.body} />}
+      {geo.detail && <path className="cv-shape-detail" d={geo.detail} />}
+
+      {geo.stroke && (
+        <>
+          {/* An invisible fat stroke is what the pointer lands on: a 1px
+              diagonal is not a target anyone can hit, and a 0-height
+              horizontal line has no interior to fill. Painted first so the
+              visible stroke sits over it. */}
+          <path className="cv-shape-hit" d={geo.stroke} />
+          <path className="cv-node-body cv-shape-line" d={geo.stroke} />
+        </>
+      )}
+      {geo.head && <polygon className="cv-shape-head" points={geo.head} />}
+
+      {showLabel && (
+        <text className="cv-shape-label" x={label.x} textAnchor="middle">
+          {label.lines.map((line, i) => (
+            <tspan
+              key={i}
+              x={label.x}
+              y={labelTop + label.baseline + i * label.lineH}
+            >
+              {line === '' ? ' ' : line}
+            </tspan>
+          ))}
+        </text>
+      )}
+
+      <NodePorts id={node.id} w={w} h={h} />
+    </g>
+  );
+});
+
+/**
+ * Selection chrome for one whiteboard shape.
+ *
+ * Handles and shades, in the same screen-constant language as the section and
+ * text-box chrome: `ui` is 1/zoom, so a handle is the same size under the
+ * finger at every magnification rather than shrinking into an untouchable
+ * speck. Copied from SectionChrome deliberately -- a reader who has resized a
+ * section already knows this gesture.
+ *
+ * The two handle sets are different because the shapes are:
+ *
+ *   closed   eight handles, the compass, resizing the box.
+ *   linear   TWO handles, one per END. A line has no box worth dragging by:
+ *            its identity is where it starts and where it ends.
+ */
+function ShapeChrome({
+  node,
+  ui,
+  onSetTone,
+}: {
+  node: SimNode;
+  ui: number;
+  onSetTone?: (id: string, tone: number) => void;
+}) {
+  const w = nodeW(node);
+  const h = nodeH(node);
+  const rect = { x: node.x, y: node.y, w, h };
+  const hs = 9 * ui;
+  const hit = 36 * ui;
+
+  const handles: { key: string; dir: ResizeDir; x: number; y: number }[] = [];
+  if (isLinearShape(node.shape)) {
+    // One handle per end, each carrying the COMPASS DIRECTION of the corner it
+    // sits on: that is how the drag resolves which end it grabbed (see the
+    // node-resize branch in onSurfaceMove), so the two cannot drift apart.
+    const { a, b } = lineEndpoints(node);
+    const dirAt = (pt: { x: number; y: number }): ResizeDir => {
+      const east = Math.abs(pt.x - (node.x + w)) < Math.abs(pt.x - node.x);
+      const south = Math.abs(pt.y - (node.y + h)) < Math.abs(pt.y - node.y);
+      return `${south ? 's' : 'n'}${east ? 'e' : 'w'}` as ResizeDir;
+    };
+    handles.push({ key: 'a', dir: dirAt(a), x: a.x, y: a.y });
+    handles.push({ key: 'b', dir: dirAt(b), x: b.x, y: b.y });
+  } else {
+    for (const dir of RESIZE_DIRS) {
+      const a = handleAnchor(rect, dir);
+      handles.push({ key: dir, dir, x: a.x, y: a.y });
+    }
+  }
+
+  // The shade row sits BELOW the shape by default and flips above when there
+  // is no room, exactly as a section's does. Read from the shape's own box so
+  // a tall box pushes the row further down rather than overlapping it.
+  const sw = 15 * ui;
+  const swGap = 4 * ui;
+  const rowW = SECTION_TONE_COUNT * sw + (SECTION_TONE_COUNT - 1) * swGap;
+  const swY = node.y + h + 10 * ui;
+  const swX = node.x + w / 2 - rowW / 2;
+
+  return (
+    <g className="cv-ann-sel">
+      {onSetTone && (
+        <g className="cv-sec-tones">
+          {Array.from({ length: SECTION_TONE_COUNT }, (_, i) => (
+            <rect
+              key={i}
+              className={`cv-sec-tone${
+                (node.tone ?? -1) === i ? ' is-active' : ''
+              }`}
+              data-hit="shape-tone"
+              data-id={node.id}
+              data-tone={i}
+              role="button"
+              aria-label={`Shape shade ${i + 1}`}
+              x={swX + i * (sw + swGap)}
+              y={swY}
+              width={sw}
+              height={sw}
+              rx={3 * ui}
+            />
+          ))}
+        </g>
+      )}
+
+      {handles.map((hd) => (
+        <g key={hd.key}>
+          <rect
+            className="cv-handle"
+            x={hd.x - hs / 2}
+            y={hd.y - hs / 2}
+            width={hs}
+            height={hs}
+            rx={2 * ui}
+          />
+          {/* The generous invisible target, ON TOP of the visible square
+              (paint order = hit order), sized for a fingertip. */}
+          <rect
+            className="cv-handle-hit"
+            data-hit="node-resize"
+            data-id={node.id}
+            data-dir={hd.dir}
+            x={hd.x - hit / 2}
+            y={hd.y - hit / 2}
+            width={hit}
+            height={hit}
+          />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Node
+ * ------------------------------------------------------------------ */
 /** Why a node cannot be the target of the link currently in flight. */
 type LinkRole = 'none' | 'source' | 'valid' | 'invalid';
 
@@ -3021,6 +3374,31 @@ const NodeView = memo(function NodeView({
     linkRole === 'none'
       ? ''
       : ` is-link-${linkRole}${linkTarget ? ' is-link-target' : ''}`;
+
+  /*
+   * A shape takes none of the component machinery below it: no readout, no
+   * meter, no sparkline, no header band, no instance structure, no status
+   * marks. All of that is about a mechanism, and a shape has none -- which is
+   * also why readoutFor returns null for it.
+   *
+   * Placed after every hook (the two useCallback/usePreference calls above and
+   * nothing else) so the early return cannot break hook order, and before the
+   * component JSX so the two bodies stay genuinely separate pictures rather
+   * than one tree with flags in it.
+   */
+  if (node.kind === 'shape') {
+    return (
+      <ShapeBody
+        node={node}
+        selected={selected}
+        linking={linking}
+        linkClass={linkClass}
+        entering={entering}
+        detail={detail}
+        onKeyDown={handleKey}
+      />
+    );
+  }
 
   return (
     <g
@@ -3464,33 +3842,11 @@ const NodeView = memo(function NodeView({
       )}
 
       {/*
-        Ports. Input left, output right.
-
-        Each port is TWO circles: a transparent 15px hit disc and the 5px dot
-        that is actually seen. The hit disc is what the pointerdown router
-        finds via closest('[data-hit]'), so aiming is forgiving while the
-        drawing stays precise. The hit disc is drawn first so the visible dot
-        paints over it.
+        Ports. Input left, output right -- shared with the whiteboard shapes,
+        so a box and a component are wired up by the same discs and the same
+        pointer router. See NodePorts.
       */}
-      <circle
-        className="cv-port-hit"
-        cx={0}
-        cy={PORT_CY}
-        r={PORT_HIT_R}
-        data-hit="port-in"
-        data-id={node.id}
-      />
-      <circle className="cv-port cv-port-in" cx={0} cy={PORT_CY} r={PORT_R} />
-
-      <circle
-        className="cv-port-hit"
-        cx={NODE_W}
-        cy={PORT_CY}
-        r={PORT_HIT_R}
-        data-hit="port-out"
-        data-id={node.id}
-      />
-      <circle className="cv-port cv-port-out" cx={NODE_W} cy={PORT_CY} r={PORT_R} />
+      <NodePorts id={node.id} w={NODE_W} h={NODE_H} />
     </g>
   );
 });
@@ -3537,12 +3893,23 @@ type HitKind =
   | 'textbox-resize'
   | 'note-resize'
   | 'note-scale'
+  /**
+   * A whiteboard shape's resize handle.
+   *
+   * Its own hit kind rather than a reuse of section-resize, because the write
+   * it produces is a different one: a section's resize lands on an annotation
+   * and a shape's lands on a NODE, and conflating the two would mean a
+   * geometry bug in one silently editing the other.
+   */
+  | 'node-resize'
   | 'note-size'
   | 'note-bold'
   | 'note-font'
   | 'note-tone'
   | 'section-tone'
-  | 'textbox-tone';
+  | 'textbox-tone'
+  /** A shade swatch in a selected shape's chrome. */
+  | 'shape-tone';
 
 interface Hit {
   kind: HitKind;
@@ -3602,6 +3969,7 @@ interface Pending {
     | 'textbox-resize'
     | 'note-resize'
     | 'note-scale'
+    | 'node-resize'
     | 'draw-section'
     | null;
   /** Grab offset for a node drag, in world units. Set at promotion. */
@@ -3616,6 +3984,16 @@ interface Pending {
   groupAnnOrigins: Map<string, { x: number; y: number }>;
   /** Section rect at promotion, for an 'ann-resize' drag. */
   annRect: { x: number; y: number; w: number; h: number } | null;
+  /**
+   * The two endpoints of a linear shape at promotion, in world px, for a
+   * 'node-resize' drag on a line or an arrow.
+   *
+   * Endpoints rather than a rect, because a line's box does not know which
+   * corner its head is on: dragging an end moves THAT end and leaves the other
+   * where it was, and the box (with its two flips) is recomputed from the
+   * result. Absent for every other gesture and every closed shape.
+   */
+  linePoints: { a: { x: number; y: number }; b: { x: number; y: number } } | null;
   /** The armed annotation tool latched at press time, if any. */
   tool: AnnotationTool | null;
   /**
@@ -3666,6 +4044,9 @@ export default function Canvas({
   onConnect,
   onDeleteSelection,
   onDropNode,
+  onDropShape,
+  onResizeShape,
+  onSetShapeTone,
   onRename,
   onDuplicateForDrag,
   onPaste,
@@ -3943,8 +4324,8 @@ export default function Canvas({
       for (const n of nodes) {
         if (n.x < minX) minX = n.x;
         if (n.y < minY) minY = n.y;
-        if (n.x + NODE_W > maxX) maxX = n.x + NODE_W;
-        if (n.y + NODE_H > maxY) maxY = n.y + NODE_H;
+        if (n.x + nodeW(n) > maxX) maxX = n.x + nodeW(n);
+        if (n.y + nodeH(n) > maxY) maxY = n.y + nodeH(n);
       }
       // Annotations sit outside the node bounds by design, so a frame drawn
       // from the nodes alone would crop the notes explaining them.
@@ -4170,7 +4551,7 @@ export default function Canvas({
     const nodes = topoRef.current.nodes;
     for (let i = nodes.length - 1; i >= 0; i--) {
       const n = nodes[i]!;
-      if (wx >= n.x && wx <= n.x + NODE_W && wy >= n.y && wy <= n.y + NODE_H) {
+      if (wx >= n.x && wx <= n.x + nodeW(n) && wy >= n.y && wy <= n.y + nodeH(n)) {
         return n.id;
       }
     }
@@ -4202,6 +4583,7 @@ export default function Canvas({
         (p.mode === 'node' ||
           p.mode === 'ann' ||
           p.mode === 'ann-resize' ||
+          p.mode === 'node-resize' ||
           p.mode === 'note-resize' ||
           p.mode === 'note-scale')
       ) {
@@ -4362,6 +4744,7 @@ export default function Canvas({
         groupAnnIds: [],
         groupAnnOrigins: new Map(),
         annRect: null,
+        linePoints: null,
         tool: armedTool,
         ink: null,
         erase: [],
@@ -4581,8 +4964,8 @@ export default function Canvas({
                 const inside =
                   n.x >= ann.x &&
                   n.y >= ann.y &&
-                  n.x + NODE_W <= ann.x + ann.width &&
-                  n.y + NODE_H <= ann.y + ann.height;
+                  n.x + nodeW(n) <= ann.x + ann.width &&
+                  n.y + nodeH(n) <= ann.y + ann.height;
                 if (inside) {
                   p.groupIds.push(n.id);
                   p.groupOrigins.set(n.id, { x: n.x, y: n.y });
@@ -4639,6 +5022,23 @@ export default function Canvas({
           // the height is derived from the text and is not ours to set, and
           // a scale drag needs its starting multiplier to work from.
           p.annRect = { x: ann.x, y: ann.y, w: ann.width, h: ann.scale ?? 1 };
+          break;
+        }
+
+        case 'node-resize': {
+          const id = p.hit.id;
+          const node = id ? topoRef.current.nodes.find((n) => n.id === id) : undefined;
+          if (!node || !id || node.kind !== 'shape' || !p.hit.dir) {
+            p.mode = 'pan';
+            break;
+          }
+          p.mode = 'node-resize';
+          onMoveStart?.('resize');
+          p.annRect = nodeRect(node);
+          // A line's two ends are captured here, at the moment the gesture
+          // starts, so the drag is expressed as "move this end" and the other
+          // end cannot drift as the box is rewritten underneath it.
+          p.linePoints = isLinearShape(node.shape) ? lineEndpoints(node) : null;
           break;
         }
 
@@ -4839,8 +5239,15 @@ export default function Canvas({
         onMoveNode(id, nx, ny);
         // Highlight whichever section this node is about to land in, so the
         // grouping is visible before the drop rather than discovered after.
+        // The CENTRE of the dragged node, so the highlight follows the middle
+        // of the thing being held whatever size it is.
+        const dragged = topoRef.current.nodes.find((n) => n.id === id);
         setDropSection(
-          sectionAtPoint(topoRef.current.annotations, nx + NODE_W / 2, ny + NODE_H / 2),
+          sectionAtPoint(
+            topoRef.current.annotations,
+            nx + (dragged ? nodeW(dragged) / 2 : NODE_W / 2),
+            ny + (dragged ? nodeH(dragged) / 2 : NODE_H / 2),
+          ),
         );
         // Grouped members translate by the same snapped delta, so the shape
         // of a multi-selection is preserved exactly rather than each member
@@ -4878,6 +5285,56 @@ export default function Canvas({
             if (o) onMoveAnnotation?.(other, o.x + mdx, o.y + mdy);
           }
         }
+        return;
+      }
+
+      if (p.mode === 'node-resize' && p.annRect) {
+        const id = p.hit.id!;
+        const dir = p.hit.dir as ResizeDir;
+        if (p.linePoints) {
+          /*
+           * A line or an arrow: an ENDPOINT drag.
+           *
+           * The grabbed end simply follows the pointer; the other one does not
+           * move at all. Which end is grabbed is resolved from the box corner
+           * the handle was drawn on, which is what makes this work even when
+           * the two ends' handles overlap (a horizontal line is 0 tall, so its
+           * north and south handles sit on the same pixel).
+           *
+           * Dragging an end past the other end flips the diagonal rather than
+           * producing a negative width: see withLineEndpoints, which keeps the
+           * box growing down-right from its own corner as every other part of
+           * the canvas assumes.
+           */
+          const corner = handleAnchor(p.annRect, dir);
+          const near = (pt: { x: number; y: number }) =>
+            Math.hypot(pt.x - corner.x, pt.y - corner.y);
+          const movingA = near(p.linePoints.a) <= near(p.linePoints.b);
+          const moved = { x: place(w.x), y: place(w.y) };
+          const next = movingA
+            ? { a: moved, b: p.linePoints.b }
+            : { a: p.linePoints.a, b: moved };
+          const box = withLineEndpoints(next.a, next.b);
+          onResizeShape?.(id, {
+            ...box,
+            // A line may legitimately be 0 long while it is being dragged
+            // through the other end, but a 0-wide box is a degenerate node:
+            // hold it at a pixel until the drag finishes.
+            width: Math.max(1, box.width),
+          });
+          return;
+        }
+        const shape = topoRef.current.nodes.find((n) => n.id === id)?.shape;
+        const r = resizeRect(
+          p.annRect,
+          dir,
+          w.x - p.worldX,
+          w.y - p.worldY,
+          place,
+          SHAPE_MIN_W,
+          shapeMinH(shape),
+        );
+        onResizeShape?.(id, { x: r.x, y: r.y, width: r.w, height: r.h });
         return;
       }
 
@@ -4998,6 +5455,7 @@ export default function Canvas({
       onMoveNode,
       onMoveAnnotation,
       onResizeSection,
+      onResizeShape,
       nodeAt,
       cancelGesture,
       zoomAt,
@@ -5130,6 +5588,7 @@ export default function Canvas({
           case 'textbox-resize':
           case 'note-resize':
           case 'note-scale':
+          case 'node-resize':
             // A handle click without a drag is a click on what it belongs to.
             if (p.hit.id) selectOne(p.hit.id, additive);
             break;
@@ -5148,6 +5607,14 @@ export default function Canvas({
             const tone = Number(p.hit.tone);
             if (p.hit.id && Number.isInteger(tone)) {
               onSetSectionTone?.(p.hit.id, tone);
+            }
+            break;
+          }
+
+          case 'shape-tone': {
+            const tone = Number(p.hit.tone);
+            if (p.hit.id && Number.isInteger(tone)) {
+              onSetShapeTone?.(p.hit.id, tone);
             }
             break;
           }
@@ -5206,7 +5673,12 @@ export default function Canvas({
         // Containment forces a user to lasso generously around big nodes.
         const next = new Set<string>(p.shift || p.ctrl ? selRef.current : []);
         for (const n of topoRef.current.nodes) {
-          if (n.x <= x1 && n.x + NODE_W >= x0 && n.y <= y1 && n.y + NODE_H >= y0) {
+          if (
+            n.x <= x1 &&
+            n.x + nodeW(n) >= x0 &&
+            n.y <= y1 &&
+            n.y + nodeH(n) >= y0
+          ) {
             next.add(n.id);
           }
         }
@@ -5843,7 +6315,8 @@ export default function Canvas({
   const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     if (
       !e.dataTransfer.types.includes(NODE_DND_MIME) &&
-      !e.dataTransfer.types.includes(ANN_DND_MIME)
+      !e.dataTransfer.types.includes(ANN_DND_MIME) &&
+      !e.dataTransfer.types.includes(SHAPE_DND_MIME)
     ) {
       return;
     }
@@ -5908,6 +6381,24 @@ export default function Canvas({
         return;
       }
 
+      // A whiteboard shape dragged in from the shapes library. Centred on the
+      // cursor on its own default box, which is what the tile showed, and
+      // snapped by the same rule a component drop uses.
+      const draggedShape = e.dataTransfer.getData(SHAPE_DND_MIME);
+      if (isShapeKind(draggedShape)) {
+        e.preventDefault();
+        const w = toWorld(e.clientX, e.clientY);
+        droppedRef.current = true;
+        const place = snapsToGrid(snapOn, e.ctrlKey || e.metaKey) ? snap : Math.round;
+        const spec = SHAPE_SPECS[draggedShape];
+        onDropShape?.(
+          draggedShape,
+          place(w.x - spec.defaultW / 2),
+          place(w.y - spec.defaultH / 2),
+        );
+        return;
+      }
+
       const kind = e.dataTransfer.getData(NODE_DND_MIME) as NodeKind;
       if (!kind) return;
       e.preventDefault();
@@ -5924,7 +6415,7 @@ export default function Canvas({
       const place = snapsToGrid(snapOn, e.ctrlKey || e.metaKey) ? snap : Math.round;
       onDropNode(kind, place(w.x - NODE_W / 2), place(w.y - NODE_H / 2));
     },
-    [toWorld, onDropNode, onCreateNote, onCreateSection, onCreateTextBox, snapOn],
+    [toWorld, onDropNode, onDropShape, onCreateNote, onCreateSection, onCreateTextBox, snapOn],
   );
 
   /* ---------------- fit to content ---------------- */
@@ -5953,8 +6444,8 @@ export default function Canvas({
       for (const n of nodes) {
         if (n.x < minX) minX = n.x;
         if (n.y < minY) minY = n.y;
-        if (n.x + NODE_W > maxX) maxX = n.x + NODE_W;
-        if (n.y + NODE_H > maxY) maxY = n.y + NODE_H;
+        if (n.x + nodeW(n) > maxX) maxX = n.x + nodeW(n);
+        if (n.y + nodeH(n) > maxY) maxY = n.y + nodeH(n);
       }
       const bw = Math.max(1, maxX - minX);
       const bh = Math.max(1, maxY - minY);
@@ -6225,7 +6716,10 @@ export default function Canvas({
       const group = groupOfKind(n.kind);
       if (group) counts.set(group.id, (counts.get(group.id) ?? 0) + 1);
     }
-    return KIND_GROUPS.filter((g) => counts.has(g.id))
+    // System groups only: the ledger reports what the SYSTEM is made of, and a
+    // whiteboard box is not part of the simulation vocabulary. Counting it
+    // would put "3 shapes" beside the totals as if they were components.
+    return COMPONENT_GROUPS.filter((g) => counts.has(g.id))
       .map((g) => `${counts.get(g.id)} ${g.id}`)
       .join(', ');
   }, [topology.nodes]);
@@ -6301,10 +6795,11 @@ export default function Canvas({
       }
       const s = snapshot.nodes[n.id];
       if (s) {
-        m.set(
-          n.id,
-          readoutFor(n.kind, s, n.config, backlogById?.get(n.id) ?? 0).health,
-        );
+        // A shape has no readout and therefore no health: it is left out of
+        // the map entirely, which every consumer already reads as "ok" -- the
+        // right answer for a box that cannot fail.
+        const readout = readoutFor(n.kind, s, n.config, backlogById?.get(n.id) ?? 0);
+        if (readout) m.set(n.id, readout.health);
       }
     }
     return m;
@@ -6557,6 +7052,10 @@ export default function Canvas({
                     ay={a.y}
                     bx={b.x}
                     by={b.y}
+                    aw={nodeW(a)}
+                    ah={nodeH(a)}
+                    bw={nodeW(b)}
+                    bh={nodeH(b)}
                     lane={laneById.get(ed.id) ?? 0}
                     flow={snapshot?.edgeFlow[ed.id] ?? 0}
                     state={snapshot?.edgeState[ed.id] ?? 'idle'}
@@ -6640,6 +7139,22 @@ export default function Canvas({
               </g>
             )}
 
+            {/* Selection chrome for a whiteboard shape: its own layer, above
+                the nodes, so a handle is never buried under a component that
+                happens to sit on the shape's edge. */}
+            <g className="cv-node-chrome">
+              {topology.nodes
+                .filter((n) => n.kind === 'shape' && selectedIds.has(n.id))
+                .map((n) => (
+                  <ShapeChrome
+                    key={n.id}
+                    node={n}
+                    ui={1 / view.k}
+                    onSetTone={onSetShapeTone}
+                  />
+                ))}
+            </g>
+
             {/* Selection chrome for annotations, in its own TOP layer so a
                 section's resize handles are never buried under a node that
                 happens to sit on the border. */}
@@ -6721,13 +7236,20 @@ export default function Canvas({
       */}
       {renameNode && (
         <input
-          className="cv-rename"
+          className={`cv-rename${renameNode.kind === 'shape' ? ' is-shape' : ''}`}
           data-chrome="rename"
           style={{
             left: renameNode.x * view.k + view.x,
-            top: renameNode.y * view.k + view.y,
-            width: NODE_W * view.k,
-            height: HEAD_H * view.k,
+            // A shape has no header row to sit on, so the editor lands in the
+            // MIDDLE of its face, which is where the label it replaces is
+            // drawn. A component keeps the header row it has always used.
+            top:
+              (renameNode.y +
+                (renameNode.kind === 'shape' ? (nodeH(renameNode) - 20) / 2 : 0)) *
+                view.k +
+              view.y,
+            width: nodeW(renameNode) * view.k,
+            height: (renameNode.kind === 'shape' ? 20 : HEAD_H) * view.k,
             fontSize: Math.max(11, 14 * view.k),
           }}
           value={renameDraft}

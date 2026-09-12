@@ -1,4 +1,6 @@
 import type { NodeKind, SimEdge, SimNode, Topology } from './sim/types';
+import { SHAPE_SPECS, clampShapeBox, isShapeKind } from './sim/shapes';
+import { SECTION_TONE_COUNT } from './sim/annotations';
 
 /* ------------------------------------------------------------------ *
  * Clipboard and duplication for the shell.
@@ -54,6 +56,7 @@ export const NODE_KINDS: readonly NodeKind[] = [
   'edgecompute',
   'writebehind',
   'loadshedder',
+  'shape',
 ];
 
 /**
@@ -78,6 +81,12 @@ export function isTopology(value: unknown): value is Topology {
       y: unknown;
       config: unknown;
       description?: unknown;
+      shape?: unknown;
+      width?: unknown;
+      height?: unknown;
+      tone?: unknown;
+      flipX?: unknown;
+      flipY?: unknown;
     }>;
     if (typeof n.id !== 'string' || n.id === '') return false;
     if (typeof n.label !== 'string') return false;
@@ -85,6 +94,15 @@ export function isTopology(value: unknown): value is Topology {
     if (!NODE_KINDS.includes(n.kind as NodeKind)) return false;
     if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return false;
     if (typeof n.config !== 'object' || n.config === null) return false;
+    // A shape's geometry is TYPED here and BOUNDED in sanitizeTopology. The
+    // split is deliberate: an out-of-range width is recoverable (clamp it),
+    // while a non-numeric one means the payload is not a topology at all.
+    if (n.shape !== undefined && typeof n.shape !== 'string') return false;
+    if (n.width !== undefined && !Number.isFinite(n.width)) return false;
+    if (n.height !== undefined && !Number.isFinite(n.height)) return false;
+    if (n.tone !== undefined && !Number.isFinite(n.tone)) return false;
+    if (n.flipX !== undefined && typeof n.flipX !== 'boolean') return false;
+    if (n.flipY !== undefined && typeof n.flipY !== 'boolean') return false;
     const cfg = n.config as Record<string, unknown>;
     for (const key of [
       'capacity',
@@ -118,6 +136,86 @@ export function isTopology(value: unknown): value is Topology {
   }
 
   return true;
+}
+
+/**
+ * Bound a topology's shape geometry.
+ *
+ * `isTopology` answers "is this the right SHAPE of data"; this answers "is it
+ * sane". They are kept apart because they fail differently. A payload that is
+ * not a topology at all must be rejected outright, but a topology carrying one
+ * absurd box should still open: refusing the whole design because a stale
+ * share link had a width of 1e9 would throw away work that is otherwise fine.
+ *
+ * Two jobs, both about the whiteboard layer:
+ *
+ *  - a shape's box is CLAMPED, and an unrecognised `shape` falls back to a
+ *    plain rectangle rather than reaching the renderer as a body it cannot
+ *    draw (which would paint nothing and leave an invisible, unselectable
+ *    node on the canvas);
+ *  - geometry found on a COMPONENT is stripped. The interface cannot produce
+ *    that, and honouring it would draw a component whose body no longer
+ *    matches the fixed-size internals drawn on it (header band, meter,
+ *    readout), so it is corruption rather than a legitimate variant.
+ *
+ * Every boundary that accepts a topology from outside calls this beside
+ * `sanitizeAnnotations`: localStorage (session and saved designs), an
+ * imported file, a share link, and the clipboard.
+ */
+export function sanitizeTopology(t: Topology): Topology {
+  let changed = false;
+
+  const nodes = t.nodes.map((n): SimNode => {
+    const hasGeometry =
+      n.shape !== undefined ||
+      n.width !== undefined ||
+      n.height !== undefined ||
+      n.tone !== undefined ||
+      n.flipX !== undefined ||
+      n.flipY !== undefined;
+    if (!hasGeometry) return n;
+
+    if (n.kind !== 'shape') {
+      changed = true;
+      const { shape, width, height, tone, flipX, flipY, ...rest } = n;
+      void shape;
+      void width;
+      void height;
+      void tone;
+      void flipX;
+      void flipY;
+      return rest;
+    }
+
+    const shape = isShapeKind(n.shape) ? n.shape : undefined;
+    const spec = SHAPE_SPECS[shape ?? 'rect'];
+    const box = clampShapeBox(shape, n.width ?? spec.defaultW, n.height ?? spec.defaultH);
+    const tone = Number.isFinite(n.tone)
+      ? ((Math.floor(n.tone as number) % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) %
+        SECTION_TONE_COUNT
+      : undefined;
+
+    if (
+      shape === n.shape &&
+      box.w === n.width &&
+      box.h === n.height &&
+      tone === n.tone
+    ) {
+      return n;
+    }
+
+    changed = true;
+    const next: SimNode = { ...n };
+    if (shape) next.shape = shape;
+    else delete next.shape;
+    next.width = box.w;
+    next.height = box.h;
+    if (tone === undefined) delete next.tone;
+    else next.tone = tone;
+    return next;
+  });
+
+  return changed ? { ...t, nodes } : t;
 }
 
 /** What one copy operation carries: a self-contained subgraph. */
@@ -179,7 +277,7 @@ export function parseClipboardText(text: string): ClipboardSubgraph | null {
   const p = parsed as { nodes?: unknown; edges?: unknown };
   const candidate = { nodes: p.nodes, edges: p.edges };
   if (!isTopology(candidate)) return null;
-  return { nodes: candidate.nodes, edges: candidate.edges };
+  return sanitizeTopology(candidate);
 }
 
 /**

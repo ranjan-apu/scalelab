@@ -53,6 +53,21 @@ export interface Preferences {
    * counters, providing a clean architectural diagramming view like Excalidraw or draw.io.
    */
   cleanCanvas: boolean;
+  /**
+   * What the left rail offers: the system-design components, or the basic
+   * shapes library.
+   *
+   * A two-value mode rather than a boolean, because "shapes" is not the
+   * absence of components -- both are real, both are wanted, and a boolean
+   * would have to encode the second one as a negation and then be read
+   * backwards at every call site.
+   *
+   * Persisted with the other preferences: a mode a reader has to re-pick on
+   * every reload is not a mode, it is a setting they keep losing. Switching it
+   * also drives Clean Canvas (see setPaletteMode), because a whiteboard with
+   * live telemetry drawn over it is two intentions fighting on one canvas.
+   */
+  paletteMode: PaletteMode;
   /** Group IDs of collapsed sections in the sidebar palette. */
   collapsedGroups: string[];
   /** Pinned node kinds appearing in the top Pinned section of the palette. */
@@ -71,6 +86,18 @@ export type ThemeChoice = 'light' | 'dark' | 'system';
 
 export const THEME_CHOICES: readonly ThemeChoice[] = ['light', 'dark', 'system'];
 
+/**
+ * Which library the rail shows.
+ *
+ * `components` is the system-design palette kLab has always had; `shapes` is
+ * the whiteboard library. Named for what each one offers rather than for a
+ * mode, because both are the same kind of thing: a shelf of things to drag
+ * onto the canvas.
+ */
+export type PaletteMode = 'components' | 'shapes';
+
+export const PALETTE_MODES: readonly PaletteMode[] = ['components', 'shapes'];
+
 export const DEFAULT_PREFERENCES: Preferences = {
   costEstimator: true,
   cleanCanvas: false,
@@ -82,6 +109,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   // identity is a design studio, not a dark ops console. Users who want
   // dark can still pick it (or follow the OS with `system`).
   theme: 'light',
+  paletteMode: 'components',
   collapsedGroups: [],
   pinnedKinds: [],
 };
@@ -152,6 +180,7 @@ function load(): Preferences {
       snapToGrid: bool(p.snapToGrid, DEFAULT_PREFERENCES.snapToGrid),
       minimap: bool(p.minimap, DEFAULT_PREFERENCES.minimap),
       theme: theme(p.theme),
+      paletteMode: paletteMode(p.paletteMode),
       collapsedGroups: stringArray(p.collapsedGroups, DEFAULT_PREFERENCES.collapsedGroups),
       pinnedKinds: nodeKindArray(p.pinnedKinds, DEFAULT_PREFERENCES.pinnedKinds),
     };
@@ -184,6 +213,12 @@ function theme(v: unknown): ThemeChoice {
   return v === 'light' || v === 'dark' || v === 'system'
     ? v
     : DEFAULT_PREFERENCES.theme;
+}
+
+/** An unknown mode from a corrupt or older payload falls back rather than
+ *  leaving the rail with no library to render. */
+function paletteMode(v: unknown): PaletteMode {
+  return v === 'shapes' || v === 'components' ? v : DEFAULT_PREFERENCES.paletteMode;
 }
 
 function persist(): void {
@@ -240,6 +275,27 @@ export function toggleCleanCanvas(): void {
 
 export function setCleanCanvas(enabled: boolean): void {
   setPreference('cleanCanvas', enabled);
+}
+
+/**
+ * Switch the rail between the components and the shapes library.
+ *
+ * This is the one writer of `paletteMode`, and it deliberately drives
+ * `cleanCanvas` with it: someone who picks up the shapes library is
+ * whiteboarding, and live request counters, sparklines and load sliders drawn
+ * over a sketch are two intentions fighting for one canvas. Going back to the
+ * components restores the telemetry, because wanting components is wanting the
+ * system.
+ *
+ * The header's own Clean Canvas / Simulation switch stays live afterwards and
+ * is not read back here: this is a stated coupling at the moment of choosing a
+ * mode, not a permanent link. Someone who sketches and then wants the numbers
+ * back can turn them on without being thrown out of the shapes library.
+ */
+export function setPaletteMode(mode: PaletteMode): void {
+  if (current.paletteMode !== mode) setPreference('paletteMode', mode);
+  const wantClean = mode === 'shapes';
+  if (current.cleanCanvas !== wantClean) setPreference('cleanCanvas', wantClean);
 }
 
 function subscribe(fn: () => void): () => void {

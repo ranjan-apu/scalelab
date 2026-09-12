@@ -33,6 +33,9 @@ import Canvas, {
   readoutFor,
   sourceBacklogs,
 } from './components/Canvas';
+import { nodeH, nodeW } from './sim/nodeBox';
+import { SHAPE_SPECS, clampShapeBox, isLinearShape, makeShape } from './sim/shapes';
+import type { ShapeKind } from './sim/types';
 import { Inspector, TrafficControl } from './components/Inspector';
 import { Metrics } from './components/Metrics';
 import { Palette } from './components/Palette';
@@ -44,7 +47,7 @@ import { PenToolbar } from './components/PenToolbar';
 import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { LABS } from './content/labs';
 import { Guide } from './components/guide';
-import { cloneSubgraph, isTopology, selectionSubgraph } from './clipboard';
+import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
 import {
   NOTE_DEFAULT_WIDTH,
@@ -541,10 +544,14 @@ function loadSession(): Session {
     const annotations = sanitizeAnnotations(
       (s.topology as { annotations?: unknown }).annotations,
     );
+    // Node geometry is bounded on the same principle: a stored shape box is
+    // clamped rather than trusted, so a half-written save cannot place a box
+    // large enough to break fit-to-view.
+    const clean = sanitizeTopology(s.topology);
     return {
       topology: {
-        nodes: s.topology.nodes,
-        edges: s.topology.edges,
+        nodes: clean.nodes,
+        edges: clean.edges,
         ...(annotations.length > 0 ? { annotations } : {}),
       },
       rps: Math.min(5000, Math.max(0, rps)),
@@ -602,6 +609,44 @@ function offeredRpsFor(t: Topology): number {
   let sum = 0;
   for (const source of findTrafficSources(t)) sum += source.config.rps;
   return sum;
+}
+
+/**
+ * The nearest free spot to the view centre, on the grid.
+ *
+ * Shared by both palette CLICK paths (a component and a whiteboard shape),
+ * because they are asking the same question and used to answer it twice. A
+ * click carries no drop point of its own, so the view centre is the only
+ * honest aim; the small ring of offsets dodges an exact pile-up from repeated
+ * clicks without ever leaving the neighbourhood. On a dense diagram the new
+ * node simply lands at the centre and overlaps, which the reader can see and
+ * fix -- a node placed "helpfully" outside the viewport cannot be.
+ *
+ * Occupancy is tested against each existing node's OWN box, so dropping a
+ * wide shape next to a narrow one still finds a genuinely free spot.
+ */
+function freeSpotNear(
+  cx: number,
+  cy: number,
+  nodes: readonly SimNode[],
+): [number, number] {
+  const occupied = (px: number, py: number) =>
+    nodes.some(
+      (n) => Math.abs(n.x - px) < nodeW(n) && Math.abs(n.y - py) < nodeH(n),
+    );
+  const STEP = GRID * 4;
+  const ring: [number, number][] = [
+    [0, 0],
+    [STEP, STEP],
+    [-STEP, STEP],
+    [STEP, -STEP],
+    [-STEP, -STEP],
+    [2 * STEP, 0],
+    [0, 2 * STEP],
+    [-2 * STEP, 0],
+    [0, -2 * STEP],
+  ];
+  return ring.find(([dx, dy]) => !occupied(cx + dx, cy + dy)) ?? [0, 0];
 }
 
 /* ------------------------------------------------------------------ *
@@ -1021,7 +1066,11 @@ export default function App() {
       const buf = new Float32Array(SPARK_LEN).fill(Number.NaN);
       if (old) buf.set(old.subarray(1));
       buf[SPARK_LEN - 1] = s
-        ? readoutFor(n.kind, s, n.config, backlogs.get(n.id) ?? 0).spark
+        // A shape plots nothing (readoutFor returns null for it), and the
+        // buffer's non-finite slots are skipped as "no reading", which is
+        // exactly right for a node with no mechanism to trend.
+        ? (readoutFor(n.kind, s, n.config, backlogs.get(n.id) ?? 0)?.spark ??
+            Number.NaN)
         : 0;
       next.set(n.id, buf);
     }
@@ -1810,33 +1859,178 @@ export default function App() {
         handleAddNode(kind, maxX + 220, 200);
         return;
       }
-      // Centre the node on the view, snapped to the grid. A small ring of
-      // nearby offsets dodges an exact pile-up from repeated clicks, but the
-      // search never leaves the neighbourhood: on a dense diagram the node
-      // simply lands at the centre and overlaps, which the student can see
-      // and fix — a node placed "helpfully" outside the viewport cannot be.
+      // Centre the node on the view, snapped to the grid, dodging a pile-up
+      // from repeated clicks. See freeSpotNear for why the search stays local.
       const cx = Math.round((centre.x - NODE_W / 2) / GRID) * GRID;
       const cy = Math.round((centre.y - NODE_H / 2) / GRID) * GRID;
-      const occupied = (px: number, py: number) =>
-        topology.nodes.some(
-          (n) => Math.abs(n.x - px) < NODE_W && Math.abs(n.y - py) < NODE_H,
-        );
-      const STEP = GRID * 4;
-      const ring: [number, number][] = [
-        [0, 0],
-        [STEP, STEP],
-        [-STEP, STEP],
-        [STEP, -STEP],
-        [-STEP, -STEP],
-        [2 * STEP, 0],
-        [0, 2 * STEP],
-        [-2 * STEP, 0],
-        [0, -2 * STEP],
-      ];
-      const spot = ring.find(([dx, dy]) => !occupied(cx + dx, cy + dy)) ?? [0, 0];
+      const spot = freeSpotNear(cx, cy, topology.nodes);
       handleAddNode(kind, cx + spot[0], cy + spot[1]);
     },
     [handleAddNode, topology.nodes],
+  );
+
+  /* ---------------- whiteboard shapes ----------------
+   *
+   * A shape is a NODE, so every write below goes through the same two paths a
+   * component does: applyTopology for a new one, and (in Phase 4) the
+   * streaming resize handler for a dragged handle. The engine is never told
+   * anything and no snapshot is refreshed, because a shape carries no traffic
+   * and has no behaviour to report -- exactly like moving a node.
+   *
+   * PRESENTATION ONLY, in the same sense the annotations block above is.
+   */
+
+  /**
+   * `shape-N`, scanned against the live node list rather than counted.
+   *
+   * Same reasoning as freshAnnId: a restored session's ids predate this tab's
+   * counters, and two nodes sharing an id is a collision the canvas cannot
+   * recover from (an edge would attach itself to whichever one it found
+   * first).
+   */
+  const freshShapeId = useCallback((): string => {
+    const used = new Set(topoLiveRef.current.nodes.map((n) => n.id));
+    let n = 1;
+    while (used.has(`shape-${n}`)) n += 1;
+    return `shape-${n}`;
+  }, []);
+
+  const handleAddShape = useCallback(
+    (shape: ShapeKind, x: number, y: number) => {
+      const node = makeShape(freshShapeId(), shape, x, y);
+      history.commit('add shape', snapRef.current);
+      applyTopology({
+        ...topology,
+        nodes: [...topology.nodes, node],
+      });
+      setSelectedIds(new Set([node.id]));
+    },
+    [applyTopology, topology, history, freshShapeId],
+  );
+
+  /** Rail click (no drop point): the view centre, on this shape's own default
+   *  box so a circle and a wide arrow both land where the click aimed. */
+  const handlePaletteShape = useCallback(
+    (shape: ShapeKind) => {
+      const spec = SHAPE_SPECS[shape];
+      const centre = viewCenterRef.current?.();
+      if (!centre) {
+        // No canvas yet: the old rightward-placement fallback, matching
+        // handlePaletteAdd's.
+        const maxX = topology.nodes.reduce((m, n) => Math.max(m, n.x), 0);
+        handleAddShape(shape, maxX + 220, 200);
+        return;
+      }
+      const cx = Math.round((centre.x - spec.defaultW / 2) / GRID) * GRID;
+      const cy = Math.round((centre.y - spec.defaultH / 2) / GRID) * GRID;
+      const spot = freeSpotNear(cx, cy, topology.nodes);
+      handleAddShape(shape, cx + spot[0], cy + spot[1]);
+    },
+    [handleAddShape, topology.nodes],
+  );
+
+  /**
+   * One frame of a shape resize.
+   *
+   * Mirrors handleMoveNode exactly, and for the same reason: the canvas
+   * streams a frame at a time inside a pointer drag and the shell only has to
+   * write the geometry. The history baseline was captured at promotion, so a
+   * drag contributes ONE entry however many frames it produced; a resize
+   * arriving outside a gesture takes the debounced entry.
+   *
+   * Bounds are enforced here as well as in the canvas, because this is the
+   * boundary the model is written through: a future caller (a numeric field, a
+   * paste) could otherwise put a box out of range that no gesture would have
+   * produced.
+   */
+  const handleResizeShape = useCallback(
+    (id: string, box: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      flipX?: boolean;
+      flipY?: boolean;
+    }) => {
+      if (!history.inGesture) history.touch('resize', snapRef.current);
+      const nodes = topoLiveRef.current.nodes.map((n) => {
+        if (n.id !== id || n.kind !== 'shape') return n;
+        const size = clampShapeBox(n.shape, box.width, box.height);
+        const next: SimNode = {
+          ...n,
+          x: Math.round(box.x),
+          y: Math.round(box.y),
+          width: size.w,
+          height: size.h,
+        };
+        // Only a linear shape carries flips, and only a linear drag produces
+        // them: leaving them alone for a closed shape keeps a stray field from
+        // arriving through this path.
+        if (isLinearShape(n.shape)) {
+          if (box.flipX !== undefined) next.flipX = box.flipX;
+          if (box.flipY !== undefined) next.flipY = box.flipY;
+          // A horizontal line has no flipY to store: absent is false, so
+          // flipping back to the default writes nothing.
+          if (next.flipX === false) delete next.flipX;
+          if (next.flipY === false) delete next.flipY;
+        }
+        return next;
+      });
+      // setAnnotations' twin for nodes: React state AND the live mirror, with
+      // no snapshot refresh, because geometry is presentation.
+      const t = topoLiveRef.current;
+      const nt: Topology = { ...t, nodes };
+      topoLiveRef.current = nt;
+      setTopology(nt);
+    },
+    [history],
+  );
+
+  /** Recolour a shape. `tone` is a palette index, never a colour. */
+  const handleSetShapeTone = useCallback(
+    (id: string, tone: number) => {
+      const nodes = topoLiveRef.current.nodes;
+      const cur = nodes.find((n) => n.id === id);
+      if (!cur || cur.kind !== 'shape' || cur.tone === tone) return;
+      // Wrapped rather than clamped, matching sanitizeTopology, so a shade
+      // index can never land outside the palette and render unstyled.
+      const next = ((Math.floor(tone) % SECTION_TONE_COUNT) + SECTION_TONE_COUNT) %
+        SECTION_TONE_COUNT;
+      history.commit('shade', snapRef.current);
+      const t = topoLiveRef.current;
+      const nt: Topology = {
+        ...t,
+        nodes: nodes.map((n) => (n.id === id ? { ...n, tone: next } : n)),
+      };
+      topoLiveRef.current = nt;
+      setTopology(nt);
+    },
+    [history],
+  );
+
+  /**
+   * Swap a shape's body: the same box, shade and label, a different outline.
+   *
+   * Deliberately NOT a delete-and-recreate: the id survives, so every edge
+   * already wired to the shape stays wired, and the reader who changes a
+   * rectangle into a diamond has not lost the connections they drew through
+   * it.
+   */
+  const handleSetShapeVariant = useCallback(
+    (id: string, shape: ShapeKind) => {
+      const nodes = topoLiveRef.current.nodes;
+      const cur = nodes.find((n) => n.id === id);
+      if (!cur || cur.kind !== 'shape' || (cur.shape ?? 'rect') === shape) return;
+      history.commit('shape', snapRef.current);
+      const t = topoLiveRef.current;
+      const nt: Topology = {
+        ...t,
+        nodes: nodes.map((n) => (n.id === id ? { ...n, shape } : n)),
+      };
+      topoLiveRef.current = nt;
+      setTopology(nt);
+    },
+    [history],
   );
 
   const handleConnect = useCallback(
@@ -3469,6 +3663,7 @@ export default function App() {
         >
           <Palette
             onAdd={handlePaletteAdd}
+            onAddShape={handlePaletteShape}
             onAddAnnotation={handlePaletteAnnotation}
             armedTool={armedTool}
             searchFocusSignal={paletteFocusNonce}
@@ -3530,6 +3725,9 @@ export default function App() {
               onRename={handleRename}
               onDuplicateForDrag={handleDuplicateForDrag}
               onPaste={handlePaste}
+              onDropShape={handleAddShape}
+              onResizeShape={handleResizeShape}
+              onSetShapeTone={handleSetShapeTone}
               onMoveAnnotation={handleMoveAnnotation}
               onResizeSection={handleResizeSection}
               onResizeTextBox={handleResizeTextBox}
@@ -3665,6 +3863,7 @@ export default function App() {
             onDelete={handleDeleteNode}
             onRename={handleRename}
             onDescribe={handleDescriptionChange}
+            onSetShape={handleSetShapeVariant}
             selectedNodes={selectedNodes}
             selectedEdgeCount={selectedEdgeCount}
             onChangeMany={handleConfigChangeMany}

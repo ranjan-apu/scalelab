@@ -144,6 +144,13 @@
 .mm-node[data-kind='sidecar'] {
   --k-line: var(--kind-sidecar-line);
 }
+/* The whiteboard layer borrows the surface ramp rather than a kind quartet;
+   a toned shape overrides this from the same global rule the canvas uses
+   ([data-kind='shape'][data-tone='N'] in index.css), so the map agrees with
+   the canvas it is a map of. */
+.mm-node[data-kind='shape'] {
+  --k-line: var(--border-strong);
+}
 
 /* A small window is mostly canvas already, so the map would be taking room
    from the thing it helps you navigate. */

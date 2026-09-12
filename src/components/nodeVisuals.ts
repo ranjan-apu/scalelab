@@ -69,6 +69,8 @@ import { __iconNode as icApigateway } from 'lucide-react/dist/esm/icons/door-ope
 import { __iconNode as icSidecar } from 'lucide-react/dist/esm/icons/blocks.mjs';
 import { __iconNode as icBulkhead } from 'lucide-react/dist/esm/icons/square-split-horizontal.mjs';
 import { __iconNode as icLoadshedder } from 'lucide-react/dist/esm/icons/funnel-x.mjs';
+/* Whiteboard */
+import { __iconNode as icShape } from 'lucide-react/dist/esm/icons/shapes.mjs';
 
 /**
  * Shared, non-component values used by both the canvas and the palette.
@@ -214,6 +216,12 @@ export const KIND_ICON: Record<NodeKind, IconNode> = {
   /* TRIAGE: the limiter's funnel with the discard cross; some traffic is
      deliberately turned away so the rest survives. */
   loadshedder: icLoadshedder,
+
+  /* WHITEBOARD: the shapes set itself, drawn as the three primitives a person
+     reaches for first. This is the one kind whose identity is not a behaviour
+     (it has none), so the icon says "a shape goes here" rather than pretending
+     to depict a mechanism. */
+  shape: icShape,
 };
 
 /**
@@ -266,6 +274,7 @@ export const KIND_NAME: Record<NodeKind, string> = {
   edgecompute: 'Edge compute',
   writebehind: 'Write-behind cache',
   loadshedder: 'Load shedder',
+  shape: 'Shape',
 };
 
 /**
@@ -321,6 +330,7 @@ export const KIND_TERM: Record<NodeKind, string> = {
   edgecompute: 'edgecompute',
   writebehind: 'writebehind',
   loadshedder: 'loadshedder',
+  shape: 'shape',
 };
 
 /* ================================================================== *
@@ -487,6 +497,17 @@ export interface KindGroup {
   id: string;
   title: string;
   kinds: NodeKind[];
+  /**
+   * A group that is not part of the simulation vocabulary.
+   *
+   * The whiteboard shapes live in their own group so the taxonomy stays total
+   * (every kind in exactly one group, which nodeVisuals.groups.test.ts
+   * enforces), but they are not components: a shape carries no traffic and
+   * has no behaviour to explain. Consumers that are talking about the SYSTEM
+   * rather than the canvas -- the rail's component list, the canvas ledger's
+   * breakdown -- filter on this instead of comparing against the group's id.
+   */
+  decorative?: true;
 }
 
 export const KIND_GROUPS: KindGroup[] = [
@@ -536,7 +557,25 @@ export const KIND_GROUPS: KindGroup[] = [
       'sidecar',
     ],
   },
+  {
+    // The whiteboard layer. Listed last, and `decorative` so every surface
+    // that means "the system" rather than "the canvas" can leave it out.
+    id: 'shapes',
+    title: 'Shapes',
+    kinds: ['shape'],
+    decorative: true,
+  },
 ];
+
+/**
+ * The groups that describe the SYSTEM: everything but the whiteboard layer.
+ *
+ * The rail's component list, its kind count and the canvas ledger all read
+ * this rather than KIND_GROUPS, so "how many components are offered" and
+ * "what is this design made of" keep meaning the simulation vocabulary even
+ * though the taxonomy carries one more shelf.
+ */
+export const COMPONENT_GROUPS: KindGroup[] = KIND_GROUPS.filter((g) => !g.decorative);
 
 /** Which group a kind belongs to, resolved once rather than scanned per call. */
 const GROUP_OF_KIND = new Map<NodeKind, KindGroup>();

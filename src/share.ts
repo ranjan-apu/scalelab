@@ -1,4 +1,4 @@
-import { isTopology } from './clipboard';
+import { isTopology, sanitizeTopology } from './clipboard';
 import { sanitizeAnnotations } from './sim/annotations';
 import type { Topology } from './sim/types';
 
@@ -367,6 +367,10 @@ export async function decodeTopology(hash: string): Promise<ShareResult> {
   // dangling edge, an unknown kind or a non-finite coordinate is rejected
   // here, before the engine is ever handed the graph.
   if (!isTopology(candidate)) return { status: 'invalid', message: BAD_LINK };
+  // ...and then BOUNDED: a link can carry a shape whose box is absurd or a
+  // shape name this build cannot draw, both of which are recoverable and
+  // must not cost the reader their link.
+  const { nodes, edges } = sanitizeTopology(candidate);
 
   // Annotations are presentation data the engine never sees, so they
   // cross the boundary through their own sanitizer, which is also what
@@ -376,8 +380,8 @@ export async function decodeTopology(hash: string): Promise<ShareResult> {
   return {
     status: 'ok',
     topology: {
-      nodes: candidate.nodes,
-      edges: candidate.edges,
+      nodes,
+      edges,
       ...(annotations.length > 0 ? { annotations } : {}),
     },
   };

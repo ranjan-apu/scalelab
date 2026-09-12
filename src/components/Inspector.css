@@ -188,6 +188,57 @@
 }
 
 /* --------------------------------------------------------------------------
+   Shape picker
+
+   A row of outlines, because a whiteboard shape is chosen by its outline and
+   not by its name. Sized for a fingertip on touch, and the active one takes
+   the accent for the same reason a selected tool does: which body you have
+   chosen is the one fact this row exists to state.
+   -------------------------------------------------------------------------- */
+
+.ins-shape-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.ins-shape-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.ins-shape-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.ins-shape-btn.is-active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+@media (pointer: coarse) {
+  .ins-shape-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* --------------------------------------------------------------------------
    Fields
    -------------------------------------------------------------------------- */
 
