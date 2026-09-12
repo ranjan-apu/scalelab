@@ -1,0 +1,230 @@
+---
+// ScaleLab landing page. Zero client JS by design: pure static HTML + CSS
+// for instant loads and full search-indexability. The playground app lives
+// at /app/ (built by Vite into dist/app/).
+const appUrl = import.meta.env.DEV ? 'http://localhost:5173/' : '/app/';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScaleLab — System Design Studio: Diagram, Simulate & Practice</title>
+    <meta
+      name="description"
+      content="ScaleLab is a free in-browser system design studio: diagram architectures on a canvas, run real load simulations with queueing and failure cascades, and practice 37 guided interview problems with auto-graded labs."
+    />
+    <meta name="theme-color" content="#0d131f" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ScaleLab — System Design Studio" />
+    <meta
+      property="og:description"
+      content="Draw a system, push real traffic through it, watch it break, then rehearse explaining it. 37 interview packs, 34 concept lessons, 30 runnable presets — all in the browser."
+    />
+    <style>
+      :root {
+        --bg: #0d131f;
+        --surface: #131c2e;
+        --surface-2: #1a2438;
+        --border: #26334d;
+        --text: #eef2f9;
+        --muted: #9aa8c3;
+        --accent: #38bdf8;
+        --accent-2: #818cf8;
+        --green: #34d399;
+        --radius: 14px;
+        --max: 1080px;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.6;
+      }
+      a { color: var(--accent); }
+      .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+      header.nav {
+        position: sticky; top: 0; z-index: 10;
+        background: rgba(13, 19, 31, 0.85);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--border);
+      }
+      header.nav .wrap {
+        display: flex; align-items: center; justify-content: space-between;
+        padding-top: 14px; padding-bottom: 14px;
+      }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+      .brand img { width: 30px; height: 30px; }
+      .btn {
+        display: inline-block; padding: 12px 26px; border-radius: 999px;
+        font-weight: 700; text-decoration: none; border: 1px solid transparent;
+      }
+      .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #06121f; }
+      .btn-primary:hover { filter: brightness(1.1); }
+      .btn-ghost { border-color: var(--border); color: var(--text); }
+      .btn-ghost:hover { border-color: var(--accent); }
+      .btn-sm { padding: 8px 18px; font-size: 0.9rem; }
+      .hero { text-align: center; padding: 96px 0 64px; }
+      .hero .kicker {
+        display: inline-block; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase;
+        color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 6px 16px; margin-bottom: 24px;
+      }
+      .hero h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); line-height: 1.12; margin: 0 0 20px; letter-spacing: -0.02em; }
+      .hero h1 span { background: linear-gradient(135deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .hero p.lead { color: var(--muted); font-size: 1.15rem; max-width: 640px; margin: 0 auto 32px; }
+      .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+      .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 56px 0 0; }
+      .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 12px; }
+      .stat b { display: block; font-size: 1.8rem; color: var(--accent); }
+      .stat span { color: var(--muted); font-size: 0.9rem; }
+      section.block { padding: 64px 0; }
+      section.block h2 { font-size: 1.9rem; margin: 0 0 8px; letter-spacing: -0.01em; }
+      section.block > .wrap > p.sub { color: var(--muted); margin: 0 0 32px; max-width: 640px; }
+      .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+      .card h3 { margin: 0 0 8px; font-size: 1.1rem; }
+      .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+      .card .icon { font-size: 1.6rem; }
+      .steps { counter-reset: step; display: grid; gap: 12px; max-width: 720px; }
+      .step { display: flex; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+      .step::before {
+        counter-increment: step; content: counter(step);
+        flex: none; width: 34px; height: 34px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #06121f; font-weight: 800; display: grid; place-items: center;
+      }
+      .step b { display: block; margin-bottom: 2px; }
+      .step p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+      .packs { columns: 2; gap: 16px; }
+      .packs li { break-inside: avoid; margin-bottom: 10px; color: var(--muted); }
+      .packs li b { color: var(--text); }
+      .final { text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 56px 24px; margin-bottom: 64px; }
+      .final h2 { margin: 0 0 12px; font-size: 2rem; }
+      .final p { color: var(--muted); margin: 0 0 28px; }
+      footer { border-top: 1px solid var(--border); padding: 28px 0 40px; color: var(--muted); font-size: 0.9rem; }
+      footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      @media (max-width: 760px) {
+        .grid-3, .grid-2 { grid-template-columns: 1fr; }
+        .stats { grid-template-columns: repeat(2, 1fr); }
+        .packs { columns: 1; }
+        .hero { padding: 64px 0 40px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap">
+        <a class="brand" href="/">
+          <img src="/favicon.svg" alt="ScaleLab logo" width="30" height="30" />
+          ScaleLab
+        </a>
+        <a class="btn btn-primary btn-sm" href={appUrl}>Open playground</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <span class="kicker">Free · In-browser · No account</span>
+          <h1>Design systems. <span>Break them safely.</span> Explain them well.</h1>
+          <p class="lead">
+            ScaleLab is a system design studio: diagram architectures on a canvas,
+            push real simulated traffic through them, and rehearse 37 guided
+            interview problems — all in your browser.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href={appUrl}>Launch the playground</a>
+            <a class="btn btn-ghost" href="#how">How it works</a>
+          </div>
+          <div class="stats" role="list" aria-label="Library contents">
+            <div class="stat" role="listitem"><b>37</b><span>interview packs</span></div>
+            <div class="stat" role="listitem"><b>34</b><span>concept lessons</span></div>
+            <div class="stat" role="listitem"><b>37</b><span>auto-graded labs</span></div>
+            <div class="stat" role="listitem"><b>30</b><span>runnable presets</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="features">
+        <div class="wrap">
+          <h2>One workspace, three superpowers</h2>
+          <p class="sub">Whiteboard diagrams don't move and production load tests are risky. ScaleLab closes the gap.</p>
+          <div class="grid-3">
+            <article class="card">
+              <div class="icon" aria-hidden="true">🧩</div>
+              <h3>Diagram anything</h3>
+              <p>34 architecture components — gateways, caches, shards, queues, breakers, regions — plus notes, sections, and a freehand pen, on an infinite canvas.</p>
+            </article>
+            <article class="card">
+              <div class="icon" aria-hidden="true">🌊</div>
+              <h3>Simulate real load</h3>
+              <p>A discrete-event engine runs traffic through whatever you draw: queueing, p99 latency, retry storms, circuit breakers tripping, autoscalers booting late.</p>
+            </article>
+            <article class="card">
+              <div class="icon" aria-hidden="true">🎤</div>
+              <h3>Practice interviews</h3>
+              <p>Guided packs walk requirements → entities → API → design → deep dives, pinnable to the canvas next to a runnable starter system — then auto-graded labs prove it holds.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="how">
+        <div class="wrap">
+          <h2>How it works</h2>
+          <p class="sub">From blank canvas to confident explanation in three moves.</p>
+          <div class="steps">
+            <div class="step">
+              <div><b>1. Draw your architecture</b><p>Drag components, wire ports, or load one of 30 presets — from foundational patterns to reconstructions of real production systems.</p></div>
+            </div>
+            <div class="step">
+              <div><b>2. Push traffic through it</b><p>Dial steady, ramp, spike, or day-night load. Watch latency percentiles climb, queues fill, and breakers trip — every number comes from the simulation.</p></div>
+            </div>
+            <div class="step">
+              <div><b>3. Rehearse and prove it</b><p>Walk an interview pack, pin each section beside your diagram, and run the lab checks to prove your design holds its SLO.</p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block" id="library">
+        <div class="wrap">
+          <h2>A practice library, not a blank page</h2>
+          <p class="sub">Core drills, popular interview problems, and hard system challenges — each with concepts, starter systems, and graded labs.</p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>🎯 Interview packs</h3>
+              <p>URL shortener, social feeds, group chat, ticket booking, ride dispatch, payments ledger, video platform, flash sales, web crawler, and 28 more — every one runnable.</p>
+            </article>
+            <article class="card">
+              <h3>📚 Concept lessons</h3>
+              <p>Caching, sharding, consistent hashing, CAP tradeoffs, contention control, event streaming, vector search, and 27 more — each with a live demo preset.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <div class="wrap">
+        <section class="final">
+          <h2>Your next design review starts here</h2>
+          <p>No signup. No backend. Your work autosaves locally and shares via link.</p>
+          <a class="btn btn-primary" href={appUrl}>Open the ScaleLab playground</a>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>ScaleLab — a system design studio in the browser.</span>
+        <a href={appUrl}>Launch playground →</a>
+      </div>
+    </footer>
+  </body>
+</html>
