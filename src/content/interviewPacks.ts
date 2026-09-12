@@ -138,6 +138,8 @@ const FOUNDING_PACKS: readonly InterviewPack[] = [
         { method: 'GET', path: '/timeline?cursor=', purpose: 'Paged home timeline' },
       ],
     },
+    concepts: ['scaling-reads', 'caching', 'consistent-hashing'],
+    patterns: ['scaling-reads'],
     hldPresetId: 'twitter',
     hldSteps: [
       'Client to service to primary database: the simplest cut that can publish and read.',
@@ -229,6 +231,8 @@ const FOUNDING_PACKS: readonly InterviewPack[] = [
         { method: 'GET', path: '/links/{code}/stats', purpose: 'Open counts for a link' },
       ],
     },
+    concepts: ['caching', 'scaling-reads', 'capacity-numbers'],
+    patterns: ['scaling-reads'],
     hldPresetId: 'cache-aside',
     hldSteps: [
       'Client to service to primary database: shorten writes a row, open reads it back.',
@@ -322,6 +326,8 @@ const FOUNDING_PACKS: readonly InterviewPack[] = [
         { method: 'WS', path: '/stream', purpose: 'Incoming messages, receipts, presence' },
       ],
     },
+    concepts: ['realtime-updates', 'message-queue', 'consistency-models'],
+    patterns: ['realtime-updates'],
     hldPresetId: 'whatsapp',
     hldSteps: [
       'Client to gateway to service to database: send persists, then routes.',
