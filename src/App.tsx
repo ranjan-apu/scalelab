@@ -1,4 +1,6 @@
 import {
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -22,8 +24,12 @@ import { useToast } from './hooks/useToast';
 import { Engine } from './sim/engine';
 import { PRESETS, makeNode } from './sim/presets';
 import type { Preset } from './sim/presets';
-import { CostModal } from './components/CostModal';
-import { AdvisorDrawer } from './components/AdvisorDrawer';
+const CostModal = lazy(() =>
+  import('./components/CostModal').then((m) => ({ default: m.CostModal })),
+);
+const AdvisorDrawer = lazy(() =>
+  import('./components/AdvisorDrawer').then((m) => ({ default: m.AdvisorDrawer })),
+);
 import { calculateCloudCosts } from './content/cloudPricing';
 import { auditTopology } from './sim/advisor';
 import { exportToHldMarkdown } from './hldExport';
@@ -41,16 +47,30 @@ import type { ShapeKind } from './sim/types';
 import { Inspector, TrafficControl } from './components/Inspector';
 import { Metrics } from './components/Metrics';
 import { Palette } from './components/Palette';
-import { Glossary } from './components/Glossary';
-import { Shortcuts } from './components/Shortcuts';
-import { Examples } from './components/Examples';
-import { InterviewPractice } from './components/InterviewPractice';
+const Glossary = lazy(() =>
+  import('./components/Glossary').then((m) => ({ default: m.Glossary })),
+);
+const Shortcuts = lazy(() =>
+  import('./components/Shortcuts').then((m) => ({ default: m.Shortcuts })),
+);
+const Examples = lazy(() =>
+  import('./components/Examples').then((m) => ({ default: m.Examples })),
+);
+const InterviewPractice = lazy(() =>
+  import('./components/InterviewPractice').then((m) => ({
+    default: m.InterviewPractice,
+  })),
+);
 import { PenToolbar } from './components/PenToolbar';
 import { INTERVIEW_PACKS } from './content/interviewPacks';
 import { LABS } from './content/labs';
 import { packToCanvasDoc } from './content/packDoc';
-import { Guide } from './components/guide';
-import { ConceptsView } from './components/concepts';
+const Guide = lazy(() =>
+  import('./components/guide').then((m) => ({ default: m.Guide })),
+);
+const ConceptsView = lazy(() =>
+  import('./components/concepts').then((m) => ({ default: m.ConceptsView })),
+);
 import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
 import {
@@ -92,9 +112,13 @@ import type { InterviewTemplate } from './components/annotationLayout';
 import type { AnnotationTool } from './components/Palette';
 import { TooltipLayer, setGlossaryNavigate } from './components/Tooltip';
 import { togglePreference, usePreference } from './content/preferences';
-import { Settings } from './components/Settings';
+const Settings = lazy(() =>
+  import('./components/Settings').then((m) => ({ default: m.Settings })),
+);
 import { MainMenu } from './components/MainMenu';
-import { Designs } from './components/Designs';
+const Designs = lazy(() =>
+  import('./components/Designs').then((m) => ({ default: m.Designs })),
+);
 import { getDesign, saveDesign } from './savedDesigns';
 import { PanelResizer } from './components/PanelResizer';
 import { applyTheme } from './theme/applyTheme';
@@ -4123,6 +4147,8 @@ export default function App() {
       ) : null}
 
       <TooltipLayer />
+      {/* Lazily-loaded overlays: each chunk fetches on first open, never on boot. */}
+      <Suspense fallback={null}>
       <Glossary open={glossaryOpen} onClose={closeGlossary} focusId={glossaryFocusId} />
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <Guide
@@ -4248,6 +4274,7 @@ export default function App() {
         onLoadLab={handleLoadLab}
         onPracticeOnCanvas={handlePinPracticePack}
       />
+      </Suspense>
     </div>
   );
 }
