@@ -1,13 +1,28 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { GuideTab } from '../components/guide/types';
+
+/**
+ * True once `open` has ever been true. Overlays mount on first open and
+ * stay mounted afterwards, so a lazy chunk fetches on demand but dialog
+ * state (tabs, search, selected pack) survives close/reopen exactly as
+ * when everything was mounted at boot.
+ */
+function useSeen(open: boolean): boolean {
+  const [seen, setSeen] = useState(open);
+  useEffect(() => {
+    if (open) setSeen(true);
+  }, [open]);
+  return seen;
+}
 
 /**
  * Every overlay/sheet/dialog open flag in the shell, in one hook.
  *
  * Extracted verbatim from App.tsx: same state, same lazy initializers, same
  * callbacks. Callers destructure the exact names App used, so no call site
- * changes. No effects live here -- the tooltip "see also" registration
- * (setGlossaryNavigate) stays in App next to the module it talks to.
+ * changes. No effects live here beyond mount-once tracking -- the tooltip
+ * "see also" registration (setGlossaryNavigate) stays in App next to the
+ * module it talks to.
  */
 export function useModals() {
   const [costModalOpen, setCostModalOpen] = useState(false);
@@ -65,6 +80,17 @@ export function useModals() {
     setGlossaryFocusId(undefined);
   }, []);
 
+  const seenCostModal = useSeen(costModalOpen);
+  const seenAdvisor = useSeen(advisorDrawerOpen);
+  const seenGlossary = useSeen(glossaryOpen);
+  const seenShortcuts = useSeen(shortcutsOpen);
+  const seenSettings = useSeen(settingsOpen);
+  const seenDesigns = useSeen(designsOpen);
+  const seenGuide = useSeen(guideOpen);
+  const seenExamples = useSeen(examplesOpen);
+  const seenInterview = useSeen(interviewOpen);
+  const seenConcepts = useSeen(conceptsOpen);
+
   return {
     costModalOpen,
     setCostModalOpen,
@@ -99,6 +125,16 @@ export function useModals() {
     openConcepts,
     pendingPackId,
     setPendingPackId,
+    seenCostModal,
+    seenAdvisor,
+    seenGlossary,
+    seenShortcuts,
+    seenSettings,
+    seenDesigns,
+    seenGuide,
+    seenExamples,
+    seenInterview,
+    seenConcepts,
   };
 }
 

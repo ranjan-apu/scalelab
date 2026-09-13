@@ -717,6 +717,8 @@ export default function App() {
     conceptInitialId,
     openConcepts,
     pendingPackId, setPendingPackId,
+    seenCostModal, seenAdvisor, seenGlossary, seenShortcuts, seenSettings,
+    seenDesigns, seenGuide, seenExamples, seenInterview, seenConcepts,
   } = useModals();
   const [architectureTitle, setArchitectureTitle] = useState<string>(() => {
     if (initial.presetId) {
@@ -4149,8 +4151,13 @@ export default function App() {
       <TooltipLayer />
       {/* Lazily-loaded overlays: each chunk fetches on first open, never on boot. */}
       <Suspense fallback={null}>
+      {seenGlossary && (
       <Glossary open={glossaryOpen} onClose={closeGlossary} focusId={glossaryFocusId} />
+      )}
+      {seenShortcuts && (
       <Shortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      )}
+      {seenGuide && (
       <Guide
         open={guideOpen}
         initialTab={guideTab}
@@ -4180,6 +4187,8 @@ export default function App() {
           openConcepts(id);
         }}
       />
+      )}
+      {seenConcepts && (
       <ConceptsView
         open={conceptsOpen}
         initialConceptId={conceptInitialId}
@@ -4195,6 +4204,7 @@ export default function App() {
           setInterviewOpen(true);
         }}
       />
+      )}
       {/* The real file input, kept off screen. A bare one cannot be styled,
           so the Settings row calls click() on this. It lives beside the
           dialogs rather than in the top bar, which no longer carries any
@@ -4208,6 +4218,7 @@ export default function App() {
         aria-hidden="true"
         onChange={handleImportPick}
       />
+      {seenDesigns && (
       <Designs
         open={designsOpen}
         onClose={() => setDesignsOpen(false)}
@@ -4218,6 +4229,8 @@ export default function App() {
           presetId ? (PRESETS.find((p) => p.id === presetId)?.name ?? '') : ''
         }
       />
+      )}
+      {seenSettings && (
       <Settings
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
@@ -4227,8 +4240,9 @@ export default function App() {
         onExportMermaid={handleExportMermaid}
         onExportHldMarkdown={handleExportHldMarkdown}
       />
+      )}
 
-      {costEstimator && (
+      {costEstimator && seenCostModal && (
         <CostModal
           open={costModalOpen}
           onClose={() => setCostModalOpen(false)}
@@ -4236,7 +4250,7 @@ export default function App() {
         />
       )}
 
-      {advisor && (
+      {advisor && seenAdvisor && (
         <AdvisorDrawer
           open={advisorDrawerOpen}
           onClose={() => setAdvisorDrawerOpen(false)}
@@ -4248,6 +4262,7 @@ export default function App() {
         />
       )}
 
+      {seenExamples && (
       <Examples
         open={examplesOpen}
         onClose={() => setExamplesOpen(false)}
@@ -4256,6 +4271,8 @@ export default function App() {
         onLoad={handleLoadPreset}
         onNewCanvas={handleNewCanvas}
       />
+      )}
+      {seenInterview && (
       <InterviewPractice
         open={interviewOpen}
         onClose={() => {
@@ -4274,6 +4291,7 @@ export default function App() {
         onLoadLab={handleLoadLab}
         onPracticeOnCanvas={handlePinPracticePack}
       />
+      )}
       </Suspense>
     </div>
   );
