@@ -17,6 +17,8 @@ import type {
 } from 'react';
 import type { NodeConfig, NodeKind, SimEdge, SimNode, SimSnapshot, Topology, TrafficPattern } from './sim/types';
 import { useCoarsePointer } from './useCoarsePointer';
+import { useModals } from './hooks/useModals';
+import { useToast } from './hooks/useToast';
 import { Engine } from './sim/engine';
 import { PRESETS, makeNode } from './sim/presets';
 import type { Preset } from './sim/presets';
@@ -49,7 +51,6 @@ import { LABS } from './content/labs';
 import { packToCanvasDoc } from './content/packDoc';
 import { Guide } from './components/guide';
 import { ConceptsView } from './components/concepts';
-import type { GuideTab } from './components/guide/types';
 import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
 import {
@@ -675,8 +676,24 @@ export default function App() {
   const [topology, setTopology] = useState<Topology>(initial.topology);
   const [rps, setRps] = useState<number>(initial.rps);
   const [presetId, setPresetId] = useState<string | null>(initial.presetId);
-  const [costModalOpen, setCostModalOpen] = useState(false);
-  const [advisorDrawerOpen, setAdvisorDrawerOpen] = useState(false);
+  const {
+    costModalOpen, setCostModalOpen,
+    advisorDrawerOpen, setAdvisorDrawerOpen,
+    glossaryOpen, openGlossary, closeGlossary,
+    glossaryFocusId,
+    shortcutsOpen, setShortcutsOpen,
+    settingsOpen, setSettingsOpen,
+    menuOpen, setMenuOpen,
+    designsOpen, setDesignsOpen,
+    guideTab, setGuideTab,
+    guideOpen, setGuideOpen,
+    examplesOpen, setExamplesOpen,
+    interviewOpen, setInterviewOpen,
+    conceptsOpen, setConceptsOpen,
+    conceptInitialId,
+    openConcepts,
+    pendingPackId, setPendingPackId,
+  } = useModals();
   const [architectureTitle, setArchitectureTitle] = useState<string>(() => {
     if (initial.presetId) {
       const p = PRESETS.find((preset) => preset.id === initial.presetId);
@@ -698,13 +715,7 @@ export default function App() {
   );
   const [running, setRunning] = useState(true);
 
-  /**
-   * The glossary side sheet.
-   *
-   * `glossaryFocusId` is the entry to land on. It is cleared when the sheet
-   * closes so that reopening from the top bar starts at the top of the list
-   * rather than resuming wherever the last "see also" link happened to go.
-   */
+  /* Glossary open state lives in useModals (see openGlossary/closeGlossary). */
   /* The theme is applied to <html>, which is outside React, so this is a
      genuine external-system synchronisation rather than derived state. */
   const themeChoice = usePreference('theme');
@@ -715,27 +726,7 @@ export default function App() {
   useEffect(() => {
     applyTheme(themeChoice);
   }, [themeChoice]);
-  const [glossaryOpen, setGlossaryOpen] = useState(false);
-  const [glossaryFocusId, setGlossaryFocusId] = useState<string | undefined>(undefined);
-
-  /** The keyboard shortcuts dialog. Ctrl+/ and the top-bar button. */
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [designsOpen, setDesignsOpen] = useState(false);
-  const [guideTab, setGuideTab] = useState<GuideTab>('overview');
-  const [guideOpen, setGuideOpen] = useState(() => {
-    try {
-      // Clear legacy keys so the first-run policy below governs alone.
-      localStorage.removeItem('scalelab.guide-dismissed');
-      sessionStorage.removeItem('scalelab.guide-dismissed');
-      // First launch ever: the guide opens by itself. Afterwards it only
-      // opens from the sidebar, never automatically.
-      return localStorage.getItem('scalelab.guide-seen-v1') !== 'true';
-    } catch {
-      return true; // If storage is unavailable, show the guide anyway.
-    }
-  });
+  /* Shortcuts/settings/menu/designs/guide open state lives in useModals. */
 
   /**
    * Whether the canvas has reached storage yet.
@@ -747,18 +738,7 @@ export default function App() {
    */
   const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
 
-  const [examplesOpen, setExamplesOpen] = useState(false);
-  const [interviewOpen, setInterviewOpen] = useState(false);
-  const [conceptsOpen, setConceptsOpen] = useState(false);
-  const [conceptInitialId, setConceptInitialId] = useState<string | null>(null);
-
-  const openConcepts = useCallback((id?: string) => {
-    if (id) setConceptInitialId(id);
-    setConceptsOpen(true);
-  }, []);
-
-  /** Pack preselected when practice opens from a concept lesson. Cleared on close. */
-  const [pendingPackId, setPendingPackId] = useState<string | null>(null);
+  /* Examples/interview/concepts open state lives in useModals. */
 
   /**
    * The pen as currently held. Session state, reset every visit by
@@ -990,15 +970,7 @@ export default function App() {
    */
   const stageSafeRef = useRef<HTMLDivElement | null>(null);
 
-  const openGlossary = useCallback((id?: string) => {
-    setGlossaryFocusId(id);
-    setGlossaryOpen(true);
-  }, []);
-
-  const closeGlossary = useCallback(() => {
-    setGlossaryOpen(false);
-    setGlossaryFocusId(undefined);
-  }, []);
+  /* openGlossary/closeGlossary come from useModals. */
 
   /**
    * Where a tooltip's "see also" links go.
@@ -1227,13 +1199,7 @@ export default function App() {
    * that something happened. `id` keys the element so consecutive undos
    * restart the entrance animation instead of freezing on one message.
    */
-  const [toast, setToast] = useState<{ text: string; id: number } | null>(null);
-  const toastSeq = useRef(0);
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 2200);
-    return () => window.clearTimeout(t);
-  }, [toast]);
+  const { toast, setToast, toastSeq } = useToast();
 
   const applyEntry = useCallback(
     (entry: HistoryEntry, verb: 'Undid' | 'Redid') => {
