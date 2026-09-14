@@ -32,7 +32,7 @@ import {
   resilientDelivery,
 } from './presets/foundational';
 import {
-  discord, uber, netflix, spotify, twitter, stripe, whatsapp,
+  discord, uber, netflix, spotify, twitter, stripe, whatsapp, photofeedTopology,
 } from './presets/realworld';
 import {
   ticketmasterTopology, tinyurlTopology, leetcodeTopology,
@@ -247,8 +247,8 @@ export const PRESETS: Preset[] = [
     name: 'Photo Feed: media posts and home timeline',
     tagline: 'Blob uploads, edge delivery and precomputed feeds',
     description:
-      'A photo-sharing feed starter: media bytes travel to object storage and out through edge caches while the follow graph fans posted items into precomputed home timelines. Watch edge hit rate decide origin load, and celebrity posts strain the fan-out workers.',
-    topology: twitter,
+      'A photo-sharing feed starter: media bytes travel to object storage and out through edge caches while the follow graph fans posted items into precomputed home timelines. Watch edge hit rate decide origin load, and the rendition farm work through the upload queue.',
+    topology: photofeedTopology,
   },
   {
     id: 'auction',

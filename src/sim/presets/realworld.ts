@@ -1649,7 +1649,64 @@ const whatsapp: Topology = {
   ],
 };
 
-export const realworldTopologies = {
-  discord, uber, netflix, spotify, twitter, stripe, whatsapp,
+/* ------------------------------------------------------------------ *
+ * Photo Feed: media posts and home timeline
+ *
+ * Reads and bytes travel apart. Feed opens hit the edge and the timeline
+ * cache; only misses reach the composer and the metadata store. Uploads
+ * take the lower lane: bytes land in blob storage, a queue feeds the
+ * rendition farm, finished renditions land back in the store. The lab
+ * ramps opens and uploads together: watch edge hit rate decide how much
+ * origin load the read path really is.
+ * ------------------------------------------------------------------ */
+
+const photofeedTopology: Topology = {
+  nodes: [
+    node('pf-viewers', 'client', 'Feed Viewers', COL(0), ROW(0), { rps: 300, timeoutMs: 2000 }, 'Chronological home feed opens, heavily read-skewed.'),
+    node('pf-edge', 'cdn', 'Edge Cache', COL(1), ROW(0), { hitRate: 0.9 }, 'Serves hot photos and feed payloads from PoPs near viewers.'),
+    node('pf-api', 'apigateway', 'Feed API', COL(2), ROW(0), { capacity: 64 }, 'Authenticates opens and routes feed versus upload traffic.'),
+    node('pf-tcache', 'cache', 'Timeline Cache', COL(3), ROW(0), { capacity: 128, hitRate: 0.85 }, 'Precomputed home timelines, merged at read time for mega-accounts.'),
+    node('pf-composer', 'service', 'Feed Composer', COL(4), ROW(0), { capacity: 16, serviceMs: 15 }, 'Merges followee posts on a timeline-cache miss.'),
+    node('pf-meta', 'db', 'Metadata Store', COL(5), ROW(0), { capacity: 16, serviceMs: 20 }, 'Photo rows indexed by author and time, plus the follow graph.'),
+    node('pf-uploaders', 'client', 'Uploaders', COL(0), LROW(2, 1), { rps: 2, timeoutMs: 5000 }, 'Photo posts, roughly one per hundred feed opens.'),
+    node('pf-upload', 'service', 'Upload API', COL(1), LROW(2, 1), { capacity: 8, serviceMs: 20 }, 'Mints upload URLs and records the post once bytes land.'),
+    node('pf-blobs', 'objectstore', 'Blob Store', COL(2), LROW(2, 1), {}, 'Originals plus finished renditions, keyed by photo id.'),
+    node('pf-encq', 'queue', 'Encode Queue', COL(3), LROW(2, 1), {}, 'Holds uploads waiting for a rendition slot.'),
+    node('pf-transcode', 'transcoder', 'Rendition Farm', COL(4), LROW(2, 1), { instances: 2 }, 'Renders the lightweight previews first, full variants after.'),
+  ],
+  edges: [
+    edge('pf-viewers', 'pf-edge', 1, 'rest', 'GET /feed', true),
+    edge('pf-edge', 'pf-api', 1, 'rest', 'Cache Miss', true),
+    edge('pf-api', 'pf-tcache', 1, 'rest', 'GET timeline', true),
+    edge('pf-tcache', 'pf-composer', 1, 'rest', 'Cache Miss', true),
+    edge('pf-composer', 'pf-meta', 1, 'sql', 'SELECT posts', true),
+    edge('pf-uploaders', 'pf-upload', 1, 'rest', 'POST /photos', true),
+    edge('pf-upload', 'pf-blobs', 1, 'rest', 'PUT original', true),
+    edge('pf-blobs', 'pf-encq', 1, 'rest', 'Enqueue encode', false),
+    edge('pf-encq', 'pf-transcode', 1, 'rest', 'Encode job', false),
+    edge('pf-transcode', 'pf-blobs', 1, 'rest', 'PUT renditions', false),
+  ],
+  annotations: [
+    sectionOver('pf-sec-read', 'Opening the feed', 4, 0, 5, 0, 0),
+    sectionOver('pf-sec-upload', 'Posting a photo', 5, 0, 4, 2, 2, 1),
+    note(
+      'pf-note-read',
+      40,
+      200,
+      'Nine opens in ten never reach the composer: the edge answers photo bytes and the timeline cache answers the feed. Turn the edge hit rate down and watch origin load multiply.',
+      340,
+    ),
+    note(
+      'pf-note-upload',
+      40,
+      520,
+      'Uploads are one request in a hundred but each one is megabytes. Bytes land in the blob store first; the rendition farm works through the queue behind it.',
+      340,
+    ),
+  ],
 };
-export { discord, uber, netflix, spotify, twitter, stripe, whatsapp };
+
+export const realworldTopologies = {
+  discord, uber, netflix, spotify, twitter, stripe, whatsapp, photofeedTopology,
+};
+export { discord, uber, netflix, spotify, twitter, stripe, whatsapp, photofeedTopology };
