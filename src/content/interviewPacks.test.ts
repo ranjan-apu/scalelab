@@ -12,7 +12,7 @@ import { PRESETS } from '../sim/presets';
  */
 
 describe('interview packs', () => {
-  it('ships the full library of 37 packs', () => {
+  it('ships the full library of 39 packs', () => {
     expect(INTERVIEW_PACKS.length).toBe(39);
   });
 

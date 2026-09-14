@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Preset } from '../sim/presets';
+import { dailyPreset, readDaily, recordDailyPlay, todayKey } from '../content/daily';
 import { usePresence } from './presence';
 import './Examples.css';
 
@@ -48,6 +49,22 @@ export function Examples({
   useEffect(() => {
     if (open) setQuery('');
   }, [open]);
+
+  /* Daily challenge streak, refreshed every open. localStorage may be
+     unavailable (private browsing), in which case the streak simply
+     does not persist and the challenge still loads. */
+  const dailyStore = () => {
+    try {
+      return typeof localStorage === 'undefined' ? null : localStorage;
+    } catch {
+      return null;
+    }
+  };
+  const [streak, setStreak] = useState(() => readDaily(dailyStore()).streak);
+  useEffect(() => {
+    if (open) setStreak(readDaily(dailyStore()).streak);
+  }, [open]);
+  const challenge = dailyPreset();
 
   /* Focus goes to the search field, because with twenty-three examples the
      first thing a returning student does is type. Focus returns to whatever
@@ -145,7 +162,32 @@ export function Examples({
             Nothing matches “{query}”. Try a component name like cache or queue.
           </p>
         ) : (
-          <ul className="ex-grid">
+          <>
+            {!q && (
+              <section className="ex-daily" aria-label="Today's challenge">
+                <div className="ex-daily-copy">
+                  <p className="ex-daily-kicker">
+                    Today&apos;s challenge
+                    {streak > 0 ? ` · ${streak}-day streak` : ''}
+                  </p>
+                  <p className="ex-item-name">{challenge.name}</p>
+                  <p className="ex-item-tagline">{challenge.tagline}</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  data-active={challenge.id === activePresetId || undefined}
+                  onClick={() => {
+                    onLoad(challenge);
+                    setStreak(recordDailyPlay(dailyStore(), todayKey()).streak);
+                    onClose();
+                  }}
+                >
+                  {challenge.id === activePresetId ? 'Reload challenge' : 'Load challenge'}
+                </button>
+              </section>
+            )}
+            <ul className="ex-grid">
             {shown.map((preset) => {
               const active = preset.id === activePresetId;
               return (
@@ -172,6 +214,7 @@ export function Examples({
               );
             })}
           </ul>
+          </>
         )}
       </div>
     </div>,
