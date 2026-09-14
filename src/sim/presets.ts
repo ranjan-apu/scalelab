@@ -37,6 +37,7 @@ import {
 import {
   ticketmasterTopology, tinyurlTopology, leetcodeTopology,
 } from './presets/interview';
+import { saasTenants, streamProcessing } from './presets/platforms';
 
 export { defaultConfig, makeNode };
 export type { Topology };
@@ -273,6 +274,22 @@ export const PRESETS: Preset[] = [
     description:
       'A trending-board starter: view events stream into windowed counters while rankings serve from precomputed sorted sets. Watch aggregation lag versus serving latency when a video goes viral mid-window.',
     topology: leetcodeTopology,
+  },
+  {
+    id: 'stream-processing',
+    name: 'Stream Processing: events into materialized views',
+    tagline: 'Consumer lag is the only metric that matters',
+    description:
+      'A streaming starter: one producer appends to a partitioned log, a processor pool drains it into a serving store dashboards read, and poison pills park on a dead-letter shelf. Watch consumer lag, not error rate, when ingest passes the drain rate.',
+    topology: streamProcessing,
+  },
+  {
+    id: 'saas-tenants',
+    name: 'Multi-tenant SaaS: noisy neighbors',
+    tagline: 'One quota and bulkhead between tenants',
+    description:
+      'A multi-tenant starter: a quiet tenant and a noisy tenant share one pool and one database, with a per-tenant quota and bulkhead on the noisy lane. Raise the noisy tenant and watch sheds climb while quiet p99 stays flat.',
+    topology: saasTenants,
   },
   {
     id: 'whatsapp',
