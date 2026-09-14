@@ -63,7 +63,7 @@ The Library covers modern cloud topologies in seven groups:
 - **Light & dark themes** with measured contrast, and layouts for laptop, tablet, and phone.
 
 ### 🎤 Interview Practice
-37 guided packs (Core, Popular, and Hard problems from URL shortening to flash sales), each following the interview track: problem checkpoints, functional and non-functional requirements, estimations, core entities, API design, endpoint-by-endpoint build order, and deep dives with tradeoffs. Every section pins to the canvas as a note, and each pack loads a runnable starter system. Every pack also ships a hands-on lab: load the lab setup, work the tasks, and run auto-graded checks against the live simulation. 34 concept lessons (core ideas, building blocks, patterns, advanced topics) live in the Guide under Concepts and link into packs, labs, and the glossary.
+39 guided packs (Core, Popular, and Hard problems from URL shortening to flash sales), each following the interview track: problem checkpoints, functional and non-functional requirements, estimations, core entities, API design, endpoint-by-endpoint build order, and deep dives with tradeoffs. Every section pins to the canvas as a note, and each pack loads a runnable starter system. Every pack also ships a hands-on lab: load the lab setup, work the tasks, and run auto-graded checks against the live simulation. 34 concept lessons (core ideas, building blocks, patterns, advanced topics) live in the Guide under Concepts and link into packs, labs, and the glossary.
 
 ### ✏️ Pen, Eraser & Annotations
 - **Pen toolbar** (floating island, `P`): five theme-aware colours, size and opacity sliders with live previews. Settings are per-visit; new strokes copy them at commit.
@@ -74,7 +74,7 @@ The Library covers modern cloud topologies in seven groups:
 
 ## 🏛️ Presets
 
-26 ready-to-run systems, from distributed patterns to reconstructions of production architectures:
+32 ready-to-run systems, from distributed patterns to reconstructions of production architectures:
 
 ### 🏢 Real-World Reconstructions
 - **Discord**: millions of concurrent WebSockets, gateway limits, pub/sub fan-out, channel sharding under hot-key skew.

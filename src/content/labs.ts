@@ -949,6 +949,62 @@ export const LABS: readonly PracticeLab[] = [
       { id: 'hit', label: 'Edge cache above 70% hits', scope: 'node', nodeKind: 'cdn', metric: 'hitRate', op: '>', value: 0.7 },
     ],
   },
+  {
+    id: 'lab-live-boards',
+    title: 'Hold boards seconds fresh',
+    packId: 'live-boards',
+    conceptIds: ['event-streams', 'workers-async'],
+    objective: 'Drain a launch-hour burst into boards without losing an event.',
+    setupPresetId: 'stream-processing',
+    scenario: 'steady',
+    tasks: [
+      { title: 'Run the stream', detail: stdTasks.load },
+      {
+        title: 'Watch lag, not errors',
+        detail: 'Raise the producer rate until the backlog grows, then note which metric moved first.',
+        hint: 'Select the producer node and raise rps in the Inspector while watching the broker backlog.',
+      },
+      {
+        title: 'Park a poison pill',
+        detail: 'Confirm failed deliveries land on the dead-letter shelf instead of stalling a partition.',
+        hint: 'Follow one bad batch downstream and watch the shelf counter, not the error rate.',
+      },
+      { title: 'Confirm board health', detail: 'Back at baseline load, run the checks below.' },
+    ],
+    checks: [
+      { id: 'p99', label: 'Board p99 under 120ms', scope: 'system', metric: 'p99', op: '<', value: 120 },
+      { id: 'err', label: 'Error rate under 1%', scope: 'system', metric: 'errorRate', op: '<', value: 0.01 },
+      { id: 'ratio', label: 'Goodput above 95% of offered', scope: 'system', metric: 'goodputRatio', op: '>', value: 0.95 },
+    ],
+  },
+  {
+    id: 'lab-tenant-quotas',
+    title: 'Keep the quiet lane flat',
+    packId: 'tenant-isolation',
+    conceptIds: ['api-gateway', 'capacity-numbers'],
+    objective: 'Shed the noisy tenant at the door while quiet dashboards never notice.',
+    setupPresetId: 'saas-tenants',
+    scenario: 'steady',
+    tasks: [
+      { title: 'Run both tenants', detail: stdTasks.load },
+      {
+        title: 'Turn up the noise',
+        detail: 'Raise the noisy tenant until the quota sheds, and confirm quiet p99 stays flat.',
+        hint: 'Select the noisy client and raise rps; watch quota sheds climb while the quiet lane holds.',
+      },
+      {
+        title: 'Shrink the bulkhead',
+        detail: 'Lower bulkhead slots until the noisy lane sheds there too, then restore it.',
+        hint: 'Select the bulkhead node and lower its slot count in the Inspector.',
+      },
+      { title: 'Confirm isolation', detail: 'Back at baseline, run the checks below.' },
+    ],
+    checks: [
+      { id: 'p99', label: 'Quiet p99 under 200ms', scope: 'system', metric: 'p99', op: '<', value: 200 },
+      { id: 'err', label: 'Error rate under 2%', scope: 'system', metric: 'errorRate', op: '<', value: 0.02 },
+      { id: 'ratio', label: 'Goodput above 90% of offered', scope: 'system', metric: 'goodputRatio', op: '>', value: 0.9 },
+    ],
+  },
 ];
 
 export const LABS_BY_ID: ReadonlyMap<string, PracticeLab> = new Map(

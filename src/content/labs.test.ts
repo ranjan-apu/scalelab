@@ -124,7 +124,7 @@ describe('lab grader', () => {
 
 describe('labs content', () => {
   it('ships one lab per pack', () => {
-    expect(LABS.length).toBe(37);
+    expect(LABS.length).toBe(39);
     const packIds = new Set(LABS.map((l) => l.packId));
     for (const id of INTERVIEW_PACK_IDS) {
       expect(packIds.has(id), `pack ${id} has a lab`).toBe(true);

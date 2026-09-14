@@ -477,4 +477,99 @@ export const REALTIME_PACKS: readonly InterviewPack[] = [
     concepts: ['scaling-writes', 'proximity-search', 'multistep-sagas'],
     patterns: ['scaling-writes', 'multistep-sagas'],
   },
+  {
+    id: 'live-boards',
+    title: 'Live Analytics Boards',
+    tagline: 'Stream gameplay events into boards producers trust',
+    difficulty: 'Popular',
+    minutes: 45,
+    prompt:
+      'Design live analytics for a mobile game with 50M daily players. Every tap, level-up, and purchase streams in, and producers watch boards that stay seconds fresh through launch-hour spikes.',
+    checkpoints: [
+      {
+        question: 'Batch pipeline or live stream?',
+        decides: 'Boards that tolerate hours of delay are a warehouse job; seconds-fresh boards need a log and consumers.',
+      },
+      {
+        question: 'How fresh must a board be, exactly?',
+        decides: 'Seconds-fresh sets the window size, which sets partition count and pool size.',
+      },
+      {
+        question: 'What happens to malformed or late events?',
+        decides: 'Dropping them silently corrupts boards; blocking on them wedges partitions.',
+      },
+    ],
+    functional: [
+      'Ingest gameplay events from clients at spike volume',
+      'Serve per-game live boards, paged and filterable',
+      'Retain raw events for replay after processor fixes',
+    ],
+    nonfunctional: [
+      'Boards stay seconds fresh at p99 through a 4x launch spike',
+      'No event loss at spike volume; backlogs drain after the peak',
+      'Poison events never wedge a partition; they park and count',
+    ],
+    estimations: [
+      'Ingest: 50M players times 200 events a day is 10B events, near 115k a second average with 4x launch peaks',
+      'Reads: producers refresh boards near 100 reads a second, all served from precomputed views',
+      'State: one day of windows near 2TB before compaction and retention trims it',
+    ],
+    entities: [
+      { name: 'Event', fields: 'id, player id, game id, type, occurred at' },
+      { name: 'Board', fields: 'game id, window, rows, computed at' },
+      { name: 'ConsumerOffset', fields: 'group, partition, offset' },
+    ],
+    api: {
+      protocol: 'REST plus fire-and-forget append',
+      protocolWhy:
+        'Boards are request and response. Ingest never waits for processing, so it appends and moves on.',
+      endpoints: [
+        { method: 'POST', path: '/v1/events', purpose: 'Append a batch of gameplay events' },
+        { method: 'GET', path: '/games/:id/boards/live', purpose: 'Current window board' },
+        { method: 'GET', path: '/games/:id/boards/top', purpose: 'Ranked entities for the window' },
+        { method: 'POST', path: '/v1/replays', purpose: 'Re-run a window after a processor fix' },
+      ],
+    },
+    hldPresetId: 'stream-processing',
+    hldSteps: [
+      'Producer to log to store: append events, drain with a pool, serve boards from views.',
+      'Track one offset per group and partition so restarts resume, never repeat.',
+      'Shelf poison pills with redelivery instead of blocking the partition.',
+      'Keep board reads off the raw stream entirely.',
+    ],
+    deepDives: [
+      {
+        title: 'Sizing the pool against the peak',
+        problem: 'Launch hour quadruples ingest while the pool drains at a fixed rate.',
+        approach: [
+          'Size partitions so peak ingest divided by per-partition drain stays under one.',
+          'Let retention absorb the burst and watch lag, not errors, at the peak.',
+          'Scale the pool, not the log, when lag stops draining after the peak.',
+        ],
+        tradeoff: 'Idle pool capacity most of the day in exchange for a lag curve that recovers.',
+      },
+      {
+        title: 'Boards that survive replays',
+        problem: 'A fixed processor bug means yesterday’s boards must be recomputed, not patched.',
+        approach: [
+          'Keep raw events immutable for the retention window.',
+          'Recompute into new view versions and flip reads atomically.',
+          'Version the processor so a board always names the code that built it.',
+        ],
+        tradeoff: 'Double storage during recompute in exchange for boards you can defend.',
+      },
+      {
+        title: 'Poison pills without wedged partitions',
+        problem: 'One malformed event shape can crash every consumer restart forever.',
+        approach: [
+          'Redeliver twice with backoff, then park the event on a counted shelf.',
+          'Alert on shelf growth rate, not shelf size.',
+          'Replay the shelf after each processor deploy.',
+        ],
+        tradeoff: 'A small permanent shelf in exchange for partitions that never stall.',
+      },
+    ],
+    concepts: ['event-streams', 'workers-async', 'timeseries-stores'],
+    patterns: ['realtime-updates', 'long-running-tasks'],
+  },
 ];
