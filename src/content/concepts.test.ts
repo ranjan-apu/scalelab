@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CONCEPTS } from './concepts';
+import { ALL_CONCEPT_ARTICLES, RICH_ARTICLE_IDS } from './conceptArticles';
 import { GLOSSARY_BY_ID } from './glossary';
 import { PRESETS } from '../sim/presets';
 
@@ -56,5 +57,26 @@ describe('concepts', () => {
   it('carries no external brand strings', () => {
     const blob = JSON.stringify(CONCEPTS);
     expect(blob).not.toMatch(/hello.?interview/i);
+  });
+
+  it('backs every lesson with a hand-written article', () => {
+    for (const c of CONCEPTS) {
+      expect(RICH_ARTICLE_IDS.has(c.id), `${c.id} rich article`).toBe(true);
+    }
+  });
+
+  it('gives every article real depth, not filler', () => {
+    for (const a of ALL_CONCEPT_ARTICLES) {
+      expect(a.realWorldScenario.length, `${a.id} scenario`).toBeGreaterThan(80);
+      expect(a.deepDive.length, `${a.id} sections`).toBeGreaterThanOrEqual(2);
+      for (const s of a.deepDive) {
+        expect(s.paragraphs.length, `${a.id}/${s.title} paragraphs`).toBeGreaterThanOrEqual(2);
+      }
+      expect(a.productionGotchas.length, `${a.id} gotchas`).toBeGreaterThanOrEqual(2);
+      expect(a.interviewProbes.length, `${a.id} probes`).toBeGreaterThanOrEqual(2);
+      for (const p of a.interviewProbes) {
+        expect(p.lookFor.length, `${a.id} lookFor`).toBeGreaterThan(20);
+      }
+    }
   });
 });

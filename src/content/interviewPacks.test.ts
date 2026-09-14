@@ -12,8 +12,8 @@ import { PRESETS } from '../sim/presets';
  */
 
 describe('interview packs', () => {
-  it('ships the full library of 37 packs', () => {
-    expect(INTERVIEW_PACKS.length).toBe(37);
+  it('ships the full library of 39 packs', () => {
+    expect(INTERVIEW_PACKS.length).toBe(39);
   });
 
   it('uses unique ids', () => {

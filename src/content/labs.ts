@@ -123,7 +123,7 @@ export function labPassed(results: readonly CheckResult[]): boolean {
   return results.length > 0 && results.every((r) => r.pass);
 }
 
-const stdTasks = {
+export const stdTasks = {
   load: 'Load the lab setup below, then start the scenario and watch one full cycle.',
   pin: 'Pin the failing chart to the canvas as a note before changing anything.',
 };
@@ -191,6 +191,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Watch the offline buffer',
         detail: 'Find the offline queue and confirm depth drains instead of errors rising.',
+        hint: 'Open the offline store node and watch queued depth fall while the error rate stays flat.',
       },
       { title: 'Confirm delivery health', detail: 'Run the checks below with the buffer draining.' },
     ],
@@ -213,6 +214,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Read the waiting room',
         detail: 'Watch queue depth absorb the burst while booking errors stay flat.',
+        hint: 'Select the waiting-room queue and watch depth absorb the burst.',
       },
       { title: 'Confirm fairness', detail: 'Run the checks at the height of the spike.' },
     ],
@@ -235,6 +237,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Separate the paths',
         detail: 'Confirm media bytes ride the edge while metadata takes the API path.',
+        hint: 'Compare edge hit rate against API throughput: bytes and metadata diverge here.',
       },
       { title: 'Confirm edge health', detail: 'Run the checks near peak ramp.' },
     ],
@@ -257,6 +260,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Watch the judge pool',
         detail: 'Confirm workers stay below saturation while the queue stays near zero.',
+        hint: 'Select a judge worker and confirm utilization stays under the ceiling while the queue stays near zero.',
       },
       { title: 'Confirm judging health', detail: 'Run the checks below.' },
     ],
@@ -279,6 +283,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Compare the streams',
         detail: 'Note how location writes dwarf rider reads, then find the consumer that trails.',
+        hint: 'Compare the location-write consumer against the rider-read path and name the trailer.',
       },
       { title: 'Confirm matching health', detail: 'Run the checks near the afternoon peak.' },
     ],
@@ -301,6 +306,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Split metadata from bytes',
         detail: 'Confirm small metadata writes and large blob transfers take different paths.',
+        hint: 'Follow one sync: small metadata rows take the API path, bulk bytes take the store path.',
       },
       { title: 'Confirm sync health', detail: 'Run the checks below.' },
     ],
@@ -323,6 +329,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Isolate the search path',
         detail: 'Confirm search queries leave primary write pools untouched.',
+        hint: 'Run a search burst and confirm primary write-pool utilization does not move.',
       },
       { title: 'Confirm search health', detail: 'Run the checks below.' },
     ],
@@ -345,6 +352,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Watch dispatch absorb it',
         detail: 'Track queue depth and matching latency through the burst peak.',
+        hint: 'Watch the dispatch queue depth and matching latency together through the peak.',
       },
       { title: 'Confirm dispatch health', detail: 'Run the checks at burst peak.' },
     ],
@@ -393,6 +401,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Find the lagging consumer',
         detail: 'Compare consumer groups and name which one trails first.',
+        hint: 'Compare per-group lag and name the group whose backlog grows first.',
       },
       { title: 'Confirm ingest health', detail: 'Run the checks near ramp peak.' },
     ],
@@ -415,6 +424,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Read lag, not errors',
         detail: 'Confirm push tiers saturate while senders keep succeeding.',
+        hint: 'Watch push-tier utilization climb while sender error rate stays flat.',
       },
       { title: 'Confirm burst health', detail: 'Run the checks at burst peak.' },
     ],
@@ -437,6 +447,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Watch workers drain',
         detail: 'Confirm the backlog stays near zero while ranking reads stay fast.',
+        hint: 'Watch queue depth hover near zero while ranking reads hold their p99.',
       },
       { title: 'Confirm pipeline health', detail: 'Run the checks below.' },
     ],
@@ -459,6 +470,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Prefer fast over total',
         detail: 'Confirm p99 stays flat while goodput trails offered: that gap is shedding, not failure.',
+        hint: 'Compare offered against goodput: the gap is deliberate shedding, and p99 is the proof.',
       },
       { title: 'Confirm shedding health', detail: 'Run the checks at flood peak.' },
     ],
@@ -480,6 +492,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Watch serialization',
         detail: 'Confirm bids queue and losers fail fast instead of timing out.',
+        hint: 'Watch the lock queue serialize bids while losing bids fail fast.',
       },
       { title: 'Confirm close health', detail: 'Run the checks at the rush peak.' },
     ],
@@ -502,6 +515,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Shed the low priority lane',
         detail: 'Confirm the shedder drops browsing traffic while checkout stays fast.',
+        hint: 'Watch the shedder drop browsing while checkout latency stays flat.',
       },
       { title: 'Confirm protection health', detail: 'Run the checks at flood peak.' },
     ],
@@ -524,6 +538,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Retry on purpose',
         detail: 'Confirm duplicate submits answer from stored results instead of recharging.',
+        hint: 'Submit the same payment twice and confirm the second answers from stored results.',
       },
       { title: 'Confirm ledger health', detail: 'Run the checks below.' },
     ],
@@ -546,6 +561,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Separate the lanes',
         detail: 'Confirm quotes degrade gracefully while order writes stay correct.',
+        hint: 'Push a quote burst and confirm order-write p99 does not follow it.',
       },
       { title: 'Confirm market health', detail: 'Run the checks at spike peak.' },
     ],
@@ -567,6 +583,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Stress the session tier',
         detail: 'Confirm connection holders, not request queues, set the ceiling.',
+        hint: 'Raise connections and confirm holder utilization, not queue depth, sets the ceiling.',
       },
       { title: 'Confirm sync health', detail: 'Run the checks below.' },
     ],
@@ -589,6 +606,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Split serving from processing',
         detail: 'Confirm edge hits stay high even as the encode backlog grows.',
+        hint: 'Grow the encode backlog and confirm edge hit rate does not follow it down.',
       },
       { title: 'Confirm streaming health', detail: 'Run the checks near ramp peak.' },
     ],
@@ -611,6 +629,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Watch fetch workers',
         detail: 'Confirm workers stay below saturation while the queue stays near zero.',
+        hint: 'Confirm worker utilization stays under saturation while the frontier queue stays near zero.',
       },
       { title: 'Confirm crawl health', detail: 'Run the checks below.' },
     ],
@@ -633,6 +652,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Separate raw from rolled',
         detail: 'Confirm dashboard reads never compete with the ingest stream.',
+        hint: 'Flood ingest and confirm dashboard reads hold their latency.',
       },
       { title: 'Confirm pipeline health', detail: 'Run the checks below.' },
     ],
@@ -655,6 +675,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Count async, serve sync',
         detail: 'Confirm the board serves precomputed ranks while counters absorb the spike.',
+        hint: 'Spike the counters and confirm the board still serves precomputed ranks.',
       },
       { title: 'Confirm ranking health', detail: 'Run the checks at viral peak.' },
     ],
@@ -677,6 +698,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Window the stream',
         detail: 'Confirm aggregation trails the flood while serving stays flat.',
+        hint: 'Confirm aggregation lags the flood while serving latency stays flat.',
       },
       { title: 'Confirm billing health', detail: 'Run the checks near ramp peak.' },
     ],
@@ -699,6 +721,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Measure the lag',
         detail: 'State how stale a new post may be before searchers notice.',
+        hint: 'Post once, then poll search until it appears; that gap is the staleness budget.',
       },
       { title: 'Confirm search health', detail: 'Run the checks below.' },
     ],
@@ -721,6 +744,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Evict the tail',
         detail: 'Confirm the head of the distribution carries the hit rate alone.',
+        hint: 'Narrow the hot set and confirm the hit rate rides on the head alone.',
       },
       { title: 'Confirm cache health', detail: 'Run the checks below.' },
     ],
@@ -743,6 +767,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Read the refusal',
         detail: 'Confirm refused requests fail fast instead of queueing behind each other.',
+        hint: 'Spike past the limit and confirm refusals answer fast with no queue behind them.',
       },
       { title: 'Confirm limiter health', detail: 'Run the checks at spike peak.' },
     ],
@@ -765,6 +790,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Own each trigger',
         detail: 'Confirm one owner per trigger while workers drain steadily.',
+        hint: 'Confirm each trigger fires once by matching completions against schedules.',
       },
       { title: 'Confirm scheduler health', detail: 'Run the checks below.' },
     ],
@@ -787,6 +813,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Spread the polls',
         detail: 'Confirm workers stay lazy on average and busy only at sweep peaks.',
+        hint: 'Watch worker utilization rest low between sweep peaks.',
       },
       { title: 'Confirm tracker health', detail: 'Run the checks near the sweep peak.' },
     ],
@@ -809,6 +836,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Pin the session tier',
         detail: 'Confirm game state rides sticky sessions, not the database.',
+        hint: 'Confirm game traffic sticks to sessions by watching database load stay flat.',
       },
       { title: 'Confirm game health', detail: 'Run the checks below.' },
     ],
@@ -831,6 +859,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Queue, do not drop',
         detail: 'Confirm prompts wait their turn while streams stay ordered.',
+        hint: 'Burst prompts and confirm ordered waiting instead of dropped streams.',
       },
       { title: 'Confirm streaming health', detail: 'Run the checks at burst peak.' },
     ],
@@ -852,6 +881,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Rank from sets',
         detail: 'Confirm the board reads sorted sets while submits queue behind judges.',
+        hint: 'Confirm board reads hit sorted sets while submits wait on judges.',
       },
       { title: 'Confirm board health', detail: 'Run the checks at submit peak.' },
     ],
@@ -874,6 +904,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Shed, never double-apply',
         detail: 'Confirm excess sheds at the door while the ledger applies each gift once.',
+        hint: 'Flood past the limit and confirm sheds at the door with each gift applied once.',
       },
       { title: 'Confirm donation health', detail: 'Run the checks at spike peak.' },
     ],
@@ -896,6 +927,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Let depth absorb it',
         detail: 'Confirm the queue grows into the thousands while errors stay at zero.',
+        hint: 'Watch queue depth climb into the thousands with errors pinned at zero.',
       },
       { title: 'Confirm fleet health', detail: 'Run the checks mid-burst.' },
     ],
@@ -918,6 +950,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Precompute the boards',
         detail: 'Confirm per-cell leaderboards refresh on timers, not per request.',
+        hint: 'Confirm board refreshes ride timers by watching reads ignore write spikes.',
       },
       { title: 'Confirm board health', detail: 'Run the checks below.' },
     ],
@@ -940,6 +973,7 @@ export const LABS: readonly PracticeLab[] = [
       {
         title: 'Split the paths',
         detail: 'Confirm audio bytes and metadata queries saturate different tiers.',
+        hint: 'Confirm audio bytes saturate the edge while metadata queries stay on the API.',
       },
       { title: 'Confirm streaming health', detail: 'Run the checks below.' },
     ],
@@ -947,6 +981,62 @@ export const LABS: readonly PracticeLab[] = [
       { id: 'p99', label: 'Stream p99 under 250ms', scope: 'system', metric: 'p99', op: '<', value: 250 },
       { id: 'err', label: 'Error rate under 1%', scope: 'system', metric: 'errorRate', op: '<', value: 0.01 },
       { id: 'hit', label: 'Edge cache above 70% hits', scope: 'node', nodeKind: 'cdn', metric: 'hitRate', op: '>', value: 0.7 },
+    ],
+  },
+  {
+    id: 'lab-live-boards',
+    title: 'Hold boards seconds fresh',
+    packId: 'live-boards',
+    conceptIds: ['event-streams', 'workers-async'],
+    objective: 'Drain a launch-hour burst into boards without losing an event.',
+    setupPresetId: 'stream-processing',
+    scenario: 'steady',
+    tasks: [
+      { title: 'Run the stream', detail: stdTasks.load },
+      {
+        title: 'Watch lag, not errors',
+        detail: 'Raise the producer rate until the backlog grows, then note which metric moved first.',
+        hint: 'Select the producer node and raise rps in the Inspector while watching the broker backlog.',
+      },
+      {
+        title: 'Park a poison pill',
+        detail: 'Confirm failed deliveries land on the dead-letter shelf instead of stalling a partition.',
+        hint: 'Follow one bad batch downstream and watch the shelf counter, not the error rate.',
+      },
+      { title: 'Confirm board health', detail: 'Back at baseline load, run the checks below.' },
+    ],
+    checks: [
+      { id: 'p99', label: 'Board p99 under 120ms', scope: 'system', metric: 'p99', op: '<', value: 120 },
+      { id: 'err', label: 'Error rate under 1%', scope: 'system', metric: 'errorRate', op: '<', value: 0.01 },
+      { id: 'ratio', label: 'Goodput above 95% of offered', scope: 'system', metric: 'goodputRatio', op: '>', value: 0.95 },
+    ],
+  },
+  {
+    id: 'lab-tenant-quotas',
+    title: 'Keep the quiet lane flat',
+    packId: 'tenant-isolation',
+    conceptIds: ['api-gateway', 'capacity-numbers'],
+    objective: 'Shed the noisy tenant at the door while quiet dashboards never notice.',
+    setupPresetId: 'saas-tenants',
+    scenario: 'steady',
+    tasks: [
+      { title: 'Run both tenants', detail: stdTasks.load },
+      {
+        title: 'Turn up the noise',
+        detail: 'Raise the noisy tenant until the quota sheds, and confirm quiet p99 stays flat.',
+        hint: 'Select the noisy client and raise rps; watch quota sheds climb while the quiet lane holds.',
+      },
+      {
+        title: 'Shrink the bulkhead',
+        detail: 'Lower bulkhead slots until the noisy lane sheds there too, then restore it.',
+        hint: 'Select the bulkhead node and lower its slot count in the Inspector.',
+      },
+      { title: 'Confirm isolation', detail: 'Back at baseline, run the checks below.' },
+    ],
+    checks: [
+      { id: 'p99', label: 'Quiet p99 under 200ms', scope: 'system', metric: 'p99', op: '<', value: 200 },
+      { id: 'err', label: 'Error rate under 2%', scope: 'system', metric: 'errorRate', op: '<', value: 0.02 },
+      { id: 'ratio', label: 'Goodput above 90% of offered', scope: 'system', metric: 'goodputRatio', op: '>', value: 0.9 },
     ],
   },
 ];

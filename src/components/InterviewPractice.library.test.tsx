@@ -44,8 +44,8 @@ function bodyText(): string {
 }
 
 describe('problem library loads properly', () => {
-  it('renders the full track for all 37 packs', () => {
-    expect(INTERVIEW_PACKS.length).toBe(37);
+  it('renders the full track for all 39 packs', () => {
+    expect(INTERVIEW_PACKS.length).toBe(39);
     act(() => {
       root.render(
         <InterviewPractice
@@ -61,8 +61,8 @@ describe('problem library loads properly', () => {
       );
     });
 
-    // All 37 packs listed with no filter applied.
-    expect(document.querySelectorAll('.iv-pack').length).toBe(37);
+    // All 39 packs listed with no filter applied.
+    expect(document.querySelectorAll('.iv-pack').length).toBe(39);
 
     for (const pack of INTERVIEW_PACKS) {
       const button = Array.from(document.querySelectorAll('.iv-pack')).find((b) =>

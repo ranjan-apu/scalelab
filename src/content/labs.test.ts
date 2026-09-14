@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateLab, LABS, labPassed, type PracticeLab } from './labs';
+import { evaluateLab, LABS, labPassed, stdTasks, type PracticeLab } from './labs';
 import { CONCEPTS_BY_ID } from './concepts';
 import { INTERVIEW_PACK_IDS } from './interviewPacks';
 import { PRESETS } from '../sim/presets';
@@ -124,7 +124,7 @@ describe('lab grader', () => {
 
 describe('labs content', () => {
   it('ships one lab per pack', () => {
-    expect(LABS.length).toBe(37);
+    expect(LABS.length).toBe(39);
     const packIds = new Set(LABS.map((l) => l.packId));
     for (const id of INTERVIEW_PACK_IDS) {
       expect(packIds.has(id), `pack ${id} has a lab`).toBe(true);
@@ -140,6 +140,17 @@ describe('labs content', () => {
     for (const lab of LABS) {
       expect(lab.objective.length, `${lab.id} objective`).toBeGreaterThan(20);
       expect(lab.tasks.length, `${lab.id} tasks`).toBeGreaterThanOrEqual(2);
+      for (const t of lab.tasks) {
+        expect(t.title.length, `${lab.id} task title`).toBeGreaterThan(0);
+        expect(t.detail.length, `${lab.id}/${t.title} detail`).toBeGreaterThan(0);
+        // Every hands-on task teaches its own move. Shared openers
+        // (stdTasks.load) and pure check-runners need no hint; the rest do.
+        const needsHint =
+          !/run the checks/i.test(t.detail) && t.detail !== stdTasks.load;
+        if (needsHint) {
+          expect(t.hint?.length ?? 0, `${lab.id}/${t.title} hint`).toBeGreaterThan(0);
+        }
+      }
       expect(lab.checks.length, `${lab.id} checks`).toBeGreaterThanOrEqual(2);
       expect(lab.conceptIds.length, `${lab.id} concepts`).toBeGreaterThanOrEqual(1);
       for (const c of lab.checks) {

@@ -92,6 +92,40 @@
 }
 
 /* --------------------------------------------------------------------------
+   The daily challenge banner.
+
+   One featured row above the grid, hidden while searching: a search is a
+   hunt for something specific, and a banner above the results would read as
+   one more result. The accent border is what separates "today" from the
+   catalog without adding another heading level.
+   -------------------------------------------------------------------------- */
+
+.ex-daily {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  border: var(--bw) solid var(--accent);
+  border-radius: var(--r-btn);
+}
+
+.ex-daily-copy {
+  min-width: 0;
+}
+
+.ex-daily-kicker {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
    The grid
 
    auto-fill rather than auto-fit: with a search filtered down to one result,

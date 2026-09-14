@@ -669,4 +669,99 @@ export const TRANSACTION_PACKS: readonly InterviewPack[] = [
     concepts: ['multistep-sagas', 'scaling-writes', 'sketch-structures'],
     patterns: ['multistep-sagas', 'scaling-writes'],
   },
+  {
+    id: 'tenant-isolation',
+    title: 'Multi-tenant SaaS Platform',
+    tagline: 'Keep one tenant from billing everyone else',
+    difficulty: 'Hard',
+    minutes: 45,
+    prompt:
+      'Design a work-management SaaS with 10k tenants. One tenant runs bulk imports while thousands click dashboards; nobody may feel anybody else, and throttled tenants get answers, not timeouts.',
+    checkpoints: [
+      {
+        question: 'Silo, pool, or bridge between them?',
+        decides: 'Per-tenant stacks isolate perfectly and cost linearly; a pool shares cost and shares fate.',
+      },
+      {
+        question: 'Quotas per tenant, or one global ceiling?',
+        decides: 'A global ceiling lets one tenant spend the whole pool; per-tenant quotas name the spender.',
+      },
+      {
+        question: 'What does a throttled tenant experience?',
+        decides: 'Fast refusals with retry guidance beat slow timeouts that cascade.',
+      },
+    ],
+    functional: [
+      'CRUD projects and tasks scoped to one tenant',
+      'Bulk import per tenant with progress tracking',
+      'Per-tenant usage meters visible to tenant admins',
+    ],
+    nonfunctional: [
+      'Quiet p99 under 300ms while any tenant imports at full tilt',
+      'Throttled calls fail fast with retry guidance, never with timeouts',
+      'Tenant data never crosses a boundary, even under contention',
+    ],
+    estimations: [
+      'Tenants: 10k total, typical tenant near 50 rps, largest near 5k rps during imports',
+      'Shared pool near 600 rps with the database ceiling near 400 rps behind quotas',
+      'Meters: per-tenant counters, small rows, sharded by tenant id',
+    ],
+    entities: [
+      { name: 'Tenant', fields: 'id, plan, quota, bulkhead share' },
+      { name: 'Project', fields: 'id, tenant id, rows, updated at' },
+      { name: 'UsageCounter', fields: 'tenant id, window, used, refused' },
+    ],
+    api: {
+      protocol: 'REST',
+      protocolWhy:
+        'Tenant-scoped resources with standard semantics; quotas ride headers, not the protocol.',
+      endpoints: [
+        { method: 'GET', path: '/v1/projects', purpose: 'List tenant projects' },
+        { method: 'POST', path: '/v1/projects', purpose: 'Create a project' },
+        { method: 'POST', path: '/v1/imports', purpose: 'Start a bulk import job' },
+        { method: 'GET', path: '/v1/usage', purpose: 'Current quota consumption' },
+      ],
+    },
+    hldPresetId: 'saas-tenants',
+    hldSteps: [
+      'Lane per tenant class: quiet straight through, heavy through quota and bulkhead.',
+      'Share one pool and one database with per-tenant meters on every call.',
+      'Refuse excess fast with retry guidance at the quota, never in the pool.',
+      'Cap heavy-lane pool slots so bursts queue in one lane only.',
+    ],
+    deepDives: [
+      {
+        title: 'Quota design that names spenders',
+        problem: 'A global ceiling cannot tell whose traffic is whose when the pool saturates.',
+        approach: [
+          'Bucket tokens per tenant with burst headroom for human click patterns.',
+          'Return remaining quota headers so clients throttle themselves first.',
+          'Meter refusals per tenant to separate abuse from growth.',
+        ],
+        tradeoff: 'Per-tenant counter memory in exchange for blame that points somewhere.',
+      },
+      {
+        title: 'Bulkhead sizing without idle waste',
+        problem: 'Too few slots throttle legitimate bursts; too many make the bulkhead decorative.',
+        approach: [
+          'Size heavy-lane slots above average concurrency with room for bursts.',
+          'Measure slot hold time end to end, not just service time.',
+          'Let the quota do rate shaping and the bulkhead do concurrency capping.',
+        ],
+        tradeoff: 'Some idle slots at rest in exchange for a quiet lane that never moves.',
+      },
+      {
+        title: 'Detecting the neighbor before tenants do',
+        problem: 'By the time dashboards complain, the noisy tenant has been loud for an hour.',
+        approach: [
+          'Alert on per-tenant refusal rate, not system error rate.',
+          'Compare quiet-lane p99 against its own baseline, never the global mean.',
+          'Page with the tenant id attached so response starts informed.',
+        ],
+        tradeoff: 'Per-tenant metric cardinality in exchange for blame in minutes, not hours.',
+      },
+    ],
+    concepts: ['api-gateway', 'capacity-numbers'],
+    patterns: ['contention-control'],
+  },
 ];
