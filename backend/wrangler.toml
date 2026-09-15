@@ -1,0 +1,31 @@
+name = "scalelab-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Local dev: `wrangler d1 create scalelab` then paste the id below.
+# Prod: same, or `wrangler d1 create scalelab-prod`.
+[[d1_databases]]
+binding = "DB"
+database_name = "scalelab"
+database_id = "49856c2d-a998-4634-9b77-8c28ae21506a"
+
+# KV session cache: user objects keyed by session id (reduces D1 reads).
+# Create with: wrangler kv namespace create SESSION_CACHE
+[[kv_namespaces]]
+binding = "SESSION_CACHE"
+id = "2682a079193048d78f21dd69fcd93695"
+
+[vars]
+# Where to send the user after Google login. Override per env in dashboard.
+FRONTEND_URL = "https://scalelab.apurba.top"
+# Must match the Authorized redirect URI in Google Cloud Console:
+#   <WORKER_URL>/api/auth/callback  (e.g. https://scalelab-api.<sub>.workers.dev/api/auth/callback)
+# Set via `wrangler secret` or dashboard vars in prod; local default below is
+# overwritten by the GOOGLE_REDIRECT_URI env when present.
+GOOGLE_REDIRECT_URI = "https://scalelab-api.apurba21mohapatra.workers.dev/api/auth/callback"
+
+# Secrets (never commit). Set with:
+#   wrangler secret put GOOGLE_CLIENT_ID
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+# And for local dev, copy .dev.vars.example -> .dev.vars

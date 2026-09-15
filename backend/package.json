@@ -1,0 +1,22 @@
+{
+  "name": "scalelab-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:apply:local": "wrangler d1 execute scalelab --local --file=./schema.sql",
+    "db:apply:remote": "wrangler d1 execute scalelab --remote --file=./schema.sql",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.2025.0",
+    "typescript": "~5.8.0",
+    "wrangler": "^3.114.0"
+  }
+}
