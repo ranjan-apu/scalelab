@@ -1,10 +1,21 @@
 import { SESSION_COOKIE, SESSION_COOKIE_LEGACY } from '../config/constants';
 
-export function sessionCookieHeader(sessionId: string, maxAge: number): string {
-  // __Host- prefix requires Secure + Path=/ + no Domain. Localhost over
-  // http can't set Secure, so only add it when the cookie actually lives.
-  const secure = maxAge > 0 ? '; Secure' : '';
-  return `${SESSION_COOKIE}=${sessionId}; HttpOnly; SameSite=Lax; Path=/${secure}; Max-Age=${maxAge}`;
+export function sessionCookieHeader(
+  sessionId: string,
+  maxAge: number,
+  req: Request,
+): string {
+  const isHttps = new URL(req.url).protocol === 'https:';
+
+  // Production Pages and the standalone workers.dev API are different
+  // sites. SameSite=Lax cookies are not sent on the frontend's cross-site
+  // fetch('/api/auth/me'), so production needs SameSite=None; Secure.
+  // Local wrangler dev uses HTTP, where Secure/None cookies are rejected;
+  // use the legacy non-__Host name and Lax there instead.
+  const name = isHttps ? SESSION_COOKIE : SESSION_COOKIE_LEGACY;
+  const sameSite = isHttps ? 'None' : 'Lax';
+  const secure = isHttps ? '; Secure' : '';
+  return `${name}=${sessionId}; HttpOnly; SameSite=${sameSite}; Path=/${secure}; Max-Age=${maxAge}`;
 }
 
 export function readSessionId(req: Request): string | null {

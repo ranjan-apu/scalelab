@@ -57,7 +57,7 @@ export async function callback(c: Ctx) {
     status: 302,
     headers: {
       Location: `${frontend}?login=ok`,
-      'Set-Cookie': sessionCookieHeader(sessionId, SESSION_TTL_S),
+      'Set-Cookie': sessionCookieHeader(sessionId, SESSION_TTL_S, c.req.raw),
     },
   });
 }
@@ -73,7 +73,7 @@ export async function logout(c: Ctx) {
   return new Response(JSON.stringify({ ok: true }), {
     headers: {
       'Content-Type': 'application/json',
-      'Set-Cookie': sessionCookieHeader('', 0),
+      'Set-Cookie': sessionCookieHeader('', 0, c.req.raw),
     },
   });
 }
