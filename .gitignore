@@ -10,6 +10,7 @@ public/__harness.js
 .workflows/
 NEXT.md
 .env*
+.dev.vars
 
 # Throwaway inspection scripts used while laying out the presets
 scratch-*.ts

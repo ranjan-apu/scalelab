@@ -116,6 +116,7 @@ const Settings = lazy(() =>
   import('./components/Settings').then((m) => ({ default: m.Settings })),
 );
 import { MainMenu } from './components/MainMenu';
+import { LoginButton } from './auth/LoginButton';
 const Designs = lazy(() =>
   import('./components/Designs').then((m) => ({ default: m.Designs })),
 );
@@ -3582,6 +3583,7 @@ export default function App() {
         </div>
 
         <div className="app-island app-island-menu">
+          <LoginButton />
           <button
             type="button"
             className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
