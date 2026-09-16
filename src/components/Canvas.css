@@ -261,12 +261,17 @@
   fill: var(--warn);
 }
 
-.cv-edge-protocol-pill.is-ws .cv-edge-pill-bg {
+/* The push protocols share one tint on purpose: a WebSocket and an SSE stream
+   are the same promise to the reader -- data arrives without being asked for --
+   and telling them apart is the pill's text, not a fourth colour. */
+.cv-edge-protocol-pill.is-ws .cv-edge-pill-bg,
+.cv-edge-protocol-pill.is-sse .cv-edge-pill-bg {
   fill: var(--ok-soft);
   stroke: var(--ok);
 }
 
-.cv-edge-protocol-pill.is-ws .cv-edge-pill-text {
+.cv-edge-protocol-pill.is-ws .cv-edge-pill-text,
+.cv-edge-protocol-pill.is-sse .cv-edge-pill-text {
   fill: var(--ok);
 }
 

@@ -8,6 +8,7 @@ import {
   hasShareHash,
 } from './share';
 import { PRESETS } from './sim/presets';
+import { emptyPlayground } from './sim/playground';
 import type { NodeConfig, Topology } from './sim/types';
 
 /* ------------------------------------------------------------------ *
@@ -134,6 +135,24 @@ describe('round trip, compressed', () => {
     expect(out.status).toBe('ok');
     if (out.status !== 'ok') return;
     expect(out.topology.annotations).toEqual(ANNOTATED.annotations);
+  });
+
+  it('carries the practice sheet through, and leaves an empty one behind', async () => {
+    const withSheet: Topology = {
+      ...SIMPLE,
+      playground: { steps: { ...emptyPlayground().steps, requirements: '10M DAU' } },
+    };
+    const out = await decodeTopology(await encodeTopology(withSheet));
+    expect(out.status).toBe('ok');
+    if (out.status !== 'ok') return;
+    expect(out.topology.playground?.steps.requirements).toBe('10M DAU');
+
+    // A sheet nobody wrote in is not carried: five blank fields would be
+    // characters spent on nothing in every link.
+    const blank = await decodeTopology(await encodeTopology(SIMPLE));
+    expect(blank.status).toBe('ok');
+    if (blank.status !== 'ok') return;
+    expect(blank.topology.playground).toBeUndefined();
   });
 
   it('round trips the largest worked example unchanged', async () => {

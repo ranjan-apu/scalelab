@@ -635,9 +635,22 @@ export type EdgeProtocol =
   | 'rest'
   | 'kafka'
   | 'ws'
+  | 'sse'
   | 'sql'
   | 'graphql'
   | 'custom';
+
+/**
+ * What kind of request a wire carries.
+ *
+ * Absent means MIXED: the hop declares nothing and every store draws its own
+ * read/write split from its own `readFraction`, which is how every design
+ * written before this field existed still behaves. Declaring a side is what
+ * lets a diagram say "this call is the GET feed, that one is the POST", so a
+ * read-heavy API shows up as read traffic at the store instead of being
+ * re-guessed at every hop.
+ */
+export type EdgeRequestType = 'read' | 'write' | 'mixed';
 
 export interface SimEdge {
   id: string;
@@ -652,6 +665,11 @@ export interface SimEdge {
   edgeLabel?: string;
   /** Whether the communication is synchronous blocking (true) or asynchronous event (false). Defaults to true. */
   sync?: boolean;
+  /**
+   * Read or write, when the wire knows. See EdgeRequestType: absent means the
+   * stores along the path classify the requests themselves.
+   */
+  requestType?: EdgeRequestType;
 
   /**
    * This edge is a CONTROL relationship, not a request path.
@@ -713,6 +731,13 @@ export interface Topology {
    * for it belongs.
    */
   annotations?: import('./annotations').Annotation[];
+  /**
+   * The written practice sheet, typed alongside the diagram. Presentation
+   * only on the same terms as `annotations`: the engine never reads it, and
+   * it is optional so every design written before it existed stays valid.
+   * The shape and its sanitizer live in playground.ts.
+   */
+  playground?: import('./playground').Playground;
 }
 
 /** Rolling stats for one node over the last window. */

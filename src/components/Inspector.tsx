@@ -9,6 +9,7 @@ import type { ReactNode } from 'react';
 import { Pause, Play, RotateCcw, StepForward } from 'lucide-react';
 import type {
   EdgeProtocol,
+  EdgeRequestType,
   NodeConfig,
   NodeKind,
   NodeStats,
@@ -2238,6 +2239,17 @@ interface EdgeInspectorProps {
   targetNode?: SimNode | null;
   onUpdateEdge?: (id: string, patch: Partial<SimEdge>) => void;
   onDeleteEdge?: (id: string) => void;
+  /**
+   * Every traffic-carrying wire out of the same source, this one included.
+   *
+   * A wire's weight is only meaningful relative to its siblings, so the share
+   * the panel shows and the share the slider writes both need the set. Control
+   * edges are already filtered out by the caller: a supervisory link carries
+   * no requests and would otherwise appear to take a slice of the traffic.
+   */
+  siblings?: readonly SimEdge[];
+  /** Re-share the source's traffic: see handleSetEdgeShare in the shell. */
+  onSetShare?: (id: string, share: number) => void;
   cleanCanvas?: boolean;
 }
 
@@ -2246,8 +2258,36 @@ const PROTOCOLS: Array<{ id: EdgeProtocol; label: string; desc: string }> = [
   { id: 'grpc', label: 'gRPC / Protobuf', desc: 'Low-latency multiplexed binary RPC' },
   { id: 'kafka', label: 'Kafka / Event', desc: 'Asynchronous distributed event topic' },
   { id: 'ws', label: 'WebSocket', desc: 'Full-duplex persistent bidirectional channel' },
+  { id: 'sse', label: 'SSE', desc: 'Server-Sent Events: one-way server push over HTTP' },
   { id: 'sql', label: 'SQL Query', desc: 'Relational database connection pool query' },
   { id: 'graphql', label: 'GraphQL', desc: 'Query and mutation endpoint' },
+];
+
+/**
+ * What the wire says it carries.
+ *
+ * Read and write are the GET and POST of a system design answer: a feed has a
+ * lot of one and a few of the other, and saying so here means the stores along
+ * the path stop re-guessing. Mixed is the default and the honest one when the
+ * diagram does not know: every store keeps drawing its own split from its own
+ * readFraction, which is what every design written before this control did.
+ */
+const REQUEST_TYPES: Array<{ id: EdgeRequestType; label: string; desc: string }> = [
+  {
+    id: 'read',
+    label: 'Read (GET)',
+    desc: 'Requests on this wire reach the stores as reads, whatever their readFraction says',
+  },
+  {
+    id: 'write',
+    label: 'Write (POST)',
+    desc: 'Requests on this wire reach the stores as writes, so they pay the write path',
+  },
+  {
+    id: 'mixed',
+    label: 'Mixed',
+    desc: 'No claim: each store draws its own read/write split, as it always has',
+  },
 ];
 
 function EdgeInspector({
@@ -2256,12 +2296,28 @@ function EdgeInspector({
   targetNode,
   onUpdateEdge,
   onDeleteEdge,
+  siblings,
+  onSetShare,
   cleanCanvas,
 }: EdgeInspectorProps) {
   const fromName = sourceNode?.label ?? edge.from;
   const toName = targetNode?.label ?? edge.to;
   const currentProto = edge.protocol ?? 'rest';
   const isSync = edge.sync !== false;
+  const currentType = edge.requestType ?? 'mixed';
+
+  /*
+   * The share this wire actually carries, derived rather than stored: weights
+   * are relative, and the engine reads them that way (equal weights mean
+   * "load-balance", not "50/50"), so the number a student sees has to come
+   * from the same sum the router will use.
+   */
+  const wires = siblings && siblings.length > 0 ? siblings : [edge];
+  const weightTotal = wires.reduce((sum, e) => sum + Math.max(0, e.weight), 0);
+  const share =
+    weightTotal > 0 ? Math.max(0, edge.weight) / weightTotal : 1 / wires.length;
+  const sharePct = Math.round(share * 100);
+  const others = wires.length - 1;
 
   return (
     <aside className="ins" aria-label="Edge Inspector">
@@ -2289,6 +2345,29 @@ function EdgeInspector({
           </div>
         </Section>
 
+        <Section title="Request type">
+          <div className="ins-proto-grid">
+            {REQUEST_TYPES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`ins-proto-btn${currentType === t.id ? ' is-active' : ''}`}
+                onClick={() => onUpdateEdge?.(edge.id, { requestType: t.id })}
+                title={t.desc}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <p className="ins-empty-hint">
+            {currentType === 'read'
+              ? 'Everything on this wire stays a read all the way down: stores serve it from their read path and never charge it a write.'
+              : currentType === 'write'
+                ? 'Everything on this wire stays a write all the way down, so it pays lock waits and indexing on the way.'
+                : 'No claim is made, so each store draws its own read/write split from its own readFraction.'}
+          </p>
+        </Section>
+
         <Section title="Contract / Route / Payload">
           <input
             type="text"
@@ -2306,6 +2385,30 @@ function EdgeInspector({
           />
           <p className="ins-empty-hint">
             Specify the API path, event topic, or query contract carried across this wire.
+          </p>
+        </Section>
+
+        <Section title="Traffic share">
+          <label className="label">
+            <span>
+              {sharePct}% of {fromName}
+            </span>
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={sharePct}
+            disabled={!onSetShare || others === 0}
+            onChange={(e) => onSetShare?.(edge.id, Number(e.target.value) / 100)}
+            className="slider"
+            aria-label={`Share of ${fromName} traffic`}
+          />
+          <p className="ins-empty-hint">
+            {others === 0
+              ? 'The only wire out of this component, so it carries everything.'
+              : `The other ${others === 1 ? 'wire' : `${others} wires`} share the rest. Weights only steer routing when they differ; equal wires are load-balanced instead.`}
           </p>
         </Section>
 
@@ -2913,6 +3016,8 @@ export interface InspectorProps {
   targetNode?: SimNode | null;
   onUpdateEdge?: (id: string, patch: Partial<SimEdge>) => void;
   onDeleteEdge?: (id: string) => void;
+  /** Re-share a source's traffic across its wires. See handleSetEdgeShare. */
+  onSetEdgeShare?: (id: string, share: number) => void;
   costEstimator?: boolean;
   onOpenSettings?: () => void;
 }
@@ -2952,6 +3057,7 @@ export function Inspector({
   targetNode,
   onUpdateEdge,
   onDeleteEdge,
+  onSetEdgeShare,
   costEstimator,
   onOpenSettings,
 }: InspectorProps) {
@@ -2981,6 +3087,10 @@ export function Inspector({
           targetNode={targetNode}
           onUpdateEdge={onUpdateEdge}
           onDeleteEdge={onDeleteEdge}
+          siblings={topology?.edges.filter(
+            (e) => e.from === edge.from && e.control !== true,
+          )}
+          onSetShare={onSetEdgeShare}
           cleanCanvas={isClean}
         />
       );

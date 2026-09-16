@@ -119,9 +119,14 @@ const replica: ComponentBehaviour = {
 
     // Classify read vs write ONCE, from a single RNG draw. A retry of the same
     // call re-draws, exactly as a real client re-issuing a request would.
-    const isWrite = ctx.roll() >= clamp01(state.config.readFraction);
-    ctx.markWrite(req, isWrite);
+    // A request that already arrived classified -- a wire that named its side,
+    // or a store upstream -- keeps what it is instead.
+    if (!req.classified) {
+      const isWrite = ctx.roll() >= clamp01(state.config.readFraction);
+      ctx.markWrite(req, isWrite);
+    }
 
+    const isWrite = req.isWrite;
     const queue = isWrite ? ext.writeQueue : ext.readQueue;
     const head = isWrite ? ext.writeHead : ext.readHead;
     const busy = isWrite ? ext.writeBusy : ext.readBusy;

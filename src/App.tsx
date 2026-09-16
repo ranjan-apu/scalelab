@@ -94,6 +94,14 @@ import {
 } from './sim/annotations';
 import type { Annotation, AnnotationFont, Note, TextBox, TextBoxStyle } from './sim/annotations';
 import {
+  emptyPlayground,
+  playgroundIsEmpty,
+  sanitizePlayground,
+  PLAYGROUND_STEPS,
+} from './sim/playground';
+import type { Playground as PlaygroundDoc, PlaygroundStepId } from './sim/playground';
+import { Playground } from './components/Playground';
+import {
   INK_MAX_POINTS,
   INK_MAX_WIDTH,
   INK_MIN_OPACITY,
@@ -576,6 +584,13 @@ function loadSession(): Session {
     const annotations = sanitizeAnnotations(
       (s.topology as { annotations?: unknown }).annotations,
     );
+    // The playground crosses the same boundary the annotations do: it is
+    // presentation data the engine never reads, so it is sanitized rather
+    // than structurally required, and a half-written sheet costs the student
+    // nothing but the sheet.
+    const playground = sanitizePlayground(
+      (s.topology as { playground?: unknown }).playground,
+    );
     // Node geometry is bounded on the same principle: a stored shape box is
     // clamped rather than trusted, so a half-written save cannot place a box
     // large enough to break fit-to-view.
@@ -585,6 +600,7 @@ function loadSession(): Session {
         nodes: clean.nodes,
         edges: clean.edges,
         ...(annotations.length > 0 ? { annotations } : {}),
+        ...(playground ? { playground } : {}),
       },
       rps: Math.min(5000, Math.max(0, rps)),
       presetId: typeof s.presetId === 'string' ? s.presetId : null,
@@ -857,6 +873,24 @@ export default function App() {
   /** Manual-close veto for the auto-open effect below. */
   const dismissRef = useRef(false);
 
+  /**
+   * What the right dock is showing: the inspector, or the Playground.
+   *
+   * One dock, two views, because they are the same kind of thing — a panel
+   * that describes the design — and a third rail would eat canvas width on
+   * every screen that is not a desktop. The playground is NOT tied to the
+   * selection the way the inspector is: opening it is a deliberate act, so
+   * the auto-open effect below never switches the view, and selecting a node
+   * while writing does not yank the sheet out from under the caret.
+   */
+  const [dockView, setDockView] = useState<'inspect' | 'playground'>('inspect');
+
+  const togglePlayground = useCallback(() => {
+    setDockView((view) => (view === 'playground' ? 'inspect' : 'playground'));
+    setInspectorHidden(false);
+    dismissRef.current = false;
+  }, []);
+
   /* On a phone the three panels are SHEETS stacked over the canvas, so only
      one may be open: two of them cover the diagram they exist to explain,
      and the reader loses the thing they changed it to see. The inspector is
@@ -893,6 +927,16 @@ export default function App() {
    * persisted: a dismissed dock stays dismissed for this selection only.
    */
 
+  /**
+   * The view the auto-close below should see, read through a ref so that
+   * switching tabs by hand never closes the dock: the effect must react to the
+   * SELECTION changing, not to the reader choosing a tab.
+   */
+  const dockViewRef = useRef(dockView);
+  useEffect(() => {
+    dockViewRef.current = dockView;
+  }, [dockView]);
+
   useEffect(() => {
     if (selectedIds.size > 0) {
       // A new selection opens the dock, unless the reader explicitly
@@ -900,11 +944,15 @@ export default function App() {
       // the dock and then rubber-banding one more node would pop it
       // straight back open.
       if (!dismissRef.current) setInspectorHidden(false);
-    } else {
+    } else if (dockViewRef.current === 'inspect') {
       // Nothing selected means nothing to configure AND no review to
       // push: the dock closes and stays closed until the reader opens
       // it or selects something. The Studio review never appears
       // uninvited, not on boot, not on preset load, not on deselect.
+      //
+      // The Playground is exempt: it is a deliberate workspace rather than a
+      // description of the selection, so clicking empty canvas to clear the
+      // selection must not take the sheet away mid-sentence.
       setInspectorHidden(true);
       dismissRef.current = false;
     }
@@ -1432,9 +1480,13 @@ export default function App() {
    * creates the note only once something has actually been typed into its
    * editor. In the second case the placeholder would be a leftover nobody
    * asked for, so the typed text arrives here directly.
+   *
+   * `width` is the caller's too: a caption and a paragraph want different
+   * measures, and the shape of a note is one of the few things its author
+   * knows better than the default does.
    */
   const handleCreateNote = useCallback(
-    (x: number, y: number, text: string = NEW_NOTE_TEXT): string => {
+    (x: number, y: number, text: string = NEW_NOTE_TEXT, width = NOTE_DEFAULT_WIDTH): string => {
       const anns = topoLiveRef.current.annotations ?? [];
       const id = freshAnnId('note');
       history.commit('add note', snapRef.current);
@@ -1446,7 +1498,7 @@ export default function App() {
           text: text.slice(0, 2000),
           x,
           y,
-          width: NOTE_DEFAULT_WIDTH,
+          width: Math.min(Math.max(width, NOTE_MIN_WIDTH), NOTE_MAX_WIDTH),
           size: 'md',
         },
       ]);
@@ -1730,6 +1782,79 @@ export default function App() {
       setAnnotations(anns.map((a) => (a.id === id ? { ...a, label: next } : a)));
     },
     [history, setAnnotations],
+  );
+
+  /* ---------------- playground: the written answer sheet ----------------
+   *
+   * Presentation only, on the same terms as an annotation: the engine is
+   * never told, the preset badge survives, and history granularity matches
+   * every other streamed edit (touch while typing, one entry when the typing
+   * settles). The sheet rides on the topology so the session, a share link
+   * and an exported file carry it without any of them knowing what it is.
+   */
+
+  const setPlayground = useCallback((next: PlaygroundDoc) => {
+    const t = topoLiveRef.current;
+    // An empty sheet is the absence of a sheet, not a sheet of empty strings:
+    // storing one would put five blank fields in every share link.
+    if (playgroundIsEmpty(next)) {
+      const { playground: _drop, ...rest } = t;
+      topoLiveRef.current = rest;
+      setTopology(rest);
+      return;
+    }
+    const nt: Topology = { ...t, playground: next };
+    topoLiveRef.current = nt;
+    setTopology(nt);
+  }, []);
+
+  const handlePlaygroundEdit = useCallback(
+    (step: PlaygroundStepId, text: string) => {
+      const current = topoLiveRef.current.playground ?? emptyPlayground();
+      if (!history.inGesture) history.touch('playground', snapRef.current);
+      setPlayground({ steps: { ...current.steps, [step]: text } });
+    },
+    [history, setPlayground],
+  );
+
+  const handlePlaygroundClear = useCallback(() => {
+    if (playgroundIsEmpty(topoLiveRef.current.playground)) return;
+    history.commit('clear playground', snapRef.current);
+    setPlayground(emptyPlayground());
+  }, [history, setPlayground]);
+
+  /**
+   * Drop one step onto the board as a note, so the written answer and the
+   * diagram can be read together. The step's title leads the note: five notes
+   * from five steps are otherwise indistinguishable paragraphs.
+   */
+  const handlePlaygroundPlace = useCallback(
+    (step: PlaygroundStepId, text: string) => {
+      if (!text.trim()) return;
+      const meta = PLAYGROUND_STEPS.find((s) => s.id === step);
+      const centre = viewCenterRef.current?.();
+      const at = centre ? { x: centre.x - 160, y: centre.y - 40 } : { x: 0, y: 0 };
+      const id = handleCreateNote(at.x, at.y, `${meta?.title ?? 'Notes'}\n\n${text}`, 320);
+      toastSeq.current += 1;
+      setToast({ text: 'Placed on the board', id: toastSeq.current });
+      void id;
+    },
+    [handleCreateNote],
+  );
+
+  /** Clipboard write with a report either way: a silent no-op is worse. */
+  const handlePlaygroundCopy = useCallback(
+    async (text: string, what: string) => {
+      toastSeq.current += 1;
+      const id = toastSeq.current;
+      try {
+        await navigator.clipboard.writeText(text);
+        setToast({ text: `${what === 'sheet' ? 'Sheet' : what} copied`, id });
+      } catch {
+        setToast({ text: 'Copy blocked by the browser', id });
+      }
+    },
+    [],
   );
 
   const handleSetNoteSize = useCallback(
@@ -2071,6 +2196,57 @@ export default function App() {
       applyTopology({
         ...topology,
         edges: topology.edges.map((e) => (e.id === edgeId ? { ...e, ...patch } : e)),
+      });
+    },
+    [applyTopology, topology, history],
+  );
+
+  /**
+   * Give one wire `share` of its source's traffic, and scale the siblings down
+   * to fit.
+   *
+   * This is the control behind "a lot of GET, a few POST". Weights in the
+   * model are RELATIVE, so writing a bare weight would make the panel's number
+   * and the router's behaviour disagree the moment a sibling changed; here the
+   * whole fan-out is rewritten together so the shares always total 1. A source
+   * with one wire stays at weight 1 whatever the slider says, because that
+   * wire carries everything by definition.
+   *
+   * One history entry for the whole re-share: the sliders are a stream, and a
+   * drag that ended in five undo steps would be unusable.
+   */
+  const handleSetEdgeShare = useCallback(
+    (edgeId: string, share: number) => {
+      const target = topology.edges.find((e) => e.id === edgeId);
+      if (!target) return;
+      const wanted = Math.min(1, Math.max(0, share));
+      const others = topology.edges.filter(
+        (e) => e.from === target.from && e.id !== edgeId && e.control !== true,
+      );
+      if (others.length === 0) return;
+
+      const otherTotal = others.reduce((sum, e) => sum + Math.max(0, e.weight), 0);
+      const next = new Map<string, number>();
+      // Rounded to three places: a re-share should not leave 0.3333333333333333
+      // in a saved design or a share link.
+      const round = (w: number) => Math.round(w * 1000) / 1000;
+      next.set(edgeId, round(wanted));
+      for (const e of others) {
+        const kept = otherTotal > 0 ? Math.max(0, e.weight) / otherTotal : 1 / others.length;
+        next.set(e.id, round(kept * (1 - wanted)));
+      }
+
+      const changed = topology.edges.some(
+        (e) => next.has(e.id) && next.get(e.id) !== e.weight,
+      );
+      if (!changed) return;
+
+      if (!history.inGesture) history.touch('edge share', snapRef.current);
+      applyTopology({
+        ...topology,
+        edges: topology.edges.map((e) =>
+          next.has(e.id) ? { ...e, weight: next.get(e.id)! } : e,
+        ),
       });
     },
     [applyTopology, topology, history],
@@ -3801,6 +3977,30 @@ export default function App() {
           </button>
           <button
             type="button"
+            className={`btn btn-icon app-activity-btn${
+              inspectorVisible && dockView === 'playground' ? ' is-active' : ''
+            }`}
+            aria-label="Open the playground"
+            title="Playground: type your answer"
+            aria-pressed={inspectorVisible && dockView === 'playground'}
+            onClick={togglePlayground}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 5h16M4 10h16M4 15h10M4 20h7" />
+            </svg>
+          </button>
+          <button
+            type="button"
             className="btn btn-icon app-activity-btn"
             aria-label="Open interview practice"
             title="Interview practice"
@@ -4070,43 +4270,83 @@ export default function App() {
           edge="right"
           onDismiss={phone ? toggleInspector : undefined}
         >
-          <Inspector
-            node={selectedNode}
-            stats={selectedStats}
-            onChange={handleConfigChange}
-            onDelete={handleDeleteNode}
-            onRename={handleRename}
-            onDescribe={handleDescriptionChange}
-            onSetShape={handleSetShapeVariant}
-            selectedNodes={selectedNodes}
-            selectedEdgeCount={selectedEdgeCount}
-            onChangeMany={handleConfigChangeMany}
-            onDeleteMany={handleDeleteMany}
-            textBox={selectedTextBox}
-            onEditTextBox={handleEditTextBox}
-            onSetTextBoxTone={handleSetSectionTone}
-            onSetTextBoxStyle={handleSetTextBoxStyle}
-            onApplyTextBoxTemplate={handleApplyTextBoxTemplate}
-            onDeleteTextBox={handleDeleteTextBox}
-            note={selectedNote}
-            onEditNote={handleEditNote}
-            onSetNoteSize={handleSetNoteSize}
-            onSetNoteStyle={handleSetNoteStyle}
-            onDeleteNote={(id) => handleDeleteSelection([], [], [id])}
-            ink={selectedInk}
-            onSetInkTone={handleSetInkTone}
-            onInkStyle={handleInkStyle}
-            onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
-            cleanCanvas={cleanCanvas}
-            topology={topology}
-            costEstimator={costEstimator}
-            onOpenSettings={() => setSettingsOpen(true)}
-            edge={selectedEdge}
-            sourceNode={edgeSourceNode}
-            targetNode={edgeTargetNode}
-            onUpdateEdge={handleUpdateEdge}
-            onDeleteEdge={(edgeId) => handleDeleteSelection([], [edgeId], [])}
-          />
+          <div className="dock">
+            {/*
+              One dock, two views. The switch is the only piece of chrome the
+              playground adds to the shell, and it is deliberately inside the
+              panel rather than in the top bar: it changes what THIS panel is
+              showing, not what the canvas is doing.
+            */}
+            <div className="dock-switch" role="tablist" aria-label="Right panel view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dockView === 'inspect'}
+                className={`dock-tab${dockView === 'inspect' ? ' is-active' : ''}`}
+                onClick={() => setDockView('inspect')}
+              >
+                Inspect
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dockView === 'playground'}
+                className={`dock-tab${dockView === 'playground' ? ' is-active' : ''}`}
+                onClick={() => setDockView('playground')}
+              >
+                Playground
+              </button>
+            </div>
+
+            {dockView === 'playground' ? (
+              <Playground
+                playground={topology.playground ?? emptyPlayground()}
+                onEdit={handlePlaygroundEdit}
+                onPlaceOnBoard={handlePlaygroundPlace}
+                onClear={handlePlaygroundClear}
+                onCopy={handlePlaygroundCopy}
+              />
+            ) : (
+              <Inspector
+                node={selectedNode}
+                stats={selectedStats}
+                onChange={handleConfigChange}
+                onDelete={handleDeleteNode}
+                onRename={handleRename}
+                onDescribe={handleDescriptionChange}
+                onSetShape={handleSetShapeVariant}
+                selectedNodes={selectedNodes}
+                selectedEdgeCount={selectedEdgeCount}
+                onChangeMany={handleConfigChangeMany}
+                onDeleteMany={handleDeleteMany}
+                textBox={selectedTextBox}
+                onEditTextBox={handleEditTextBox}
+                onSetTextBoxTone={handleSetSectionTone}
+                onSetTextBoxStyle={handleSetTextBoxStyle}
+                onApplyTextBoxTemplate={handleApplyTextBoxTemplate}
+                onDeleteTextBox={handleDeleteTextBox}
+                note={selectedNote}
+                onEditNote={handleEditNote}
+                onSetNoteSize={handleSetNoteSize}
+                onSetNoteStyle={handleSetNoteStyle}
+                onDeleteNote={(id) => handleDeleteSelection([], [], [id])}
+                ink={selectedInk}
+                onSetInkTone={handleSetInkTone}
+                onInkStyle={handleInkStyle}
+                onDeleteInk={(id) => handleDeleteSelection([], [], [id])}
+                cleanCanvas={cleanCanvas}
+                topology={topology}
+                costEstimator={costEstimator}
+                onOpenSettings={() => setSettingsOpen(true)}
+                edge={selectedEdge}
+                sourceNode={edgeSourceNode}
+                targetNode={edgeTargetNode}
+                onUpdateEdge={handleUpdateEdge}
+                onSetEdgeShare={handleSetEdgeShare}
+                onDeleteEdge={(edgeId) => handleDeleteSelection([], [edgeId], [])}
+              />
+            )}
+          </div>
           <PanelResizer
             edge="right"
             property="--ins-w"
