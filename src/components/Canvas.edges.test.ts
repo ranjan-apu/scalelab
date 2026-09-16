@@ -289,4 +289,18 @@ describe('previewPath', () => {
       expectFinitePath(previewPath(A, px, py));
     }
   });
+
+  it('leaves by the port the gesture started from until a corridor exists', () => {
+    // Four px of travel out of a port: no clear corridor either side yet, so
+    // the preferred side is the only thing that knows where the wire came
+    // from. A drag out of the LEFT disc must leave the left edge — defaulting
+    // to the right one drew the preview straight across the node.
+    expect(previewPath(A, -4, 44, 'left')).toMatch(/^M0,44/);
+    // Same pointer, grabbed from the right-hand disc: the old default stands.
+    expect(previewPath(A, -4, 44)).toMatch(/^M184,44/);
+    // Once the pointer is clear of the box the real corridor wins, whichever
+    // port the gesture started from.
+    expect(previewPath(A, -200, 44, 'right')).toMatch(/^M0,44/);
+    expect(previewPath(A, 400, 44, 'left')).toMatch(/^M184,44/);
+  });
 });

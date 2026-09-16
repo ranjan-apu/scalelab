@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildClipboardText,
   cloneSubgraph,
+  expandSectionSelection,
   isTopology,
   parseClipboardText,
   selectionSubgraph,
 } from './clipboard';
 import type { Topology, NodeConfig, SimNode } from './sim/types';
+import type { Note, Section } from './sim/annotations';
 
 /* ------------------------------------------------------------------ *
  * Fixtures. A three-node chain with one edge inside a would-be selection
@@ -50,6 +52,160 @@ function topo(): Topology {
     ],
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Section fixtures. A frame wide enough to hold the first two nodes of
+ * the chain with room to spare, a third node parked well outside it, and
+ * an edge that crosses the frame's border. That is exactly the shape the
+ * "a section takes its contents" rule has to get right.
+ * ------------------------------------------------------------------ */
+
+const FRAME: Section = {
+  id: 'section-1',
+  kind: 'section',
+  label: 'Edge tier',
+  x: -40,
+  y: -40,
+  width: 560,
+  height: 200,
+  tone: 2,
+};
+
+function framed(): Topology {
+  const t = topo();
+  t.nodes[2] = node('service-3', 900, 0);
+  t.annotations = [{ ...FRAME }];
+  return t;
+}
+
+describe('expandSectionSelection', () => {
+  it('collects what stands inside the frame and leaves the rest', () => {
+    const ids = expandSectionSelection(framed(), new Set(['section-1']));
+    expect(ids.has('section-1')).toBe(true);
+    expect(ids.has('service-1')).toBe(true);
+    expect(ids.has('service-2')).toBe(true);
+    // service-3 is nowhere near the frame.
+    expect(ids.has('service-3')).toBe(false);
+  });
+
+  it('is containment, not intersection: a node clipping the border stays out', () => {
+    const t = framed();
+    // Half in, half out of the frame's right edge.
+    t.nodes[2] = node('service-3', FRAME.x + FRAME.width - 40, 0);
+    const ids = expandSectionSelection(t, new Set(['section-1']));
+    expect(ids.has('service-3')).toBe(false);
+  });
+
+  it('carries annotations that start inside, and nested frames too', () => {
+    const t = framed();
+    const note: Note = {
+      id: 'note-1',
+      kind: 'note',
+      text: 'reads peak here',
+      x: 40,
+      y: 100,
+      width: 160,
+      size: 'sm',
+    };
+    const inner: Section = {
+      id: 'section-2',
+      kind: 'section',
+      label: 'cache tier',
+      x: 200,
+      y: 20,
+      width: 240,
+      height: 120,
+      tone: 5,
+    };
+    t.annotations = [t.annotations![0]!, note, inner];
+    const ids = expandSectionSelection(t, new Set(['section-1']));
+    expect(ids.has('note-1')).toBe(true);
+    expect(ids.has('section-2')).toBe(true);
+  });
+
+  it('is a no-op when nothing selected is a section', () => {
+    const ids = expandSectionSelection(framed(), new Set(['service-1']));
+    expect([...ids]).toEqual(['service-1']);
+  });
+});
+
+describe('selectionSubgraph with a section', () => {
+  it('returns the frame with the components standing in it', () => {
+    const sub = selectionSubgraph(framed(), new Set(['section-1']))!;
+    expect(sub).not.toBeNull();
+    expect(sub.annotations.map((a) => a.id)).toEqual(['section-1']);
+    expect(sub.nodes.map((n) => n.id)).toEqual(['service-1', 'service-2']);
+    // The edge between the two picked-up nodes travels; the one leaving the
+    // frame does not.
+    expect(sub.edges.map((e) => e.id)).toEqual(['service-1->service-2']);
+  });
+
+  it('carries a frame with no contents at all', () => {
+    const t = topo();
+    // Empty in the literal sense: the frame is off where nothing stands, so
+    // copying it is a copy of the frame alone.
+    t.annotations = [{ ...FRAME, x: 2000, y: 2000 }];
+    const sub = selectionSubgraph(t, new Set(['section-1']));
+    expect(sub).not.toBeNull();
+    expect(sub!.nodes).toEqual([]);
+    expect(sub!.annotations.map((a) => a.id)).toEqual(['section-1']);
+  });
+
+  it('copies a lone annotation, which the old node-only path refused', () => {
+    const t = topo();
+    const note: Note = {
+      id: 'note-1',
+      kind: 'note',
+      text: 'hello',
+      x: 0,
+      y: 0,
+      width: 160,
+      size: 'md',
+    };
+    t.annotations = [note];
+    const sub = selectionSubgraph(t, new Set(['note-1']));
+    expect(sub).not.toBeNull();
+    expect(sub!.nodes).toEqual([]);
+    expect(sub!.annotations.map((a) => a.id)).toEqual(['note-1']);
+  });
+});
+
+describe('clipboard round trip with a section', () => {
+  it('serialises annotations and returns them sanitised', () => {
+    const text = buildClipboardText(framed(), new Set(['section-1']))!;
+    expect(text).not.toBeNull();
+    expect(JSON.parse(text).annotations).toHaveLength(1);
+    const back = parseClipboardText(text)!;
+    expect(back.nodes.map((n) => n.id)).toEqual(['service-1', 'service-2']);
+    expect(back.annotations).toHaveLength(1);
+    expect(back.annotations[0]).toMatchObject({ id: 'section-1', kind: 'section' });
+  });
+
+  it('drops a malformed annotation without losing the nodes beside it', () => {
+    const payload = JSON.stringify({
+      app: 'scalelab',
+      nodes: [node('service-1')],
+      edges: [],
+      // No geometry: nothing can be drawn, so it is dropped rather than
+      // allowed through to the renderer.
+      annotations: [{ id: 'section-9', kind: 'section' }],
+    });
+    const back = parseClipboardText(payload);
+    expect(back).not.toBeNull();
+    expect(back!.nodes).toHaveLength(1);
+    expect(back!.annotations).toEqual([]);
+  });
+
+  it('ignores a payload whose annotations field is not an array', () => {
+    const payload = JSON.stringify({
+      app: 'scalelab',
+      nodes: [node('service-1')],
+      edges: [],
+      annotations: 'nonsense',
+    });
+    expect(parseClipboardText(payload)!.annotations).toEqual([]);
+  });
+});
 
 describe('selectionSubgraph', () => {
   it('keeps edges between selected nodes and drops boundary-crossing ones', () => {
@@ -181,6 +337,7 @@ describe('cloneSubgraph', () => {
     const foreign = {
       nodes: [node('service-1', 100, 100)],
       edges: [],
+      annotations: [],
     };
     const clones = cloneSubgraph(foreign, t, 0, 0);
     expect(clones.nodes[0]!.id).not.toBe('service-1');
@@ -192,5 +349,30 @@ describe('cloneSubgraph', () => {
     const sub = selectionSubgraph(t, new Set(['service-1', 'service-3']))!;
     const clones = cloneSubgraph(sub, t, 0, 0);
     expect(clones.nodes.map((n) => n.x)).toEqual(sub.nodes.map((n) => n.x));
+  });
+
+  it('mints fresh annotation ids and offsets the frame with its nodes', () => {
+    const t = framed();
+    const sub = selectionSubgraph(t, new Set(['section-1']))!;
+    const clones = cloneSubgraph(sub, t, 32, 16);
+    expect(clones.annotations).toHaveLength(1);
+    const frame = clones.annotations[0]!;
+    expect(frame.kind).toBe('section');
+    expect(frame.id).not.toBe('section-1');
+    expect(t.annotations!.some((a) => a.id === frame.id)).toBe(false);
+    // The frame moves by the same delta as the nodes it holds, so the copy
+    // still frames its own contents.
+    expect(frame.x).toBe(FRAME.x + 32);
+    expect(frame.y).toBe(FRAME.y + 16);
+    expect(clones.nodes[0]!.x).toBe(sub.nodes[0]!.x + 32);
+  });
+
+  it('collides with nothing when the payload arrives carrying live ids', () => {
+    const t = framed();
+    // The same frame, straight off a foreign clipboard: its id already exists
+    // here, so the clone must not reuse it.
+    const foreign = { nodes: [], edges: [], annotations: [{ ...FRAME }] };
+    const clones = cloneSubgraph(foreign, t, 0, 0);
+    expect(clones.annotations[0]!.id).not.toBe('section-1');
   });
 });

@@ -1,6 +1,8 @@
 import type { NodeKind, SimEdge, SimNode, Topology } from './sim/types';
 import { SHAPE_SPECS, clampShapeBox, isShapeKind } from './sim/shapes';
-import { SECTION_TONE_COUNT } from './sim/annotations';
+import { SECTION_TONE_COUNT, isSection, sanitizeAnnotations } from './sim/annotations';
+import type { Annotation, Section } from './sim/annotations';
+import { nodeH, nodeW } from './sim/nodeBox';
 
 /* ------------------------------------------------------------------ *
  * Clipboard and duplication for the shell.
@@ -218,31 +220,112 @@ export function sanitizeTopology(t: Topology): Topology {
   return changed ? { ...t, nodes } : t;
 }
 
-/** What one copy operation carries: a self-contained subgraph. */
+/**
+ * What one copy operation carries: a self-contained subgraph.
+ *
+ * Annotations travel with the nodes because a SECTION is the frame around a
+ * group of them and copying the frame without its contents (or the contents
+ * without their frame) is not a copy of what the user selected. Everything
+ * else that is seriously placed — a note, a text box, a stroke — rides along
+ * the same way, selected outright or inside a copied section.
+ */
 export interface ClipboardSubgraph {
   nodes: SimNode[];
   edges: SimEdge[];
+  annotations: Annotation[];
+}
+
+/** The box an annotation occupies, as far as the copy rule needs to know it. */
+function annBox(a: Annotation): { x: number; y: number; w: number; h: number } {
+  switch (a.kind) {
+    case 'section':
+    case 'textbox':
+      return { x: a.x, y: a.y, w: a.width, h: a.height };
+    case 'note':
+      // Height follows the wrapped text and is deliberately never stored, so
+      // the note is judged on its top edge and its full wrap width: a note
+      // that starts inside the frame belongs to it even if the last line
+      // overhangs the border.
+      return { x: a.x, y: a.y, w: a.width, h: 0 };
+    case 'ink':
+      // The stroke's extent is derived from its samples; its origin is the
+      // anchor, which is what a grouping decision can honestly test here.
+      return { x: a.x, y: a.y, w: 0, h: 0 };
+  }
 }
 
 /**
- * The selected nodes plus the edges BETWEEN them.
+ * The ids a copy or a cut actually carries, with selected sections expanded
+ * to what stands inside them.
+ *
+ * A section is SPATIAL: it does not own the nodes drawn in it and nothing is
+ * reparented (see annotations.ts), so "copy the section" can only mean "copy
+ * the frame AND everything standing in it", resolved from the geometry as it
+ * stands at that moment. That is the same rule, and the same reasoning, as a
+ * section DRAG (Canvas.tsx), which is what keeps the two gestures from
+ * disagreeing about what a section contains.
+ *
+ * A node counts as inside only when its whole box is inside — the drag's
+ * rule: a node that merely clips the frame's edge is not part of it, and
+ * hauling it along is the kind of surprise that makes a person distrust the
+ * tool. Nested frames and annotations inside come along on the same test.
+ */
+export function expandSectionSelection(
+  topology: Topology,
+  selectedIds: ReadonlySet<string>,
+): Set<string> {
+  const out = new Set(selectedIds);
+  const anns = topology.annotations ?? [];
+  const frames = anns.filter(
+    (a): a is Section => selectedIds.has(a.id) && isSection(a),
+  );
+  if (frames.length === 0) return out;
+
+  const inside = (box: { x: number; y: number; w: number; h: number }): boolean =>
+    frames.some(
+      (s) =>
+        box.x >= s.x &&
+        box.y >= s.y &&
+        box.x + box.w <= s.x + s.width &&
+        box.y + box.h <= s.y + s.height,
+    );
+
+  for (const n of topology.nodes) {
+    if (!out.has(n.id) && inside({ x: n.x, y: n.y, w: nodeW(n), h: nodeH(n) })) {
+      out.add(n.id);
+    }
+  }
+  for (const a of anns) {
+    if (!out.has(a.id) && inside(annBox(a))) out.add(a.id);
+  }
+  return out;
+}
+
+/**
+ * The selected nodes and annotations plus the edges BETWEEN the nodes.
  *
  * An edge to something outside the selection is dropped: a pasted subgraph
  * must be self-contained, and a wire whose far end is a node the clipboard
  * does not carry would either dangle (rejected by validation) or grab some
  * unrelated node that happens to share an id in the receiving document.
- * Returns null when the selection holds no nodes; a lone edge cannot be
- * pasted into anything.
+ * Returns null when the selection holds nothing placeable; a lone edge cannot
+ * be pasted into anything.
  */
 export function selectionSubgraph(
   topology: Topology,
   selectedIds: ReadonlySet<string>,
 ): ClipboardSubgraph | null {
-  const nodes = topology.nodes.filter((n) => selectedIds.has(n.id));
-  if (nodes.length === 0) return null;
+  const ids = expandSectionSelection(topology, selectedIds);
+  const nodes = topology.nodes.filter((n) => ids.has(n.id));
   const nodeIds = new Set(nodes.map((n) => n.id));
   const edges = topology.edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to));
-  return { nodes: structuredClone(nodes), edges: structuredClone(edges) };
+  const annotations = (topology.annotations ?? []).filter((a) => ids.has(a.id));
+  if (nodes.length === 0 && annotations.length === 0) return null;
+  return {
+    nodes: structuredClone(nodes),
+    edges: structuredClone(edges),
+    annotations: structuredClone(annotations),
+  };
 }
 
 /**
@@ -256,7 +339,12 @@ export function buildClipboardText(
 ): string | null {
   const sub = selectionSubgraph(topology, selectedIds);
   if (!sub) return null;
-  return JSON.stringify({ app: 'scalelab', nodes: sub.nodes, edges: sub.edges });
+  return JSON.stringify({
+    app: 'scalelab',
+    nodes: sub.nodes,
+    edges: sub.edges,
+    annotations: sub.annotations,
+  });
 }
 
 /**
@@ -265,6 +353,10 @@ export function buildClipboardText(
  * this validates the same way loadSession validates localStorage and
  * returns null for whatever does not hold up. It NEVER throws; a paste of
  * prose or of someone else's JSON is a silent no-op, not a crash.
+ *
+ * Annotations are sanitised rather than structurally rejected, matching
+ * every other boundary that accepts them (a share link, an imported file):
+ * one malformed note is dropped while the nodes beside it still paste.
  */
 export function parseClipboardText(text: string): ClipboardSubgraph | null {
   let parsed: unknown;
@@ -274,10 +366,15 @@ export function parseClipboardText(text: string): ClipboardSubgraph | null {
     return null;
   }
   if (typeof parsed !== 'object' || parsed === null) return null;
-  const p = parsed as { nodes?: unknown; edges?: unknown };
+  const p = parsed as { nodes?: unknown; edges?: unknown; annotations?: unknown };
   const candidate = { nodes: p.nodes, edges: p.edges };
   if (!isTopology(candidate)) return null;
-  return sanitizeTopology(candidate);
+  const topology = sanitizeTopology(candidate);
+  return {
+    nodes: topology.nodes,
+    edges: topology.edges,
+    annotations: sanitizeAnnotations(p.annotations),
+  };
 }
 
 /**
@@ -296,11 +393,25 @@ function freshId(kind: NodeKind, used: Set<string>): string {
 }
 
 /**
+ * The same guarantee for an annotation, whose ids are prefixed by their kind
+ * (`note-1`, `section-2`) rather than minted by makeNode.
+ */
+function freshAnnotationId(kind: Annotation['kind'], used: Set<string>): string {
+  let n = 1;
+  while (used.has(`${kind}-${n}`)) n += 1;
+  const id = `${kind}-${n}`;
+  used.add(id);
+  return id;
+}
+
+/**
  * Stamp a subgraph with fresh ids and an offset, ready to append to a
  * topology. Every internal edge is remapped to the new node ids and takes
  * the `from->to` id shape the rest of the app uses; config, label, weight
- * and the control flag all carry over. Used by Ctrl+D, alt-drag duplicate
- * and paste, so the three can never disagree about what a copy contains.
+ * and the control flag all carry over. Annotations keep their relative
+ * position to the nodes — a copied section still frames the copies of the
+ * components that stood in it. Used by Ctrl+D, alt-drag duplicate and paste,
+ * so the three can never disagree about what a copy contains.
  */
 export function cloneSubgraph(
   sub: ClipboardSubgraph,
@@ -310,6 +421,7 @@ export function cloneSubgraph(
 ): ClipboardSubgraph {
   const used = new Set<string>();
   for (const n of topology.nodes) used.add(n.id);
+  for (const a of topology.annotations ?? []) used.add(a.id);
   const idMap = new Map<string, string>();
 
   const nodes = sub.nodes.map((n) => {
@@ -331,5 +443,12 @@ export function cloneSubgraph(
     edges.push({ ...structuredClone(e), id: `${from}->${to}`, from, to });
   }
 
-  return { nodes, edges };
+  const annotations = sub.annotations.map((a) => ({
+    ...structuredClone(a),
+    id: freshAnnotationId(a.kind, used),
+    x: a.x + dx,
+    y: a.y + dy,
+  }));
+
+  return { nodes, edges, annotations };
 }

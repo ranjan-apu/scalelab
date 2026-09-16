@@ -50,7 +50,7 @@ const GROUPS: Group[] = [
     title: 'Design',
     rows: [
       { keys: ['Ctrl+K', 'Cmd+K'], does: 'Focus the library search' },
-      { keys: ['Drag a port'], does: 'Connect two components' },
+      { keys: ['Drag a port'], does: 'Connect two components, from either side' },
       { keys: ['Click a port'], does: 'Arm a link; click the target to finish' },
       { keys: ['Double-click'], does: 'Rename a component in place' },
       { keys: ['Ctrl+D'], does: 'Duplicate the selection' },
@@ -61,7 +61,7 @@ const GROUPS: Group[] = [
   {
     title: 'Clipboard and history',
     rows: [
-      { keys: ['Ctrl+C'], does: 'Copy the selection' },
+      { keys: ['Ctrl+C'], does: 'Copy the selection; a section brings its contents' },
       { keys: ['Ctrl+X'], does: 'Cut the selection' },
       { keys: ['Ctrl+V'], does: 'Paste at the pointer' },
       { keys: ['Ctrl+Z'], does: 'Undo' },
@@ -86,7 +86,7 @@ const GROUPS: Group[] = [
     rows: [
       { keys: ['N'], does: 'Note tool: click the canvas to place text' },
       { keys: ['T'], does: 'Text box tool: click to place a box, card, or sticky note' },
-      { keys: ['Double-click canvas'], does: 'Add a box or note right at the cursor (draw.io style)' },
+      { keys: ['Double-click canvas'], does: 'Type plain text right at the cursor' },
       { keys: ['B'], does: 'Section tool: drag to frame an architectural tier' },
       { keys: ['P'], does: 'Pen tool: draw freehand on the canvas with smoothed ink' },
       { keys: ['E'], does: 'Eraser tool: drag across ink strokes to erase them' },

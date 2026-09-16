@@ -289,15 +289,28 @@ export function arrowPath(tip: Pt, dir: EdgeDir): string {
  * (the pointer, or the armed-click stub). Same side-selection idea with the
  * point treated as a zero-size target, and the wire runs all the way to the
  * point because the preview draws no arrowhead.
+ *
+ * `prefer` is the side to leave by while the pointer is still over or beside
+ * the source box, where no corridor exists yet to choose from. It is the
+ * port the gesture actually started on: a drag out of the right-hand disc
+ * leaves the right edge, a drag out of the left-hand disc leaves the left
+ * one. Defaulting to the right edge instead drew the wire straight across
+ * the node for the first few pixels of a leftward drag.
  */
-export function previewPath(a: Rect, px: number, py: number): string {
+export function previewPath(
+  a: Rect,
+  px: number,
+  py: number,
+  prefer: 'left' | 'right' = 'right',
+): string {
   let dir: EdgeDir;
   if (px >= a.x + a.w + AXIS_MIN_GAP) dir = 'right';
   else if (px <= a.x - AXIS_MIN_GAP) dir = 'left';
   else if (py >= a.y + a.h + AXIS_MIN_GAP) dir = 'down';
   else if (py <= a.y - AXIS_MIN_GAP) dir = 'up';
-  // Pointer over or beside the source: default to the out-port side.
-  else dir = 'right';
+  // Pointer over or beside the source: no corridor to read, so leave by the
+  // port the gesture started from.
+  else dir = prefer;
 
   if (dir === 'right' || dir === 'left') {
     const start: Pt = { x: dir === 'right' ? a.x + a.w : a.x, y: a.y + a.h / 2 };

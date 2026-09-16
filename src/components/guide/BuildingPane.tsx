@@ -61,10 +61,20 @@ export function BuildingPane() {
             <div className="gd-draw-title">
               <span className="gd-draw-icon">📦</span>
               <strong>Normal Boxes &amp; Cards</strong>
-              <kbd>T</kbd> <span>or double-click</span>
+              <kbd>T</kbd>
             </div>
             <p>
-              Double-click empty canvas to add a box. Switch between <strong>Normal Box (Outline)</strong> for clean flowchart rectangles and boundaries, <strong>Sticky Note</strong> for callouts, or <strong>Requirements Card</strong> for interview templates.
+              Press <kbd>T</kbd> and click the canvas to add a box. Switch between <strong>Normal Box (Outline)</strong> for clean flowchart rectangles and boundaries, <strong>Sticky Note</strong> for callouts, or <strong>Requirements Card</strong> for interview templates.
+            </p>
+          </div>
+          <div className="gd-draw-item">
+            <div className="gd-draw-title">
+              <span className="gd-draw-icon">✍️</span>
+              <strong>Just text</strong>
+              <span>double-click canvas</span>
+            </div>
+            <p>
+              Double-click anywhere empty and start typing: a plain text label lands where the pointer was, with no box, title bar or border around it. It is the same free-standing text the example designs use to explain a diagram. Type nothing and click away and nothing is placed at all.
             </p>
           </div>
           <div className="gd-draw-item">

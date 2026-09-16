@@ -106,8 +106,10 @@ import {
   NEW_NOTE_TEXT,
   NEW_TEXTBOX_TEXT,
   NEW_TEXTBOX_TITLE,
+  layoutNote,
   layoutTextBox,
 } from './components/annotationLayout';
+import { inkWorldBounds } from './components/sketchGeometry';
 import type { InterviewTemplate } from './components/annotationLayout';
 import type { AnnotationTool } from './components/Palette';
 import { TooltipLayer, setGlossaryNavigate } from './components/Tooltip';
@@ -1423,8 +1425,16 @@ export default function App() {
     [history, setAnnotations],
   );
 
+  /**
+   * Place a note. The text is a parameter rather than always the "Note"
+   * placeholder because the canvas has two ways in: the note TOOL, which
+   * drops the placeholder as a starting point, and a double-click, which
+   * creates the note only once something has actually been typed into its
+   * editor. In the second case the placeholder would be a leftover nobody
+   * asked for, so the typed text arrives here directly.
+   */
   const handleCreateNote = useCallback(
-    (x: number, y: number): string => {
+    (x: number, y: number, text: string = NEW_NOTE_TEXT): string => {
       const anns = topoLiveRef.current.annotations ?? [];
       const id = freshAnnId('note');
       history.commit('add note', snapRef.current);
@@ -1433,7 +1443,7 @@ export default function App() {
         {
           id,
           kind: 'note',
-          text: NEW_NOTE_TEXT,
+          text: text.slice(0, 2000),
           x,
           y,
           width: NOTE_DEFAULT_WIDTH,
@@ -2142,20 +2152,26 @@ export default function App() {
 
   /**
    * Append a cloned subgraph in ONE topology edit and make the clones the
-   * new selection (nodes and internal edges both), which is what lets a
-   * repeated Ctrl+D walk copies across the canvas. Shared by Ctrl+D,
-   * alt-drag and paste so the three cannot disagree about what a copy is.
+   * new selection (nodes, internal edges and annotations alike), which is
+   * what lets a repeated Ctrl+D walk copies across the canvas. Shared by
+   * Ctrl+D, alt-drag and paste so the three cannot disagree about what a
+   * copy is.
    */
   const appendClones = useCallback(
     (clones: ClipboardSubgraph) => {
+      const anns = topology.annotations ?? [];
       applyTopology({
         ...topology,
         nodes: [...topology.nodes, ...clones.nodes],
         edges: [...topology.edges, ...clones.edges],
+        ...(clones.annotations.length > 0
+          ? { annotations: [...anns, ...clones.annotations] }
+          : {}),
       });
       const next = new Set<string>();
       for (const n of clones.nodes) next.add(n.id);
       for (const e of clones.edges) next.add(e.id);
+      for (const a of clones.annotations) next.add(a.id);
       setSelectedIds(next);
     },
     [applyTopology, topology],
@@ -2219,19 +2235,46 @@ export default function App() {
    * against the live topology. The bounding-box centre lands on the pointer,
    * moved by a grid-snapped delta so the subgraph's internal offsets survive
    * exactly and grid-aligned content stays aligned.
+   *
+   * The box spans annotations too, not just the nodes: a copied section is
+   * larger than the components standing in it, and the frame is what the
+   * user aimed with, so centring on the nodes alone would drop the frame a
+   * margin away from where they let go. A payload with no nodes at all (a
+   * copied note, an empty section) is therefore pasteable rather than
+   * silently refused.
    */
   const handlePaste = useCallback(
     (sub: ClipboardSubgraph, at: { x: number; y: number }) => {
-      if (sub.nodes.length === 0) return;
+      if (sub.nodes.length === 0 && sub.annotations.length === 0) return;
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
       let maxY = -Infinity;
-      for (const n of sub.nodes) {
-        if (n.x < minX) minX = n.x;
-        if (n.y < minY) minY = n.y;
-        if (n.x + NODE_W > maxX) maxX = n.x + NODE_W;
-        if (n.y + NODE_H > maxY) maxY = n.y + NODE_H;
+      const grow = (x: number, y: number, w: number, h: number) => {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x + w > maxX) maxX = x + w;
+        if (y + h > maxY) maxY = y + h;
+      };
+      for (const n of sub.nodes) grow(n.x, n.y, nodeW(n), nodeH(n));
+      for (const a of sub.annotations) {
+        if (a.kind === 'section' || a.kind === 'textbox') {
+          grow(a.x, a.y, a.width, a.height);
+        } else if (a.kind === 'note') {
+          const h = layoutNote(
+            a.text,
+            a.width,
+            a.size,
+            a.font,
+            a.bold,
+            a.italic,
+            a.scale,
+          ).height;
+          grow(a.x, a.y, a.width, h);
+        } else {
+          const b = inkWorldBounds(a.x, a.y, a.points, a.width);
+          grow(b.x, b.y, b.w, b.h);
+        }
       }
       const dx = Math.round((at.x - (minX + maxX) / 2) / GRID) * GRID;
       const dy = Math.round((at.y - (minY + maxY) / 2) / GRID) * GRID;
