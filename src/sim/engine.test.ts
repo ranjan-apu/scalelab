@@ -302,3 +302,97 @@ describe('autoscaler on a kind with no fleet', () => {
     expect(stats.watchedUtil).toBeGreaterThan(0.9);
   });
 });
+
+/**
+ * A wire may say what it carries.
+ *
+ * `EdgeRequestType` exists because the alternative is a design that cannot
+ * describe itself: a feed has a lot of GETs and a few POSTs, and without a way
+ * to say so every store re-guesses the split from its own readFraction, so the
+ * read-heavy endpoint shows up as database writes. The tests below pin the two
+ * halves of the rule -- a named wire decides, an unnamed one changes nothing
+ * -- because getting the second half wrong would silently reinterpret every
+ * design that already exists.
+ */
+describe('request type on a wire', () => {
+  function chain(requestType: 'read' | 'write' | 'mixed' | undefined): SimSnapshot {
+    const client = { ...makeNode('client', 0, 0), id: 'client' };
+    client.config = { ...client.config, rps: 60 };
+    const db = { ...makeNode('db', 300, 0), id: 'db' };
+    // The database would call every one of these a read if it drew itself.
+    db.config = { ...db.config, readFraction: 1, lockMs: 15 };
+    return run(
+      {
+        nodes: [client, db],
+        edges: [
+          {
+            id: 'client->db',
+            from: 'client',
+            to: 'db',
+            weight: 1,
+            ...(requestType ? { requestType } : {}),
+          },
+        ],
+      },
+      25,
+    );
+  }
+
+  it('honours a write wire even when the store would have called it a read', () => {
+    const stats = chain('write').nodes.db;
+    expect(stats.writeRate ?? 0).toBeGreaterThan(10);
+    expect(stats.readRate ?? 0).toBe(0);
+  });
+
+  it('honours a read wire even when the store would have called it a write', () => {
+    const client = { ...makeNode('client', 0, 0), id: 'client' };
+    client.config = { ...client.config, rps: 60 };
+    const db = { ...makeNode('db', 300, 0), id: 'db' };
+    db.config = { ...db.config, readFraction: 0 };
+    const snap = run(
+      {
+        nodes: [client, db],
+        edges: [
+          { id: 'client->db', from: 'client', to: 'db', weight: 1, requestType: 'read' },
+        ],
+      },
+      25,
+    );
+    expect(snap.nodes.db.readRate ?? 0).toBeGreaterThan(10);
+    expect(snap.nodes.db.writeRate ?? 0).toBe(0);
+  });
+
+  it('lets an unnamed wire be classified by the store, exactly as before', () => {
+    // readFraction 1 means every request the store sees is a read, which is
+    // what a topology with no requestType has always produced.
+    const mixed = chain('mixed').nodes.db;
+    expect(mixed.readRate ?? 0).toBeGreaterThan(10);
+    expect(mixed.writeRate ?? 0).toBe(0);
+
+    const absent = chain(undefined).nodes.db;
+    expect(absent.readRate ?? 0).toBeGreaterThan(10);
+    expect(absent.writeRate ?? 0).toBe(0);
+  });
+
+  it('keeps the identity down the whole path', () => {
+    // client -> api -> db, with the api's wire saying write: the database must
+    // see writes even though its own readFraction claims reads only.
+    const client = { ...makeNode('client', 0, 0), id: 'client' };
+    client.config = { ...client.config, rps: 60 };
+    const api = { ...makeNode('service', 200, 0), id: 'api' };
+    const db = { ...makeNode('db', 420, 0), id: 'db' };
+    db.config = { ...db.config, readFraction: 1 };
+    const snap = run(
+      {
+        nodes: [client, api, db],
+        edges: [
+          { id: 'client->api', from: 'client', to: 'api', weight: 1, requestType: 'write' },
+          { id: 'api->db', from: 'api', to: 'db', weight: 1 },
+        ],
+      },
+      25,
+    );
+    expect(snap.nodes.db.writeRate ?? 0).toBeGreaterThan(10);
+    expect(snap.nodes.db.readRate ?? 0).toBe(0);
+  });
+});

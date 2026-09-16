@@ -1,0 +1,157 @@
+/* ==========================================================================
+   Playground — the written half of an answer, docked where the inspector
+   lives.
+
+   Same surface, same section rhythm as Inspector.css: a header, a line of
+   orientation, then one block per step. One nesting level, no cards inside
+   cards, and no font sizes outside the scale. The only thing this file owns
+   that exists nowhere else is the step numbering and the growing textarea.
+   ========================================================================== */
+
+.pg {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--surface);
+  border-left: var(--bw) solid var(--border);
+  text-align: left;
+}
+
+.pg-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) 0;
+}
+
+.pg-eyebrow {
+  color: var(--text-faint);
+}
+
+.pg-title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+}
+
+.pg-head-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+}
+
+.pg-sub {
+  margin: var(--sp-2) 0 0;
+  padding: 0 var(--sp-5);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-prose);
+  text-wrap: pretty;
+  max-width: 46ch;
+}
+
+.pg-progress {
+  margin: var(--sp-2) 0 0;
+  padding: 0 var(--sp-5);
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+
+.pg-progress strong {
+  color: var(--text);
+  font-weight: var(--fw-med);
+}
+
+.pg-steps {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+.pg-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.pg-step-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.pg-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: var(--fw-med);
+  flex: 0 0 auto;
+  transform: translateY(2px);
+}
+
+.pg-step-title {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-med);
+  color: var(--text);
+}
+
+.pg-step-count {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.pg-step-hint {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-prose);
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+
+/* A real textarea, styled to read as part of the sheet rather than as a form
+   field: the panel is already a surface, and a box inside a box inside a
+   panel is the nesting rule this app's panels do not break. The focus ring is
+   the one affordance kept, because a place you can type has to say so. */
+.pg-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  padding: var(--sp-3);
+  border: var(--bw) solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2, var(--surface));
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-prose);
+}
+
+.pg-textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.pg-step-actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+}

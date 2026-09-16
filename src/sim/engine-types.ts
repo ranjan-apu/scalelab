@@ -55,6 +55,16 @@ export interface ReqLike {
    * inherited downstream, so a later node sees the same classification.
    */
   readonly isWrite: boolean;
+  /**
+   * True once something has DECIDED whether this request is a read or a write.
+   *
+   * Set on the hop by a wire that declares its side (`EdgeRequestType`), and
+   * by the first store that classifies it. Later stores read the decision
+   * instead of drawing again, so one request keeps one identity down the whole
+   * path: a POST is a write at every store it touches, and the API's GET feed
+   * never turns into a database write on the way.
+   */
+  readonly classified: boolean;
 }
 
 /**

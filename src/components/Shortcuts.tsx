@@ -112,6 +112,7 @@ const GROUPS: Group[] = [
       { keys: ['C'], does: 'Components rail' },
       { keys: ['M'], does: 'Charts strip' },
       { keys: ['I'], does: 'Inspector, while something is selected' },
+      { keys: ['Playground'], does: 'The typed answer sheet, in the right dock' },
       { keys: ['?'], does: 'Glossary' },
       { keys: ['Ctrl+/'], does: 'This dialog' },
     ],

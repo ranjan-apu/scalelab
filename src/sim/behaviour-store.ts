@@ -364,6 +364,11 @@ interface DbExt extends PoolExt {
 }
 
 function dbClassify(ctx: BehaviourCtx, state: NodeStateLike, req: ReqLike): void {
+  // A request that already knows what it is keeps it. A wire marked Read or
+  // Write decided this on the hop (see EdgeRequestType), and re-drawing here
+  // would quietly undo the student's own statement about the API: a GET feed
+  // would show up as database writes again.
+  if (req.classified) return;
   const isWrite = ctx.roll() >= clamp01(num(state.config.readFraction, 0.9));
   ctx.markWrite(req, isWrite);
 }
@@ -470,11 +475,15 @@ const searchStart = (ctx: BehaviourCtx, state: NodeStateLike, req: ReqLike): voi
 };
 
 function searchClassify(ctx: BehaviourCtx, state: NodeStateLike, req: ReqLike): void {
-  // One unconditional draw decides search vs write, the same convention the
-  // replica set uses for read vs write.
-  const isWrite = ctx.roll() >= clamp01(num(state.config.readFraction, 0.9));
-  ctx.markWrite(req, isWrite);
-  if (isWrite) {
+  // Same rule as the relational store: a wire that named the side wins, so an
+  // index built for reads is not charged an indexing surcharge for a GET.
+  if (!req.classified) {
+    // One unconditional draw decides search vs write, the same convention the
+    // replica set uses for read vs write.
+    const isWrite = ctx.roll() >= clamp01(num(state.config.readFraction, 0.9));
+    ctx.markWrite(req, isWrite);
+  }
+  if (req.isWrite) {
     // Writes pay the indexing surcharge on top of the drawn serviceMs.
     ctx.addServiceDelay(req, Math.max(0, num(state.config.indexMs, 0)));
     ctx.countCustom(state, 'indexWrite', 1);
@@ -544,11 +553,16 @@ const tsdbStart = (ctx: BehaviourCtx, state: NodeStateLike, req: ReqLike): void 
 const tsdbDrained = makeDrained(tsdbStart, null);
 
 function tsdbClassify(ctx: BehaviourCtx, state: NodeStateLike, req: ReqLike): void {
-  // One unconditional draw: is this a range query? Taken whatever the
-  // slider says, so replay does not depend on its value.
-  const isRange = ctx.roll() < clamp01(num(state.config.rangeQueryFraction, 0));
-  ctx.markWrite(req, !isRange);
-  if (isRange) {
+  // A wire that named the side keeps it: an append is not turned into a range
+  // scan by the local draw, and a read pays the scan it actually costs. The
+  // draw still runs for unclassified traffic, which is every design written
+  // before wires could say. One unconditional draw either way, so replay does
+  // not depend on the slider's value.
+  if (!req.classified) {
+    const isRange = ctx.roll() < clamp01(num(state.config.rangeQueryFraction, 0));
+    ctx.markWrite(req, !isRange);
+  }
+  if (!req.isWrite) {
     ctx.addServiceDelay(req, Math.max(0, num(state.config.rangeQueryMs, 0)));
   }
 }

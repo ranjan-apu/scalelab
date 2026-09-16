@@ -1,5 +1,6 @@
 import { isTopology, sanitizeTopology } from './clipboard';
 import { sanitizeAnnotations } from './sim/annotations';
+import { playgroundIsEmpty, sanitizePlayground } from './sim/playground';
 import type { Topology } from './sim/types';
 
 /* ------------------------------------------------------------------ *
@@ -230,10 +231,16 @@ function concat(chunks: Bytes[], limit: number): Bytes {
  */
 function payloadOf(topology: Topology): string {
   const annotations = topology.annotations ?? [];
+  const playground = playgroundIsEmpty(topology.playground)
+    ? undefined
+    : topology.playground;
   return JSON.stringify({
     nodes: topology.nodes,
     edges: topology.edges,
     ...(annotations.length > 0 ? { annotations } : {}),
+    // The practice sheet travels with the design it describes: a shared
+    // answer is worth more when the reasoning arrives alongside the boxes.
+    ...(playground ? { playground } : {}),
   });
 }
 
@@ -361,7 +368,12 @@ export async function decodeTopology(hash: string): Promise<ShareResult> {
     return { status: 'invalid', message: BAD_LINK };
   }
 
-  const p = parsed as { nodes?: unknown; edges?: unknown; annotations?: unknown };
+  const p = parsed as {
+    nodes?: unknown;
+    edges?: unknown;
+    annotations?: unknown;
+    playground?: unknown;
+  };
   const candidate = { nodes: p.nodes, edges: p.edges };
   // The SAME structural gate the clipboard and the saved session use. A
   // dangling edge, an unknown kind or a non-finite coordinate is rejected
@@ -374,8 +386,11 @@ export async function decodeTopology(hash: string): Promise<ShareResult> {
 
   // Annotations are presentation data the engine never sees, so they
   // cross the boundary through their own sanitizer, which is also what
-  // strips a colour crafted to break out of a style attribute.
+  // strips a colour crafted to break out of a style attribute. The practice
+  // sheet crosses the same way, and for the same reason: it is prose the
+  // engine has no opinion about.
   const annotations = sanitizeAnnotations(p.annotations);
+  const playground = sanitizePlayground(p.playground);
 
   return {
     status: 'ok',
@@ -383,6 +398,7 @@ export async function decodeTopology(hash: string): Promise<ShareResult> {
       nodes,
       edges,
       ...(annotations.length > 0 ? { annotations } : {}),
+      ...(playground ? { playground } : {}),
     },
   };
 }

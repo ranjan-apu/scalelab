@@ -165,6 +165,8 @@ interface Req {
   key: number;
   /** True when this request is a write. Classified once, inherited downstream. */
   isWrite: boolean;
+  /** True once that classification has been DECIDED (by a wire or a store). */
+  classified: boolean;
   /** Extra service time (ms) a behaviour asked for, consumed by serveWithin(). */
   extraServiceMs: number;
   /**
@@ -1260,6 +1262,21 @@ export class Engine implements BehaviourCtx {
     child.detached = parent.detached;
     child.key = parent.key;
     child.isWrite = parent.isWrite;
+    child.classified = parent.classified;
+
+    /*
+     * A wire that names its side decides the request's identity for this hop
+     * (see EdgeRequestType). This is what makes "90% of the calls to this
+     * service are the GET feed" mean something at the database: the read stays
+     * a read all the way down instead of being re-drawn at every store.
+     *
+     * `mixed` (and absent) deliberately leaves the flag alone, so the stores
+     * keep classifying exactly as they did before this field existed.
+     */
+    if (edge.requestType === 'read' || edge.requestType === 'write') {
+      child.classified = true;
+      child.isWrite = edge.requestType === 'write';
+    }
 
     const counter = this.edgeFlow.get(edge.id);
     if (counter) counter.add(this.now, 1);
@@ -2143,7 +2160,11 @@ export class Engine implements BehaviourCtx {
   }
 
   markWrite(reqLike: ReqLike, isWrite: boolean): void {
-    (reqLike as Req).isWrite = isWrite;
+    const req = reqLike as Req;
+    req.isWrite = isWrite;
+    // Recording the decision, not just its outcome: a later store reads this
+    // instead of drawing again (see ReqLike.classified).
+    req.classified = true;
   }
 
   /**
@@ -2430,6 +2451,7 @@ export class Engine implements BehaviourCtx {
       pooled.resolved = false;
       pooled.key = 0;
       pooled.isWrite = false;
+      pooled.classified = false;
       pooled.extraServiceMs = 0;
       pooled.onDrained = null;
       return pooled;
@@ -2459,6 +2481,7 @@ export class Engine implements BehaviourCtx {
       resolved: false,
       key: 0,
       isWrite: false,
+      classified: false,
       extraServiceMs: 0,
       onDrained: null,
     };

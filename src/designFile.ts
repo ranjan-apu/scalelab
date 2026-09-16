@@ -1,6 +1,7 @@
 import type { Topology } from './sim/types';
 import { isTopology, sanitizeTopology } from './clipboard';
 import { sanitizeAnnotations } from './sim/annotations';
+import { sanitizePlayground } from './sim/playground';
 
 /* ------------------------------------------------------------------ *
  * Saving a design to a file, and reading one back.
@@ -191,17 +192,21 @@ export function parseDesignFile(text: string): DesignParseResult {
   }
 
   // Rebuilt field by field rather than spread, so nothing the file carried
-  // beyond nodes, edges and annotations reaches the engine. The nodes are
-  // sanitized first, so a shape box out of range is clamped rather than
-  // carried, and geometry stuck on a component is dropped.
+  // beyond nodes, edges, annotations and the practice sheet reaches the
+  // engine. The nodes are sanitized first, so a shape box out of range is
+  // clamped rather than carried, and geometry stuck on a component is dropped.
   const clean = sanitizeTopology(raw);
   const annotations = sanitizeAnnotations(
     (raw as { annotations?: unknown }).annotations,
+  );
+  const playground = sanitizePlayground(
+    (raw as { playground?: unknown }).playground,
   );
   const topology: Topology = {
     nodes: structuredClone(clean.nodes),
     edges: structuredClone(clean.edges),
     ...(annotations.length > 0 ? { annotations } : {}),
+    ...(playground ? { playground } : {}),
   };
 
   return {

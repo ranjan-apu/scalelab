@@ -1,6 +1,7 @@
 import type { Topology } from './sim/types';
 import { exportToMermaid } from './exportFormats';
 import { calculateCloudCosts } from './content/cloudPricing';
+import { playgroundIsEmpty, playgroundToMarkdown } from './sim/playground';
 
 export interface HldExportOptions {
   systemName?: string;
@@ -121,6 +122,21 @@ export function exportToHldMarkdown(
   lines.push('- **Downstream Microservice Latency**: Outlier-detection circuit breakers trip to `Open` within 3 failures, preventing cascading upstream thread exhaustion.');
   lines.push('- **Asynchronous Decoupling**: Message queues guarantee at-least-once delivery with exponential backoff and dead-letter queue (DLQ) quarantine.');
   lines.push('');
+
+  /*
+   * The practice sheet, when it has been written in.
+   *
+   * A document that already carries the reasoning is a better artifact than
+   * one that carries only the boxes, and the sheet is the half of an interview
+   * answer that a diagram cannot express. Left out entirely when nothing was
+   * typed, so an ordinary export is unchanged.
+   */
+  if (!playgroundIsEmpty(topology.playground)) {
+    lines.push('## 8. Design Notes');
+    lines.push('');
+    lines.push(playgroundToMarkdown(topology.playground));
+    lines.push('');
+  }
 
   return lines.join('\n');
 }

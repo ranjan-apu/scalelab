@@ -79,6 +79,16 @@ export function BuildingPane() {
           </div>
           <div className="gd-draw-item">
             <div className="gd-draw-title">
+              <span className="gd-draw-icon">📝</span>
+              <strong>Playground</strong>
+              <span>right dock</span>
+            </div>
+            <p>
+              The rail's Playground button opens a written answer sheet beside the canvas: requirements, entities, API, high-level design, and deep dives. Type in it like any text field, copy a step or the whole sheet as Markdown, and drop any step onto the board as a note. It stays with the design, travels in a share link, and appears in the exported RFC.
+            </p>
+          </div>
+          <div className="gd-draw-item">
+            <div className="gd-draw-title">
               <span className="gd-draw-icon">🔤</span>
               <strong>Typography &amp; Styling</strong>
               <span className="badge">Inspector</span>
