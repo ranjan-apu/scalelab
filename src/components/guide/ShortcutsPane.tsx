@@ -17,8 +17,12 @@ export function ShortcutsPane() {
           <div className="gd-sc-desc">Arm Freehand Pen / Marker tool to sketch (<kbd>Esc</kbd> or <kbd>P</kbd> to disarm)</div>
         </div>
         <div className="gd-sc-row">
-          <div className="gd-sc-keys"><kbd>T</kbd> / Double-click</div>
+          <div className="gd-sc-keys"><kbd>T</kbd></div>
           <div className="gd-sc-desc">Add Normal Box, Sticky Note, or Card at cursor (draw.io style)</div>
+        </div>
+        <div className="gd-sc-row">
+          <div className="gd-sc-keys">Double-click canvas</div>
+          <div className="gd-sc-desc">Type plain text at the cursor: just a caption, no box around it</div>
         </div>
         <div className="gd-sc-row">
           <div className="gd-sc-keys"><kbd>N</kbd> / <kbd>B</kbd></div>

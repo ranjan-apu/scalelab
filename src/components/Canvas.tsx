@@ -51,7 +51,7 @@ import type { Health } from './format';
 import type { TextStyle } from './textMetrics';
 import { measureText, resetTextMetrics, truncateToWidth } from './textMetrics';
 import { useCoarsePointer } from '../useCoarsePointer';
-import { buildClipboardText, parseClipboardText } from '../clipboard';
+import { buildClipboardText, expandSectionSelection, parseClipboardText } from '../clipboard';
 import type { ClipboardSubgraph } from '../clipboard';
 import { arrowPath, previewPath, routeEdge } from './edgeRoute';
 import type { EdgeRoute } from './edgeRoute';
@@ -106,6 +106,7 @@ import {
   TEXTBOX_MIN_WIDTH,
   ANNOTATION_FONTS,
   FONT_LABEL,
+  NOTE_DEFAULT_WIDTH,
   NOTE_MAX_SCALE,
   NOTE_MAX_WIDTH,
   NOTE_MIN_SCALE,
@@ -450,10 +451,13 @@ export interface CanvasProps {
   /** One frame of a section resize, minimums already enforced. */
   onResizeSection?: (id: string, x: number, y: number, w: number, h: number) => void;
   /**
-   * Create a note at a world point. Returns the new note's id (so the canvas
-   * can open its editor over it immediately) or null if the shell declined.
+   * Create a note at a world point carrying `text` (absent means the "Note"
+   * placeholder the note tool starts from; a double-click passes what was
+   * typed, having placed nothing until then). Returns the new note's id — so
+   * the canvas can open its editor over it immediately — or null if the shell
+   * declined.
    */
-  onCreateNote?: (x: number, y: number) => string | null;
+  onCreateNote?: (x: number, y: number, text?: string) => string | null;
   onCreateSection?: (x: number, y: number, w: number, h: number) => void;
   onCreateTextBox?: (
     x: number,
@@ -4022,6 +4026,15 @@ interface Marquee {
 /** Live link gesture: preview endpoint and the snapped target, if any. */
 interface LinkState {
   from: string;
+  /**
+   * Which of the source's two ports the gesture started from.
+   *
+   * The wire should leave the disc the pointer grabbed. While the pointer is
+   * still beside or over the source box — the first few pixels of the drag,
+   * before it clears the router's minimum corridor — this is the only thing
+   * that knows whether it left the right edge or the left one.
+   */
+  side: 'left' | 'right';
   /** World coords of the loose end. */
   x: number;
   y: number;
@@ -4213,8 +4226,29 @@ export default function Canvas({
    */
   const [dropSection, setDropSection] = useState<string | null>(null);
 
-  /** In-place note text editor: which note, and the live draft. */
-  const [noteEdit, setNoteEdit] = useState<{ id: string; draft: string } | null>(null);
+  /**
+   * In-place note text editor: which note, and the live draft.
+   *
+   * `id` is null for a note that does not exist yet — the double-click editor.
+   * There the annotation is created only once something has been typed, so an
+   * abandoned double-click leaves neither an invisible empty note on the
+   * canvas nor an add-then-delete pair in the undo stack. `x`/`y` are the
+   * position that note will be born at.
+   *
+   * `fresh` marks the editor that opened over a note nobody has read yet —
+   * the note tool's "Note" placeholder, or a brand new empty label. Those
+   * take focus with their text SELECTED, so typing replaces the placeholder
+   * instead of landing after it. Re-opening a note that already says something
+   * puts the caret at the end instead: selecting the whole text there means
+   * the first keystroke silently wipes what the writer came to edit.
+   */
+  const [noteEdit, setNoteEdit] = useState<{
+    id: string | null;
+    draft: string;
+    x?: number;
+    y?: number;
+    fresh?: boolean;
+  } | null>(null);
   const noteEditDoneRef = useRef(false);
   /** In-place section label editor. */
   const [labelEdit, setLabelEdit] = useState<{ id: string; draft: string } | null>(
@@ -5054,17 +5088,34 @@ export default function Canvas({
           break;
 
         case 'port-out':
+        case 'port-in':
+          /*
+           * BOTH ports are link origins.
+           *
+           * A wire belongs to the node that was grabbed, whichever of its two
+           * discs was under the pointer, so an arrow drawn right-to-left —
+           * grab a port on the node on the right, release on the node on the
+           * left — is the same gesture as one drawn left-to-right. Arming
+           * only the output port meant the port facing the target could not
+           * start anything: the press fell through to a pan and the canvas
+           * scrolled out from under the pointer instead of a wire appearing.
+           */
           p.mode = 'link';
           setPendingLink(null);
-          setLink({ from: p.hit.id!, x: p.worldX, y: p.worldY, over: null });
+          setLink({
+            from: p.hit.id!,
+            side: p.hit.kind === 'port-in' ? 'left' : 'right',
+            x: p.worldX,
+            y: p.worldY,
+            over: null,
+          });
           break;
 
-        case 'port-in':
         case 'edge':
         case 'edge-delete':
-          // Dragging an edge or an input port is not a gesture this canvas
-          // defines. Falling through to a pan is better than dead-ending the
-          // pointer, because the user still gets motion for their effort.
+          // Dragging an edge is not a gesture this canvas defines. Falling
+          // through to a pan is better than dead-ending the pointer, because
+          // the user still gets motion for their effort.
           p.mode = 'pan';
           break;
 
@@ -5436,7 +5487,7 @@ export default function Canvas({
         // 5px port as the drop target is the single biggest reason linking
         // felt unreliable.
         const over = nodeAt(w.x, w.y);
-        setLink((cur) => (cur ? { from: cur.from, x: w.x, y: w.y, over } : cur));
+        setLink((cur) => (cur ? { ...cur, x: w.x, y: w.y, over } : cur));
         return;
       }
 
@@ -5500,7 +5551,7 @@ export default function Canvas({
             setTool(null);
             if (id) {
               noteEditDoneRef.current = false;
-              setNoteEdit({ id, draft: NEW_NOTE_TEXT });
+              setNoteEdit({ id, draft: NEW_NOTE_TEXT, fresh: true });
             }
           } else if (p.tool === 'textbox') {
             const id =
@@ -6089,17 +6140,26 @@ export default function Canvas({
       if (el?.closest?.('button, input, select, textarea, a, [data-chrome]')) return;
       const hit = hitTest(e.target);
       if (!hit.id) {
-        // Double-click empty canvas: create a text box at click position (draw.io style)
+        /*
+         * Double-click empty canvas: a plain text label, typed straight onto
+         * the board where the pointer is (draw.io style).
+         *
+         * It is a NOTE, not a card: free-standing text with no container, the
+         * same element the presets use to explain a diagram and the same one
+         * the note tool places. A double-click that places a framed
+         * requirements box instead says the wrong thing about what is being
+         * written — a caption costs a title bar and a border it does not want.
+         *
+         * Nothing is placed yet. The editor opens over the click point and
+         * commitNoteEdit creates the note only if something was typed, so
+         * clicking away from an empty editor leaves the canvas exactly as it
+         * was.
+         */
         e.preventDefault();
         const w = toWorld(e.clientX, e.clientY);
         const place = snapsToGrid(snapOn, e.ctrlKey || e.metaKey) ? snap : Math.round;
-        const x = place(w.x - TEXTBOX_PAD_X);
-        const y = place(w.y - TEXTBOX_PAD_Y);
-        const id = onCreateTextBox?.(x, y, '', '') ?? null;
-        if (id) {
-          textBoxEditDoneRef.current = false;
-          setTextBoxEdit({ id, title: '', draft: '' });
-        }
+        noteEditDoneRef.current = false;
+        setNoteEdit({ id: null, draft: '', x: place(w.x), y: place(w.y), fresh: true });
         return;
       }
 
@@ -6140,7 +6200,7 @@ export default function Canvas({
       setRenameDraft(node.label);
       setRenaming(node.id);
     },
-    [hitTest, toWorld, snapOn, onCreateTextBox],
+    [hitTest, toWorld, snapOn],
   );
 
   const commitRename = useCallback(() => {
@@ -6176,12 +6236,26 @@ export default function Canvas({
     noteEditDoneRef.current = true;
     const edit = noteEdit;
     setNoteEdit(null);
-    if (!edit || !onEditNote) return;
+    if (!edit) return;
+
+    /*
+     * A note that does not exist yet: the double-click editor. Typing is what
+     * brings it into being, so an abandoned editor — a click somewhere else,
+     * Escape, losing focus — leaves no annotation and no undone history entry
+     * behind, and the position typed at is the position it lands on.
+     */
+    if (edit.id === null) {
+      if (!edit.draft.trim()) return;
+      onCreateNote?.(edit.x ?? 0, edit.y ?? 0, edit.draft);
+      return;
+    }
+
+    if (!onEditNote) return;
     const ann = (topoRef.current.annotations ?? []).find((a) => a.id === edit.id);
     if (!ann || !isNote(ann)) return;
     if (edit.draft === ann.text) return;
     onEditNote(edit.id, edit.draft);
-  }, [noteEdit, onEditNote]);
+  }, [noteEdit, onEditNote, onCreateNote]);
 
   const commitLabelEdit = useCallback(() => {
     if (labelEditDoneRef.current) return;
@@ -6257,15 +6331,18 @@ export default function Canvas({
       if (!text || !e.clipboardData) return;
       e.preventDefault();
       e.clipboardData.setData('text/plain', text);
-      // Cut = copy + the same single-edit delete the Delete key performs.
-      // Annotations partition into their own bucket: the clipboard does not
-      // carry them, but a selected note must still leave the canvas.
+      // Cut = copy + the same single-edit delete the Delete key performs, and
+      // it takes the SAME scope the copy just serialised: a cut section leaves
+      // with the components that stood in it, not just its frame. Both sides
+      // read their membership from expandSectionSelection, so what leaves the
+      // canvas is exactly what the clipboard carries.
+      const scope = expandSectionSelection(topoRef.current, selRef.current);
       const ids = new Set(topoRef.current.nodes.map((n) => n.id));
       const annIds = new Set((topoRef.current.annotations ?? []).map((a) => a.id));
       const nodes: string[] = [];
       const edges: string[] = [];
       const anns: string[] = [];
-      for (const id of selRef.current) {
+      for (const id of scope) {
         if (ids.has(id)) nodes.push(id);
         else if (annIds.has(id)) anns.push(id);
         else edges.push(id);
@@ -6356,7 +6433,7 @@ export default function Canvas({
           const id = onCreateNote?.(snap(w.x), snap(w.y)) ?? null;
           if (id) {
             noteEditDoneRef.current = false;
-            setNoteEdit({ id, draft: NEW_NOTE_TEXT });
+            setNoteEdit({ id, draft: NEW_NOTE_TEXT, fresh: true });
           }
         } else if (ann === 'textbox') {
           const id =
@@ -6930,7 +7007,31 @@ export default function Canvas({
   const editNoteRaw = noteEdit
     ? (annotations.find((a) => a.id === noteEdit.id) ?? null)
     : null;
-  const editNote = editNoteRaw && isNote(editNoteRaw) ? editNoteRaw : null;
+  /**
+   * The note the editor floats over.
+   *
+   * An EXISTING note is looked up by id, so deleting it (or loading a preset
+   * over it) unmounts the editor without committing — the rename editor's own
+   * rule. A note being CREATED by a double-click has no id yet, so the editor
+   * is given a stand-in carrying the click position and the defaults the real
+   * note will be born with; its draft is the same text the editor renders, so
+   * typing wraps in the metrics the committed note will use.
+   */
+  const editNote: Note | null = noteEdit
+    ? noteEdit.id
+      ? editNoteRaw && isNote(editNoteRaw)
+        ? editNoteRaw
+        : null
+      : {
+          id: '',
+          kind: 'note',
+          text: noteEdit.draft,
+          x: noteEdit.x ?? 0,
+          y: noteEdit.y ?? 0,
+          width: NOTE_DEFAULT_WIDTH,
+          size: 'md',
+        }
+    : null;
   const editTextBoxRaw = textBoxEdit
     ? (annotations.find((a) => a.id === textBoxEdit.id) ?? null)
     : null;
@@ -6989,7 +7090,7 @@ export default function Canvas({
       const r = routeEdge(nodeRect(previewFrom), nodeRect(snapNode));
       previewD = `${r.d} L${r.tip.x},${r.tip.y}`;
     } else if (link) {
-      previewD = previewPath(nodeRect(previewFrom), link.x, link.y);
+      previewD = previewPath(nodeRect(previewFrom), link.x, link.y, link.side);
     } else {
       // Armed by a click: a short stub out of the source port.
       previewD = previewPath(
@@ -7295,6 +7396,11 @@ export default function Canvas({
         over the note it edits, in the note's own face and metrics, so what
         is typed wraps exactly where the painted text will. Enter is a
         newline, Ctrl+Enter and Escape commit, blur commits, Tab indents.
+
+        It also serves the DOUBLE-CLICK gesture, where the note does not
+        exist yet: the same editor opens over the click point (see the
+        stand-in in editNote), and its placeholder is what tells the writer
+        that typing is what will place something.
       */}
       {editNote && noteEdit && (
         <textarea
@@ -7349,7 +7455,17 @@ export default function Canvas({
               cur ? { ...cur, draft: e.target.value.slice(0, 2000) } : cur,
             )
           }
-          onFocus={(e) => e.currentTarget.select()}
+          onFocus={(e) => {
+            // A placeholder note takes focus with its text selected, so the
+            // first word replaces "Note" instead of landing after it. A note
+            // that already says something puts the caret at the end: selecting
+            // it would make the first keystroke eat the text being edited.
+            if (noteEdit.fresh) e.currentTarget.select();
+            else {
+              const end = e.currentTarget.value.length;
+              e.currentTarget.setSelectionRange(end, end);
+            }
+          }}
           onBlur={commitNoteEdit}
           onKeyDown={(e) => {
             e.stopPropagation();
@@ -7398,6 +7514,7 @@ export default function Canvas({
             }
           }}
           aria-label="Note text"
+          placeholder="Type text…"
           spellCheck={false}
           autoFocus
         />
