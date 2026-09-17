@@ -19,6 +19,14 @@
 }
 .auth-btn.is-signin {
   background: #fff;
+  /* Fixed white pill in both themes, so pin dark ink explicitly.
+     Previously this inherited var(--text), which is near-white in dark
+     mode (#f8fafc) and rendered invisible on the white background. */
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+.auth-btn.is-signin:hover {
+  background: #f1f5f9;
 }
 .auth-btn.is-loading {
   width: 76px;
