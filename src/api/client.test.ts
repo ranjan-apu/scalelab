@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 import { api } from './client';
+import { NO_SESSION_KEY, authGuard } from '../auth/sessionFlag';
 
 function stubFetch(body: unknown, status = 200) {
   vi.stubGlobal(
@@ -11,6 +12,8 @@ function stubFetch(body: unknown, status = 200) {
 beforeEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
 });
 
 test('unconfigured when VITE_API_URL is unset', () => {
@@ -92,4 +95,46 @@ test('designsList, designGet, shareCreate, shareResolve, dailyPlay hit their rou
     '/api/designs/d_1',
     '/api/daily/play',
   ]);
+});
+
+test('authed calls fail fast without a fetch when no session can exist', async () => {
+  vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+  vi.spyOn(authGuard, 'canBeSignedIn').mockReturnValue(false);
+  const fetchMock = vi.fn(async () => new Response('{}'));
+  vi.stubGlobal('fetch', fetchMock);
+  await expect(api.me()).rejects.toThrow('Not signed in.');
+  await expect(api.designsList()).rejects.toThrow('Not signed in.');
+  await expect(api.designCreate('N', {})).rejects.toThrow('Not signed in.');
+  await expect(api.designGet('d_1')).rejects.toThrow('Not signed in.');
+  await expect(api.shareCreate({})).rejects.toThrow('Not signed in.');
+  await expect(api.dailyPlay()).rejects.toThrow('Not signed in.');
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test('logout resolves locally when no session can exist', async () => {
+  vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+  vi.spyOn(authGuard, 'canBeSignedIn').mockReturnValue(false);
+  const fetchMock = vi.fn(async () => new Response('{}'));
+  vi.stubGlobal('fetch', fetchMock);
+  await expect(api.logout()).resolves.toEqual({ ok: true });
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test('the public share read never goes through the guard', async () => {
+  vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+  vi.spyOn(authGuard, 'canBeSignedIn').mockReturnValue(false);
+  stubFetch({ payload: { nodes: [] } });
+  await expect(api.shareResolve('aB3xK9pQ')).resolves.toEqual({
+    payload: { nodes: [] },
+  });
+});
+
+test('a 401 remembers the dead session; a success clears it', async () => {
+  vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+  stubFetch({ error: 'Unauthorized.' }, 401);
+  await expect(api.designsList()).rejects.toThrow('Unauthorized.');
+  expect(sessionStorage.getItem(NO_SESSION_KEY)).toBe('1');
+  stubFetch({ designs: [] });
+  await expect(api.designsList()).resolves.toEqual({ designs: [] });
+  expect(sessionStorage.getItem(NO_SESSION_KEY)).toBeNull();
 });
