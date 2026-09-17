@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "build": "tsc --noEmit",
     "deploy": "wrangler deploy",
     "db:apply:local": "wrangler d1 execute scalelab --local --file=./schema.sql",
     "db:apply:remote": "wrangler d1 execute scalelab --remote --file=./schema.sql",
