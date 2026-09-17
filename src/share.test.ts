@@ -6,6 +6,8 @@ import {
   decodeTopology,
   encodeTopology,
   hasShareHash,
+  shareName,
+  sharePayload,
 } from './share';
 import { PRESETS } from './sim/presets';
 import { emptyPlayground } from './sim/playground';
@@ -414,5 +416,47 @@ describe('hostile input', () => {
     if (out.status !== 'ok') return;
     expect(out.topology.annotations).toHaveLength(1);
     expect(out.topology.nodes).toHaveLength(2);
+  });
+});
+
+describe('design names in share links', () => {
+  it('round trips the name alongside the topology', async () => {
+    const out = await decodeTopology(await encodeTopology(SIMPLE, 'Zepto'));
+    expect(out.status).toBe('ok');
+    if (out.status !== 'ok') return;
+    expect(out.name).toBe('Zepto');
+    expect(out.topology.nodes).toEqual(SIMPLE.nodes);
+  });
+
+  it('links minted before names travelled decode with a null name', async () => {
+    const out = await decodeTopology(await encodeTopology(SIMPLE));
+    expect(out.status).toBe('ok');
+    if (out.status !== 'ok') return;
+    expect(out.name).toBeNull();
+  });
+
+  it('trims and caps an overlong name', async () => {
+    const out = await decodeTopology(
+      await encodeTopology(SIMPLE, '  ' + 'x'.repeat(100) + '  '),
+    );
+    expect(out.status).toBe('ok');
+    if (out.status !== 'ok') return;
+    expect(out.name).toBe('x'.repeat(60));
+  });
+
+  it('sharePayload carries the same name the hash link would', async () => {
+    expect(sharePayload(SIMPLE, 'Local Delivery Service')).toEqual({
+      name: 'Local Delivery Service',
+      nodes: SIMPLE.nodes,
+      edges: SIMPLE.edges,
+    });
+  });
+
+  it('shareName rejects non-strings and blanks', () => {
+    expect(shareName({ name: 'Zepto' })).toBe('Zepto');
+    expect(shareName({ nodes: [] })).toBeNull();
+    expect(shareName({ name: '   ' })).toBeNull();
+    expect(shareName({ name: 42 })).toBeNull();
+    expect(shareName(null)).toBeNull();
   });
 });

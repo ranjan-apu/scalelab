@@ -138,7 +138,7 @@ import { applyTheme } from './theme/applyTheme';
 import { usePresence } from './components/presence';
 import { SessionHistory, syncEngine } from './history';
 import type { HistoryEntry, HistorySnapshot } from './history';
-import { buildShareUrl, decodeTopology, hasShareHash, sharePayload } from './share';
+import { buildShareUrl, decodeTopology, hasShareHash, shareName, sharePayload } from './share';
 import { DESIGN_FILE_ACCEPT, downloadDesign, readDesignFile } from './designFile';
 import { downloadBlob, svgToPng } from './imageExport';
 import { exportToMermaid } from './exportFormats';
@@ -728,7 +728,7 @@ export default function App() {
    * to the localStorage behaviour when it is null, so logged-out use is
    * byte-for-byte what it was before.
    */
-  const { user: authUser } = useAuth();
+  const { user: authUser, login } = useAuth();
 
   /**
    * "A share link is on the URL and has not been dealt with yet."
@@ -3220,13 +3220,16 @@ export default function App() {
   /**
    * Land a shared topology on the canvas: the same single history entry a
    * preset load gets, engine reset, and a refit. Shared by the hash-link
-   * and short-link boot paths so the two cannot drift apart.
+   * and short-link boot paths so the two cannot drift apart. A carried
+   * name replaces the title bar; a link without one (minted before names
+   * travelled) leaves the current title alone.
    */
   const applySharedTopology = useCallback(
-    (shared: Topology, toastText: string) => {
+    (shared: Topology, toastText: string, name: string | null) => {
       setTopology(shared);
       setRps(offeredRpsFor(shared));
       setPresetId(null);
+      if (name) setArchitectureTitle(name);
       setSelectedIds(new Set<string>());
       topoLiveRef.current = shared;
       engine.setTopology(shared);
@@ -3246,7 +3249,7 @@ export default function App() {
     void decodeTopology(window.location.hash).then((result) => {
       if (cancelled) return;
       if (result.status === 'ok') {
-        applySharedTopology(result.topology, 'Opened a shared design');
+        applySharedTopology(result.topology, 'Opened a shared design', result.name);
         return;
       }
       // Not ours, or ours and broken. Either way the stored session that
@@ -3283,7 +3286,11 @@ export default function App() {
       .then((result) => {
         if (cancelled) return;
         if (isTopology(result.payload)) {
-          applySharedTopology(result.payload, 'Opened a shared design');
+          applySharedTopology(
+            result.payload,
+            'Opened a shared design',
+            shareName(result.payload),
+          );
         } else {
           toastSeq.current += 1;
           setToast({
@@ -3314,6 +3321,29 @@ export default function App() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   /**
+   * Logged-out share nudge: "sign in for short links, long link already
+   * copied". Shown at most once per tab session, so it informs without
+   * nagging on every click.
+   */
+  const [shareNudge, setShareNudge] = useState(false);
+  const maybeShareNudge = useCallback(() => {
+    try {
+      if (sessionStorage.getItem('scalelab.share-nudge-seen')) return;
+    } catch {
+      // Storage blocked: still show it this once rather than never.
+    }
+    setShareNudge(true);
+  }, []);
+  const dismissShareNudge = useCallback(() => {
+    try {
+      sessionStorage.setItem('scalelab.share-nudge-seen', '1');
+    } catch {
+      // Private mode: the nudge may reappear, harmlessly.
+    }
+    setShareNudge(false);
+  }, []);
+
+  /**
    * Copy link. Signed in: the design is stored in the cloud and a short
    * `?d=` link is copied, so megabyte designs share as a one-liner.
    * Logged out (or the cloud call fails): the whole design rides in the
@@ -3323,7 +3353,9 @@ export default function App() {
     void (async () => {
       if (authUser && api.configured) {
         try {
-          const { id } = await api.shareCreate(sharePayload(topology));
+          const { id } = await api.shareCreate(
+            sharePayload(topology, architectureTitle),
+          );
           const url = `${window.location.origin}${window.location.pathname}?d=${id}`;
           await navigator.clipboard.writeText(url);
           setCopiedLink(true);
@@ -3341,7 +3373,7 @@ export default function App() {
       }
       let text: string;
       try {
-        text = await buildShareUrl(topology, window.location.href);
+        text = await buildShareUrl(topology, window.location.href, architectureTitle);
         await navigator.clipboard.writeText(text);
       } catch {
         toastSeq.current += 1;
@@ -3358,8 +3390,10 @@ export default function App() {
         text: 'Link copied. It carries the whole design.',
         id: toastSeq.current,
       });
+      // Logged out, so this was the long link: mention the short one once.
+      if (!authUser) maybeShareNudge();
     })();
-  }, [topology, authUser]);
+  }, [topology, architectureTitle, authUser, maybeShareNudge]);
 
   const handleReset = useCallback(() => {
     engine.reset();
@@ -3976,46 +4010,86 @@ export default function App() {
 
         <div className="app-island app-island-menu">
           <LoginButton />
-          <button
-            type="button"
-            className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
-            title="Share design: copy link to clipboard"
-            aria-label="Share design"
-            onClick={handleCopyLink}
-          >
-            {copiedLink ? (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+          <span className="app-share-wrap">
+            <button
+              type="button"
+              className={`app-share-btn${copiedLink ? ' is-copied' : ''}`}
+              title="Share design: copy link to clipboard"
+              aria-label="Share design"
+              onClick={handleCopyLink}
+            >
+              {copiedLink ? (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              ) : (
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
+                </svg>
+              )}
+              <span className="app-share-label">
+                {copiedLink ? 'Copied!' : 'Share'}
+              </span>
+            </button>
+            {shareNudge && (
+              <div
+                className="app-share-nudge"
+                role="dialog"
+                aria-label="Short links need sign-in"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    dismissShareNudge();
+                  }
+                }}
               >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            ) : (
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5" />
-              </svg>
+                <p className="app-share-nudge-title">Want a short link?</p>
+                <p className="app-share-nudge-body">
+                  Sign in to use short URLs. Your long link is already
+                  copied.
+                </p>
+                <div className="app-share-nudge-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      dismissShareNudge();
+                      login();
+                    }}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={dismissShareNudge}
+                  >
+                    Not now
+                  </button>
+                </div>
+              </div>
             )}
-            <span className="app-share-label">
-              {copiedLink ? 'Copied!' : 'Share'}
-            </span>
-          </button>
+          </span>
 
           {/*
           Everything that is reference or setup, behind one button.
