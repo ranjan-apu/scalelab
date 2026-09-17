@@ -20,7 +20,8 @@ id = "2682a079193048d78f21dd69fcd93695"
 # Where to send the user after Google login. Override per env in dashboard.
 FRONTEND_URL = "https://scalelab.apurba.top"
 # Must match the Authorized redirect URI in Google Cloud Console:
-#   <WORKER_URL>/api/auth/callback  (e.g. https://scalelab-api.<sub>.workers.dev/api/auth/callback)
+#   Live (workers.dev): https://scalelab-api.<sub>.workers.dev/api/auth/callback
+#   Future custom domain: https://api.scalelab.apurba.top/api/auth/callback
 # Set via `wrangler secret` or dashboard vars in prod; local default below is
 # overwritten by the GOOGLE_REDIRECT_URI env when present.
 GOOGLE_REDIRECT_URI = "https://scalelab-api.apurba21mohapatra.workers.dev/api/auth/callback"

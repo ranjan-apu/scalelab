@@ -23,11 +23,40 @@ import { health } from './controllers/health.controller';
 
 const app = new Hono<AppEnv>();
 
-/* CORS: Pages origin + local dev. Cookies need credentials. */
+/* ------------------------------------------------------------------ *
+ * CORS: strict allowlist.
+ *
+ * The old `origin: (o) => o` echo turned this into OPEN CORS: with
+ * `credentials: true` and the SameSite=None session cookie, ANY site a
+ * logged-in user visited could make API calls as that user AND read the
+ * responses. Now only the production frontend origins and local dev get
+ * an Access-Control-Allow-Origin header; everything else is blocked by
+ * the browser (no header = preflight and response both fail).
+ *
+ * The Origin header is scheme+host with no trailing slash, so the list
+ * below matches what browsers actually send. Localhost is allowed on any
+ * port because the Vite/wrangler dev servers hop ports when busy.
+ * ------------------------------------------------------------------ */
+const ALLOWED_ORIGINS = [
+  'https://scalelab.apurba.top',
+  'https://scalelab-apu.pages.dev',
+];
+
+function allowedOrigin(origin: string): string | null {
+  if (ALLOWED_ORIGINS.includes(origin)) return origin;
+  try {
+    const u = new URL(origin);
+    if (u.protocol === 'http:' && u.hostname === 'localhost') return origin;
+  } catch {
+    // Not a parseable origin — never allow it.
+  }
+  return null;
+}
+
 app.use(
   '/api/*',
   cors({
-    origin: (origin) => origin,
+    origin: (origin) => allowedOrigin(origin),
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
