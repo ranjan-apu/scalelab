@@ -205,11 +205,45 @@
 }
 
 .dz-item-name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   color: var(--text);
   font-size: var(--fs-base);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Origin mark: which shelf this row lives on. Cloud rows follow the
+   account across devices; local rows stay in this browser only. */
+.dz-item-top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.dz-badge {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.dz-badge-cloud {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.dz-badge-local {
+  background: var(--surface-3);
+  color: var(--text-dim);
 }
 
 .dz-item-meta {

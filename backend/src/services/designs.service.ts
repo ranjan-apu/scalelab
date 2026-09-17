@@ -29,8 +29,24 @@ export async function createDesign(
   if (raw.length > MAX_PAYLOAD_BYTES) {
     return { ok: false, error: 'Design too large.', status: 413 };
   }
-  const id = newId('d');
   const now = nowSec();
+  // Upsert by name (case-insensitive, per user): saving or sharing the same
+  // name twice updates the existing row instead of stacking duplicates.
+  // Last-write-wins, ordered by updated_at — the documented conflict rule.
+  const existing = await env.DB.prepare(
+    `SELECT id FROM designs WHERE user_id = ? AND name = ? COLLATE NOCASE LIMIT 1`,
+  )
+    .bind(userId, name)
+    .first<{ id: string }>();
+  if (existing) {
+    await env.DB.prepare(
+      `UPDATE designs SET name = ?, data = ?, updated_at = ? WHERE id = ?`,
+    )
+      .bind(name, raw, now, existing.id)
+      .run();
+    return { ok: true, id: existing.id };
+  }
+  const id = newId('d');
   await env.DB.prepare(
     `INSERT INTO designs (id, user_id, name, data, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
