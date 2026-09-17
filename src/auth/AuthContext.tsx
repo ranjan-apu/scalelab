@@ -2,6 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react';
 import { api } from '../api/client';
 import type { ApiUser } from '../api/client';
+import {
+  noteAuthFailure,
+  noteAuthSuccess,
+  shouldSkipAuthCall,
+} from './sessionFlag';
 
 interface AuthState {
   user: ApiUser | null;
@@ -20,36 +25,6 @@ const AuthContext = createContext<AuthState>({
   refresh: async () => {},
 });
 
-/** Tab-local memory of "the server said 401": skip repeat doomed calls. */
-const NO_SESSION_KEY = 'scalelab.no-session';
-
-/**
- * The Worker's readable presence marker (see backend cookies.ts). True
- * means a session cookie was set here at some point; false means calling
- * /me could only 401. Unreadable environments (no DOM) answer true so the
- * check, not the guess, decides.
- */
-function hasAuthMarker(): boolean {
-  try {
-    return document.cookie
-      .split(';')
-      .some((part) => part.trim().startsWith('scalelab-auth='));
-  } catch {
-    return true;
-  }
-}
-
-/** Local dev never gets a marker (no shared parent domain), so it always
- *  checks — otherwise localhost would never log in. */
-function isLocalHost(): boolean {
-  try {
-    const h = window.location.hostname;
-    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0';
-  } catch {
-    return true;
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,18 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     // No marker and no reason to expect a session: skip a round trip that
-    // could only 401. The flag covers a stale marker (session died
-    // server-side) within this tab.
-    let skip = false;
-    try {
-      skip =
-        !isLocalHost() &&
-        (!hasAuthMarker() ||
-          sessionStorage.getItem(NO_SESSION_KEY) !== null);
-    } catch {
-      skip = false;
-    }
-    if (skip) {
+    // could only 401. Same predicate the API client guards every authed
+    // call with (see sessionFlag), so the two can never disagree.
+    if (shouldSkipAuthCall()) {
       setUser(null);
       setLoading(false);
       return;
@@ -79,18 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { user } = await api.me();
       setUser(user);
-      try {
-        sessionStorage.removeItem(NO_SESSION_KEY);
-      } catch {
-        // Private mode: the next refresh simply checks again.
-      }
+      noteAuthSuccess();
     } catch {
       setUser(null);
-      try {
-        sessionStorage.setItem(NO_SESSION_KEY, '1');
-      } catch {
-        // Private mode: the next refresh simply checks again.
-      }
+      noteAuthFailure();
     } finally {
       setLoading(false);
     }
@@ -102,11 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(() => {
     if (!api.configured) return;
-    try {
-      sessionStorage.removeItem(NO_SESSION_KEY);
-    } catch {
-      // Private mode: harmless, the callback's marker decides.
-    }
+    noteAuthSuccess();
     window.location.href = api.loginUrl();
   }, []);
 
@@ -119,13 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api.logout();
     } finally {
       setUser(null);
-      try {
-        // The Worker clears the marker cookie too; remember locally so the
-        // next refresh skips instead of re-proving the obvious.
-        sessionStorage.setItem(NO_SESSION_KEY, '1');
-      } catch {
-        // Private mode: the next refresh simply checks again.
-      }
+      // The Worker clears the marker cookie too; remember locally so the
+      // next refresh skips instead of re-proving the obvious.
+      noteAuthFailure();
     }
   }, []);
 
