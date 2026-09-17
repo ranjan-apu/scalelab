@@ -71,7 +71,7 @@ const Guide = lazy(() =>
 const ConceptsView = lazy(() =>
   import('./components/concepts').then((m) => ({ default: m.ConceptsView })),
 );
-import { cloneSubgraph, isTopology, sanitizeTopology, selectionSubgraph } from './clipboard';
+import { cloneSubgraph, selectionSubgraph } from './clipboard';
 import type { ClipboardSubgraph } from './clipboard';
 import {
   NOTE_DEFAULT_WIDTH,
@@ -90,13 +90,11 @@ import {
   isNote,
   isSection,
   isTextBox,
-  sanitizeAnnotations,
 } from './sim/annotations';
 import type { Annotation, AnnotationFont, Note, TextBox, TextBoxStyle } from './sim/annotations';
 import {
   emptyPlayground,
   playgroundIsEmpty,
-  sanitizePlayground,
   PLAYGROUND_STEPS,
 } from './sim/playground';
 import type { Playground as PlaygroundDoc, PlaygroundStepId } from './sim/playground';
@@ -131,6 +129,7 @@ const Designs = lazy(() =>
   import('./components/Designs').then((m) => ({ default: m.Designs })),
 );
 import { getDesign, saveDesign } from './savedDesigns';
+import { loadSession, saveSession } from './session';
 import { PanelResizer } from './components/PanelResizer';
 import { applyTheme } from './theme/applyTheme';
 import { usePresence } from './components/presence';
@@ -141,12 +140,6 @@ import { DESIGN_FILE_ACCEPT, downloadDesign, readDesignFile } from './designFile
 import { downloadBlob, svgToPng } from './imageExport';
 import { exportToMermaid } from './exportFormats';
 import './App.css';
-
-/* ------------------------------------------------------------------ *
- * Persistence
- * ------------------------------------------------------------------ */
-
-const STORAGE_KEY = 'scalelab.session.v1';
 
 /* ------------------------------------------------------------------ *
  * Layout persistence
@@ -547,80 +540,6 @@ const SPARK_INTERVAL_MS = 1000;
  * which is hardwired 0 for every gate and controller kind).
  */
 
-interface Session {
-  topology: Topology;
-  rps: number;
-  presetId: string | null;
-}
-
-/*
- * Structural validation of the stored session lives in clipboard.ts
- * (isTopology), because the clipboard paste path validates the exact same
- * shape and two hand-maintained copies of a 33-kind allowlist would drift.
- */
-
-function loadSession(): Session {
-  // A first-time visitor lands in their OWN empty studio, not on a preset
-  // cloned from another product. The Studio guide (auto-opened on first
-  // run) and the Examples gallery are the on-ramps from here.
-  const fallback: Session = {
-    topology: { nodes: [], edges: [], annotations: [] },
-    rps: 50,
-    presetId: null,
-  };
-
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return fallback;
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null) return fallback;
-    const s = parsed as Partial<Session>;
-    if (!isTopology(s.topology)) return fallback;
-    const rps = Number.isFinite(s.rps) ? (s.rps as number) : offeredRpsFor(s.topology);
-    // isTopology validates what the ENGINE dereferences; annotations are
-    // presentation data it never sees, so they cross the trust boundary
-    // through their own sanitizer. Anything malformed is dropped entry by
-    // entry rather than costing the student the whole restored session.
-    const annotations = sanitizeAnnotations(
-      (s.topology as { annotations?: unknown }).annotations,
-    );
-    // The playground crosses the same boundary the annotations do: it is
-    // presentation data the engine never reads, so it is sanitized rather
-    // than structurally required, and a half-written sheet costs the student
-    // nothing but the sheet.
-    const playground = sanitizePlayground(
-      (s.topology as { playground?: unknown }).playground,
-    );
-    // Node geometry is bounded on the same principle: a stored shape box is
-    // clamped rather than trusted, so a half-written save cannot place a box
-    // large enough to break fit-to-view.
-    const clean = sanitizeTopology(s.topology);
-    return {
-      topology: {
-        nodes: clean.nodes,
-        edges: clean.edges,
-        ...(annotations.length > 0 ? { annotations } : {}),
-        ...(playground ? { playground } : {}),
-      },
-      rps: Math.min(5000, Math.max(0, rps)),
-      presetId: typeof s.presetId === 'string' ? s.presetId : null,
-    };
-  } catch {
-    // Corrupt JSON, blocked storage (private mode, disabled cookies) — any
-    // failure here falls back to an empty studio rather than breaking boot.
-    return fallback;
-  }
-}
-
-function saveSession(session: Session): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  } catch {
-    // Quota exceeded or storage unavailable. Persistence is a convenience,
-    // never a correctness requirement, so this is silent by design.
-  }
-}
-
 /**
  * Is this tab opening a share link?
  *
@@ -740,6 +659,9 @@ export default function App() {
     seenDesigns, seenGuide, seenExamples, seenInterview, seenConcepts,
   } = useModals();
   const [architectureTitle, setArchitectureTitle] = useState<string>(() => {
+    // A stored rename wins: the student named THIS design. Otherwise fall
+    // back to the preset it started from, then to the generic default.
+    if (initial.title) return initial.title;
     if (initial.presetId) {
       const p = PRESETS.find((preset) => preset.id === initial.presetId);
       if (p) return p.name;
@@ -1197,11 +1119,11 @@ export default function App() {
     // and the indicator says so rather than reassuring early.
     setSaveState('saving');
     const id = window.setTimeout(() => {
-      saveSession({ topology, rps, presetId });
+      saveSession({ topology, rps, presetId, title: architectureTitle });
       setSaveState('saved');
     }, 400);
     return () => window.clearTimeout(id);
-  }, [topology, rps, presetId, sharePending]);
+  }, [topology, rps, presetId, architectureTitle, sharePending]);
 
   /* ---------------- undo / redo ---------------- */
 
@@ -1267,6 +1189,53 @@ export default function App() {
   useLayoutEffect(() => {
     topoLiveRef.current = topology;
   }, [topology]);
+
+  /**
+   * Latest session values for the unload flush below.
+   *
+   * The debounced write above always trails the canvas by up to 400ms, so
+   * a refresh inside that window would lose the last edit without this.
+   * A ref, not state: a pagehide listener registered once must read what
+   * is on screen NOW, not what was there when it was registered. The
+   * topology comes from the live mirror (written synchronously by every
+   * edit handler) rather than committed state, so even a drag whose final
+   * render has not committed yet is flushed.
+   */
+  const sessionFlushRef = useRef({
+    rps,
+    presetId,
+    title: architectureTitle,
+    sharePending,
+  });
+  useLayoutEffect(() => {
+    sessionFlushRef.current = { rps, presetId, title: architectureTitle, sharePending };
+  }, [rps, presetId, architectureTitle, sharePending]);
+
+  useEffect(() => {
+    // Flush a still-debounced edit when the tab goes away. Without this,
+    // a refresh within 400ms of the last change loses exactly that change
+    // — the mistake this whole feature exists to survive. Synchronous and
+    // silent: there is no next paint to report to.
+    const flush = () => {
+      const s = sessionFlushRef.current;
+      if (s.sharePending) return;
+      saveSession({
+        topology: topoLiveRef.current,
+        rps: s.rps,
+        presetId: s.presetId,
+        title: s.title,
+      });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   /**
    * Toast naming what was undone or redone. On a large canvas the reverted
