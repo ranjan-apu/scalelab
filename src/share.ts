@@ -245,6 +245,17 @@ function payloadOf(topology: Topology): string {
 }
 
 /**
+ * The shareable payload for one topology, as a plain object.
+ *
+ * Same shape `payloadOf` serialises into hash links, minus the string
+ * step: `POST /api/share` takes JSON, so the short-link path posts this
+ * object and the hash path stringifies it. One function, two transports.
+ */
+export function sharePayload(topology: Topology): unknown {
+  return JSON.parse(payloadOf(topology));
+}
+
+/**
  * Encode a topology as the fragment text of a share link, without the
  * leading `#`. Compressed when the browser can, plain when it cannot;
  * either way the result is URL-safe text a decoder on the far side reads

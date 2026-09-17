@@ -10,6 +10,8 @@ import {
   savedAgo,
 } from '../savedDesigns';
 import type { SavedSummary } from '../savedDesigns';
+import { api } from '../api/client';
+import type { ApiDesignSummary } from '../api/client';
 import './Designs.css';
 
 /* ==========================================================================
@@ -32,10 +34,25 @@ export interface DesignsProps {
   onOpen: (id: string) => void;
   /** Save what is on the canvas now, under this name. */
   onSave: (name: string) => void;
+  /** Load a cloud design onto the canvas (signed in only). */
+  onOpenCloud: (id: string) => void;
+  /** True when signed in: saves go to the account, and the cloud list shows. */
+  cloudMode: boolean;
   /** Start with a fresh blank canvas. */
   onNewCanvas?: () => void;
   /** Suggested name for a new save, usually the loaded example's. */
   suggestedName?: string;
+}
+
+/** "Sep 17, 2026 · 12 KB" from the Worker's summary row. */
+function cloudMeta(d: ApiDesignSummary): string {
+  const date = new Date(d.updated_at * 1000).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const kb = Math.max(1, Math.round(d.size / 1024));
+  return `${date} · ${kb} KB`;
 }
 
 export function Designs({
@@ -43,6 +60,8 @@ export function Designs({
   onClose,
   onOpen,
   onSave,
+  onOpenCloud,
+  cloudMode,
   onNewCanvas,
   suggestedName = '',
 }: DesignsProps) {
@@ -53,6 +72,23 @@ export function Designs({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /* Cloud library: fetched on open while signed in. Null means not
+     loaded yet; the local shelf below always works regardless. */
+  const [cloud, setCloud] = useState<ApiDesignSummary[] | null>(null);
+  const [cloudState, setCloudState] = useState<'idle' | 'loading' | 'error'>(
+    'idle',
+  );
+  const refreshCloud = useCallback(async () => {
+    setCloudState('loading');
+    try {
+      const { designs } = await api.designsList();
+      setCloud(designs);
+      setCloudState('idle');
+    } catch {
+      setCloudState('error');
+    }
+  }, []);
+
   /* Read the shelf on open, not on mount: another tab may have saved
      something since, and this is the moment the reader is looking. */
   const refresh = useCallback(() => setItems(listDesigns()), []);
@@ -62,7 +98,11 @@ export function Designs({
     setName(suggestedName);
     setError(null);
     setRenaming(null);
-  }, [open, refresh, suggestedName]);
+    if (cloudMode) {
+      setCloud(null);
+      void refreshCloud();
+    }
+  }, [open, refresh, suggestedName, cloudMode, refreshCloud]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,7 +129,14 @@ export function Designs({
     // Deferred a tick so the shell's write has landed before it is read
     // back; reading synchronously would show the list as it was.
     setTimeout(refresh, 0);
-  }, [name, onSave, refresh]);
+    if (cloudMode) {
+      // The cloud save above is async fire-and-forget, so poll once
+      // shortly after: the new row appears without reopening the dialog.
+      window.setTimeout(() => {
+        void refreshCloud();
+      }, 800);
+    }
+  }, [name, onSave, refresh, cloudMode, refreshCloud]);
 
   if (!mounted) return null;
 
@@ -186,6 +233,51 @@ export function Designs({
         )}
 
         <div className="dz-body">
+          {cloudMode && (
+            <section aria-label="Cloud library">
+              <h3 className="dz-sub">Cloud library</h3>
+              {cloudState === 'loading' && cloud === null ? (
+                <p className="dz-empty">Loading your cloud designs…</p>
+              ) : cloudState === 'error' && cloud === null ? (
+                <p className="dz-empty">
+                  Could not load cloud designs.{' '}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      void refreshCloud();
+                    }}
+                  >
+                    Retry
+                  </button>
+                </p>
+              ) : cloud !== null && cloud.length === 0 ? (
+                <p className="dz-empty">
+                  Nothing in the cloud yet. Saves go here while you are
+                  signed in.
+                </p>
+              ) : (
+                <ul className="dz-list">
+                  {(cloud ?? []).map((d) => (
+                    <li key={d.id} className="dz-item">
+                      <button
+                        type="button"
+                        className="dz-open"
+                        onClick={() => {
+                          onOpenCloud(d.id);
+                          onClose();
+                        }}
+                      >
+                        <span className="dz-item-name">{d.name}</span>
+                        <span className="dz-item-meta">{cloudMeta(d)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <h3 className="dz-sub">This browser</h3>
+            </section>
+          )}
           {items.length === 0 ? (
             <p className="dz-empty">
               Nothing saved yet. Name what is on the canvas and press Save, and it will
@@ -265,14 +357,26 @@ export function Designs({
         </div>
 
         <footer className="dz-foot">
-          {/* Said plainly, because "saved" invites the assumption that it
-              went somewhere. Nothing here leaves the machine, so clearing
-              site data takes these with it and another browser will not see
-              them. A file is the way to move one. */}
-          Saved in this browser only, on this computer. Nothing is uploaded. Clearing
-          your browser data will remove them. {items.length} of {MAX_SAVED} used. To
-          keep a design somewhere safer, or open it elsewhere, save it to a file from
-          Settings.
+          {cloudMode ? (
+            <>
+              New saves go to your cloud library and follow you across
+              devices. The shelf below stays on this computer only, so clearing
+              your browser data removes it. A file (from Settings) still
+              moves a design anywhere.
+            </>
+          ) : (
+            <>
+              {/* Said plainly, because "saved" invites the assumption that it
+                  went somewhere. Nothing here leaves the machine, so clearing
+                  site data takes these with it and another browser will not see
+                  them. A file is the way to move one. */}
+              Saved in this browser only, on this computer. Nothing is
+              uploaded. Clearing your browser data will remove them.{' '}
+              {items.length} of {MAX_SAVED} used. To keep a design somewhere
+              safer, or open it elsewhere, save it to a file from Settings.
+              Sign in to keep designs in your cloud library instead.
+            </>
+          )}
         </footer>
       </div>
     </div>,

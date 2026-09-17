@@ -127,6 +127,8 @@ const Settings = lazy(() =>
 );
 import { MainMenu } from './components/MainMenu';
 import { LoginButton } from './auth/LoginButton';
+import { useAuth } from './auth/AuthContext';
+import { api } from './api/client';
 const Designs = lazy(() =>
   import('./components/Designs').then((m) => ({ default: m.Designs })),
 );
@@ -136,7 +138,7 @@ import { applyTheme } from './theme/applyTheme';
 import { usePresence } from './components/presence';
 import { SessionHistory, syncEngine } from './history';
 import type { HistoryEntry, HistorySnapshot } from './history';
-import { buildShareUrl, decodeTopology, hasShareHash } from './share';
+import { buildShareUrl, decodeTopology, hasShareHash, sharePayload } from './share';
 import { DESIGN_FILE_ACCEPT, downloadDesign, readDesignFile } from './designFile';
 import { downloadBlob, svgToPng } from './imageExport';
 import { exportToMermaid } from './exportFormats';
@@ -640,6 +642,20 @@ function shareHashPresent(): boolean {
   }
 }
 
+/**
+ * A short cloud share link, `?d=<id>` (see handleCopyLink). Validated
+ * against the id shape the Worker issues so a junk query string never
+ * costs a network request. Read once, like the hash.
+ */
+function cloudShareId(): string | null {
+  try {
+    const id = new URLSearchParams(window.location.search).get('d');
+    return id && /^[A-Za-z0-9]{8}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Every traffic source on the canvas. Presets routinely have several. */
 function findTrafficSources(t: Topology): SimNode[] {
   return t.nodes.filter((n) => n.kind === 'client' || n.kind === 'producer');
@@ -707,6 +723,14 @@ export default function App() {
   const [initial] = useState(loadSession);
 
   /**
+   * Cloud backend: designs, short links and streaks live here when the
+   * reader is signed in. Every use below checks this first and falls back
+   * to the localStorage behaviour when it is null, so logged-out use is
+   * byte-for-byte what it was before.
+   */
+  const { user: authUser } = useAuth();
+
+  /**
    * "A share link is on the URL and has not been dealt with yet."
    *
    * While this is true the session is not written to storage. The
@@ -714,7 +738,16 @@ export default function App() {
    * actually change something on the shared one, which is the whole of the
    * read-only promise this feature makes.
    */
-  const [sharePending, setSharePending] = useState(shareHashPresent);
+  const [sharePending, setSharePending] = useState(
+    () => shareHashPresent() || cloudShareId() !== null,
+  );
+
+  /**
+   * A short cloud share id from `?d=`, if the URL carries one. Read once:
+   * the boot effect below consumes it, and later navigations must not
+   * reload a link over the reader's work.
+   */
+  const [cloudShare] = useState(cloudShareId);
 
   const [topology, setTopology] = useState<Topology>(initial.topology);
   const [rps, setRps] = useState<number>(initial.rps);
@@ -2653,23 +2686,86 @@ export default function App() {
     [replaceDesign],
   );
 
-  const handleSaveNamed = useCallback((name: string) => {
-    const result = saveDesign(name, topoLiveRef.current);
-    toastSeq.current += 1;
-    if (!result.ok) {
-      setToast({ text: result.error, id: toastSeq.current });
-      return;
-    }
-    setArchitectureTitle(name);
-    // The eviction is said out loud. A shelf that silently drops the
-    // oldest thing on it is a shelf that loses work.
-    setToast({
-      text: result.evicted
-        ? `Saved ${name}. Removed the oldest, ${result.evicted}.`
-        : `Saved ${name}`,
-      id: toastSeq.current,
-    });
-  }, []);
+  const handleSaveNamed = useCallback(
+    (name: string) => {
+      // Signed in: the design follows the account across devices. The
+      // dialog reloads its cloud list after this lands (see Designs).
+      if (authUser && api.configured) {
+        void (async () => {
+          try {
+            await api.designCreate(name, topoLiveRef.current);
+          } catch (e) {
+            toastSeq.current += 1;
+            setToast({
+              text:
+                e instanceof Error
+                  ? e.message
+                  : 'Could not save to your cloud library.',
+              id: toastSeq.current,
+            });
+            return;
+          }
+          setArchitectureTitle(name);
+          toastSeq.current += 1;
+          setToast({
+            text: `Saved ${name} to your cloud library`,
+            id: toastSeq.current,
+          });
+        })();
+        return;
+      }
+      const result = saveDesign(name, topoLiveRef.current);
+      toastSeq.current += 1;
+      if (!result.ok) {
+        setToast({ text: result.error, id: toastSeq.current });
+        return;
+      }
+      setArchitectureTitle(name);
+      // The eviction is said out loud. A shelf that silently drops the
+      // oldest thing on it is a shelf that loses work.
+      setToast({
+        text: result.evicted
+          ? `Saved ${name}. Removed the oldest, ${result.evicted}.`
+          : `Saved ${name}`,
+        id: toastSeq.current,
+      });
+    },
+    [authUser],
+  );
+
+  /**
+   * Open a cloud design. Same landing as a local open; the payload is the
+   * reader's own earlier save, re-validated because storage is a trust
+   * boundary like any other.
+   */
+  const handleOpenCloud = useCallback(
+    async (id: string) => {
+      let detail;
+      try {
+        detail = await api.designGet(id);
+      } catch {
+        toastSeq.current += 1;
+        setToast({
+          text: 'Could not open that design. Check your connection and try again.',
+          id: toastSeq.current,
+        });
+        return;
+      }
+      if (!isTopology(detail.data)) {
+        toastSeq.current += 1;
+        setToast({
+          text: 'That saved design could not be read.',
+          id: toastSeq.current,
+        });
+        return;
+      }
+      setArchitectureTitle(detail.name);
+      replaceDesign(structuredClone(detail.data), null, 'open design');
+      toastSeq.current += 1;
+      setToast({ text: `Opened ${detail.name}`, id: toastSeq.current });
+    },
+    [replaceDesign],
+  );
 
   /**
    * Pin an interview section onto the canvas as a textbox, centred on the
@@ -3121,24 +3217,36 @@ export default function App() {
    * Anything that fails validation falls through to the ordinary startup
    * path with the toast saying so.
    */
+  /**
+   * Land a shared topology on the canvas: the same single history entry a
+   * preset load gets, engine reset, and a refit. Shared by the hash-link
+   * and short-link boot paths so the two cannot drift apart.
+   */
+  const applySharedTopology = useCallback(
+    (shared: Topology, toastText: string) => {
+      setTopology(shared);
+      setRps(offeredRpsFor(shared));
+      setPresetId(null);
+      setSelectedIds(new Set<string>());
+      topoLiveRef.current = shared;
+      engine.setTopology(shared);
+      engine.reset();
+      resetLostRate();
+      setSnapshot(engine.snapshot());
+      setFitNonce((n) => n + 1);
+      toastSeq.current += 1;
+      setToast({ text: toastText, id: toastSeq.current });
+    },
+    [engine, resetLostRate],
+  );
+
   useEffect(() => {
-    if (!sharePending) return;
+    if (!sharePending || cloudShare) return;
     let cancelled = false;
     void decodeTopology(window.location.hash).then((result) => {
       if (cancelled) return;
       if (result.status === 'ok') {
-        setTopology(result.topology);
-        setRps(offeredRpsFor(result.topology));
-        setPresetId(null);
-        setSelectedIds(new Set<string>());
-        topoLiveRef.current = result.topology;
-        engine.setTopology(result.topology);
-        engine.reset();
-        resetLostRate();
-        setSnapshot(engine.snapshot());
-        setFitNonce((n) => n + 1);
-        toastSeq.current += 1;
-        setToast({ text: 'Opened a shared design', id: toastSeq.current });
+        applySharedTopology(result.topology, 'Opened a shared design');
         return;
       }
       // Not ours, or ours and broken. Either way the stored session that
@@ -3155,17 +3263,82 @@ export default function App() {
     // Once, at boot. `sharePending` is deliberately absent from the deps:
     // the recipient's first edit clears it, and re-running this then would
     // reload the link over the change they had just made.
-  }, [engine, resetLostRate]);
+  }, [engine, resetLostRate, applySharedTopology, cloudShare]);
+
+  /**
+   * Short cloud share links (`?d=`). Same landing as hash links, but the
+   * payload travels in D1 rather than the URL, so the link stays short.
+   * The Worker only resolves shares for signed-in readers: anonymous
+   * visitors are told to sign in, and their own session is left alone.
+   */
+  useEffect(() => {
+    if (!cloudShare) return;
+    if (!api.configured) {
+      setSharePending(false);
+      return;
+    }
+    let cancelled = false;
+    void api
+      .shareResolve(cloudShare)
+      .then((result) => {
+        if (cancelled) return;
+        if (isTopology(result.payload)) {
+          applySharedTopology(result.payload, 'Opened a shared design');
+        } else {
+          toastSeq.current += 1;
+          setToast({
+            text: 'That share link is invalid or expired, so your own design was opened instead.',
+            id: toastSeq.current,
+          });
+        }
+        setSharePending(false);
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        setSharePending(false);
+        toastSeq.current += 1;
+        setToast({
+          text:
+            e instanceof Error && /unauthorized/i.test(e.message)
+              ? 'Sign in to view this shared design.'
+              : 'Could not open that share link. Check your connection and try again.',
+          id: toastSeq.current,
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Once, at boot, for the same reason as the hash path above.
+  }, [engine, resetLostRate, applySharedTopology, cloudShare]);
 
   const [copiedLink, setCopiedLink] = useState(false);
 
   /**
-   * Copy link. Writes the whole design into the URL fragment and puts that
-   * URL on the clipboard, so the confirmation the reader gets is the same
-   * receipt undo and redo use.
+   * Copy link. Signed in: the design is stored in the cloud and a short
+   * `?d=` link is copied, so megabyte designs share as a one-liner.
+   * Logged out (or the cloud call fails): the whole design rides in the
+   * URL fragment, exactly as before.
    */
   const handleCopyLink = useCallback(() => {
     void (async () => {
+      if (authUser && api.configured) {
+        try {
+          const { id } = await api.shareCreate(sharePayload(topology));
+          const url = `${window.location.origin}${window.location.pathname}?d=${id}`;
+          await navigator.clipboard.writeText(url);
+          setCopiedLink(true);
+          window.setTimeout(() => setCopiedLink(false), 2000);
+          toastSeq.current += 1;
+          setToast({
+            text: 'Short link copied. Anyone signed in can open it.',
+            id: toastSeq.current,
+          });
+          return;
+        } catch {
+          // Fall through to the offline hash link below: a link that is
+          // long still opens, while no link at all helps nobody.
+        }
+      }
       let text: string;
       try {
         text = await buildShareUrl(topology, window.location.href);
@@ -3186,7 +3359,7 @@ export default function App() {
         id: toastSeq.current,
       });
     })();
-  }, [topology]);
+  }, [topology, authUser]);
 
   const handleReset = useCallback(() => {
     engine.reset();
@@ -4509,6 +4682,8 @@ export default function App() {
         onClose={() => setDesignsOpen(false)}
         onOpen={handleOpenSaved}
         onSave={handleSaveNamed}
+        onOpenCloud={handleOpenCloud}
+        cloudMode={authUser !== null && api.configured}
         onNewCanvas={handleNewCanvas}
         suggestedName={
           presetId ? (PRESETS.find((p) => p.id === presetId)?.name ?? '') : ''

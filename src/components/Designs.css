@@ -249,3 +249,17 @@
   line-height: var(--lh-sm);
   color: var(--text-dim);
 }
+
+/* Section titles splitting the cloud library from the local shelf. Small
+   and quiet: they orient a scan, they are not the content. */
+.dz-sub {
+  margin: var(--sp-3) 0 var(--sp-1);
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.dz-sub:first-child {
+  margin-top: 0;
+}

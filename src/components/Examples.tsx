@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Preset } from '../sim/presets';
 import { dailyPreset, readDaily, recordDailyPlay, todayKey } from '../content/daily';
+import { api } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import { usePresence } from './presence';
 import './Examples.css';
 
@@ -53,6 +55,8 @@ export function Examples({
   /* Daily challenge streak, refreshed every open. localStorage may be
      unavailable (private browsing), in which case the streak simply
      does not persist and the challenge still loads. */
+  const { user: authUser } = useAuth();
+  const cloudStreaks = authUser !== null && api.configured;
   const dailyStore = () => {
     try {
       return typeof localStorage === 'undefined' ? null : localStorage;
@@ -62,8 +66,26 @@ export function Examples({
   };
   const [streak, setStreak] = useState(() => readDaily(dailyStore()).streak);
   useEffect(() => {
-    if (open) setStreak(readDaily(dailyStore()).streak);
-  }, [open]);
+    if (!open) return;
+    // Signed in: the server is the source of truth, and recording here is
+    // idempotent per day — opening the gallery counts as showing up.
+    // Any failure falls back to the local streak, never a blank.
+    if (cloudStreaks) {
+      let cancelled = false;
+      void api
+        .dailyPlay()
+        .then(({ streak: s }) => {
+          if (!cancelled) setStreak(s);
+        })
+        .catch(() => {
+          if (!cancelled) setStreak(readDaily(dailyStore()).streak);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setStreak(readDaily(dailyStore()).streak);
+  }, [open, cloudStreaks]);
   const challenge = dailyPreset();
 
   /* Focus goes to the search field, because with twenty-three examples the
@@ -179,7 +201,18 @@ export function Examples({
                   data-active={challenge.id === activePresetId || undefined}
                   onClick={() => {
                     onLoad(challenge);
-                    setStreak(recordDailyPlay(dailyStore(), todayKey()).streak);
+                    if (cloudStreaks) {
+                      void api
+                        .dailyPlay()
+                        .then(({ streak: s }) => setStreak(s))
+                        .catch(() =>
+                          setStreak(
+                            recordDailyPlay(dailyStore(), todayKey()).streak,
+                          ),
+                        );
+                    } else {
+                      setStreak(recordDailyPlay(dailyStore(), todayKey()).streak);
+                    }
                     onClose();
                   }}
                 >
