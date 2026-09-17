@@ -3268,8 +3268,8 @@ export default function App() {
   /**
    * Short cloud share links (`?d=`). Same landing as hash links, but the
    * payload travels in D1 rather than the URL, so the link stays short.
-   * The Worker only resolves shares for signed-in readers: anonymous
-   * visitors are told to sign in, and their own session is left alone.
+   * Resolving is a public read: anonymous visitors can view (IP
+   * rate-limited by the Worker) and their own session is left alone.
    */
   useEffect(() => {
     if (!cloudShare) return;
@@ -3330,7 +3330,7 @@ export default function App() {
           window.setTimeout(() => setCopiedLink(false), 2000);
           toastSeq.current += 1;
           setToast({
-            text: 'Short link copied. Anyone signed in can open it.',
+            text: 'Short link copied. Anyone with the link can open it.',
             id: toastSeq.current,
           });
           return;
