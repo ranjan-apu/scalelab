@@ -34,7 +34,7 @@ Auth: Google OIDC only. Single "Sign in with Google" button — first login = si
 
 ## Phase 2 — Short links + gated viewing
 
-- [ ] Split `shares.routes.ts`: `POST /` = `attachUser+requireAuth`, `GET /:id` = `attachUser` only
+- [x] Split `shares.routes.ts`: `POST /` = `attachUser+requireAuth`, `GET /:id` = `attachUser` only (public read; rate limiting deferred)
 - [ ] Rate-limit middleware (`middleware/rateLimit.ts`): KV fixed-window first (native `ratelimits` binding later); `{ anon: 10/min, authed: 100/min }`, 429 + `Retry-After`
 - [ ] Callback: `newUser` detection → redirect `?login=ok&new=1`
 - [ ] Frontend: `/d/:id` boot path (`GET /api/share/:id` → `setTopology`), share modal (Sign in / Continue viewing, `sessionStorage` dismiss), Share button prefers `POST /api/share` when `api.configured`, else `#d1.` hash

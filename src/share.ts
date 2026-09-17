@@ -228,13 +228,21 @@ function concat(chunks: Bytes[], limit: number): Bytes {
  * value is derived from the client nodes on the other side, and the
  * preset id is a fact about the SENDER's session rather than about the
  * design, so neither is worth the characters.
+ *
+ * The design name rides first when present, so a recipient sees "Zepto"
+ * in the title bar instead of the default. Mirrors the 60-char cap the
+ * shelf (savedDesigns) and the Worker both enforce.
  */
-function payloadOf(topology: Topology): string {
+const SHARE_NAME_MAX = 60;
+
+function payloadOf(topology: Topology, name?: string): string {
   const annotations = topology.annotations ?? [];
   const playground = playgroundIsEmpty(topology.playground)
     ? undefined
     : topology.playground;
+  const clean = (name ?? '').trim().slice(0, SHARE_NAME_MAX);
   return JSON.stringify({
+    ...(clean ? { name: clean } : {}),
     nodes: topology.nodes,
     edges: topology.edges,
     ...(annotations.length > 0 ? { annotations } : {}),
@@ -245,14 +253,27 @@ function payloadOf(topology: Topology): string {
 }
 
 /**
+ * The design name carried by a share payload, if it has a valid one.
+ * One sanitizer for both transports (hash links and short links) so they
+ * cannot disagree about what counts as a name.
+ */
+export function shareName(value: unknown): string | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const name = (value as { name?: unknown }).name;
+  if (typeof name !== 'string') return null;
+  const clean = name.trim().slice(0, SHARE_NAME_MAX);
+  return clean || null;
+}
+
+/**
  * The shareable payload for one topology, as a plain object.
  *
  * Same shape `payloadOf` serialises into hash links, minus the string
  * step: `POST /api/share` takes JSON, so the short-link path posts this
  * object and the hash path stringifies it. One function, two transports.
  */
-export function sharePayload(topology: Topology): unknown {
-  return JSON.parse(payloadOf(topology));
+export function sharePayload(topology: Topology, name?: string): unknown {
+  return JSON.parse(payloadOf(topology, name));
 }
 
 /**
@@ -261,8 +282,11 @@ export function sharePayload(topology: Topology): unknown {
  * either way the result is URL-safe text a decoder on the far side reads
  * the same way.
  */
-export async function encodeTopology(topology: Topology): Promise<string> {
-  const json = new TextEncoder().encode(payloadOf(topology));
+export async function encodeTopology(
+  topology: Topology,
+  name?: string,
+): Promise<string> {
+  const json = new TextEncoder().encode(payloadOf(topology, name));
   if (hasCompression()) {
     try {
       const packed = await deflate(json);
@@ -287,8 +311,12 @@ export async function encodeTopology(topology: Topology): Promise<string> {
  * function stays testable without a DOM. Query string and path are kept;
  * only the fragment is replaced.
  */
-export async function buildShareUrl(topology: Topology, base: string): Promise<string> {
-  const hash = await encodeTopology(topology);
+export async function buildShareUrl(
+  topology: Topology,
+  base: string,
+  name?: string,
+): Promise<string> {
+  const hash = await encodeTopology(topology, name);
   const hashless = base.split('#')[0] ?? base;
   return `${hashless}#${hash}`;
 }
@@ -306,7 +334,7 @@ export async function buildShareUrl(topology: Topology, base: string): Promise<s
  * rather than watching it silently do nothing).
  */
 export type ShareResult =
-  | { status: 'ok'; topology: Topology }
+  | { status: 'ok'; topology: Topology; name: string | null }
   | { status: 'absent' }
   | { status: 'invalid'; message: string };
 
@@ -380,6 +408,7 @@ export async function decodeTopology(hash: string): Promise<ShareResult> {
   }
 
   const p = parsed as {
+    name?: unknown;
     nodes?: unknown;
     edges?: unknown;
     annotations?: unknown;
@@ -411,5 +440,8 @@ export async function decodeTopology(hash: string): Promise<ShareResult> {
       ...(annotations.length > 0 ? { annotations } : {}),
       ...(playground ? { playground } : {}),
     },
+    // Links minted before names travelled have no name field: null keeps
+    // the recipient's current title instead of blanking it.
+    name: shareName(parsed),
   };
 }

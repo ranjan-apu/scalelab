@@ -3,7 +3,12 @@
 import type { Context } from 'hono';
 import type { AppEnv } from '../env';
 import { SESSION_TTL_S } from '../config/constants';
-import { sessionCookieHeader } from '../utils/cookies';
+import {
+  clearMarkerCookieHeader,
+  markerCookieHeader,
+  sessionCookieHeader,
+  sharedParentDomain,
+} from '../utils/cookies';
 import {
   buildGoogleLoginUrl,
   createSession,
@@ -52,14 +57,18 @@ export async function callback(c: Ctx) {
     nowSec() + SESSION_TTL_S,
   );
 
-  // 4. HttpOnly cookie + back to the app.
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: `${frontend}?login=ok`,
-      'Set-Cookie': sessionCookieHeader(sessionId, SESSION_TTL_S, c.req.raw),
-    },
-  });
+  // 4. HttpOnly session cookie (+ a readable presence marker so the UI
+  //    can skip /me when there is certainly no session) + back to the app.
+  const headers = new Headers();
+  headers.set('Location', `${frontend}?login=ok`);
+  headers.append(
+    'Set-Cookie',
+    sessionCookieHeader(sessionId, SESSION_TTL_S, c.req.raw),
+  );
+  const parent = sharedParentDomain(c.req.raw, frontend);
+  if (parent)
+    headers.append('Set-Cookie', markerCookieHeader(parent, SESSION_TTL_S));
+  return new Response(null, { status: 302, headers });
 }
 
 export function me(c: Ctx) {
@@ -70,10 +79,10 @@ export function me(c: Ctx) {
 
 export async function logout(c: Ctx) {
   await deleteSession(c.env, c.req.raw);
-  return new Response(JSON.stringify({ ok: true }), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Set-Cookie': sessionCookieHeader('', 0, c.req.raw),
-    },
-  });
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.append('Set-Cookie', sessionCookieHeader('', 0, c.req.raw));
+  const parent = sharedParentDomain(c.req.raw, c.env.FRONTEND_URL);
+  if (parent) headers.append('Set-Cookie', clearMarkerCookieHeader(parent));
+  return new Response(JSON.stringify({ ok: true }), { headers });
 }

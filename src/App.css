@@ -538,6 +538,47 @@
   display: inline;
 }
 
+/* Anchor for the share popup: the island is a flex row with no
+   positioning of its own, so the wrap carries the anchor instead. */
+.app-share-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+/* Logged-out share popup. A small anchored card, not a modal: sharing is
+   a mid-action moment and the canvas behind it should stay visible. */
+.app-share-nudge {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 250px;
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: var(--bw) solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 600;
+}
+
+.app-share-nudge-title {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+}
+
+.app-share-nudge-body {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-dim);
+}
+
+.app-share-nudge-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
 @media (max-width: 1100px) {
   .app-share-label {
     display: none;
