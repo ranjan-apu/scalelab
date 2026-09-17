@@ -1,4 +1,6 @@
-/* Shares controller: short-link create / resolve. Auth required (see routes). */
+/* Shares controller: short-link create / resolve. Create is auth-required
+ * (see routes) and also upserts the payload into the owner's cloud library
+ * so shared designs appear in "Your designs"; resolve stays a public read. */
 
 import type { Context } from 'hono';
 import type { AppEnv } from '../env';

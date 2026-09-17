@@ -2688,8 +2688,16 @@ export default function App() {
 
   const handleSaveNamed = useCallback(
     (name: string) => {
-      // Signed in: the design follows the account across devices. The
-      // dialog reloads its cloud list after this lands (see Designs).
+      // Dual-write: the design always lands on this browser's shelf, and
+      // when signed in it also follows the account in the cloud library.
+      // The dialog reloads both lists after this lands (see Designs).
+      const local = saveDesign(name, topoLiveRef.current);
+      if (!local.ok) {
+        toastSeq.current += 1;
+        setToast({ text: local.error, id: toastSeq.current });
+        return;
+      }
+      setArchitectureTitle(name);
       if (authUser && api.configured) {
         void (async () => {
           try {
@@ -2699,33 +2707,28 @@ export default function App() {
             setToast({
               text:
                 e instanceof Error
-                  ? e.message
-                  : 'Could not save to your cloud library.',
+                  ? `Saved ${name} on this browser, but cloud save failed: ${e.message}`
+                  : `Saved ${name} on this browser, but the cloud save failed.`,
               id: toastSeq.current,
             });
             return;
           }
-          setArchitectureTitle(name);
           toastSeq.current += 1;
           setToast({
-            text: `Saved ${name} to your cloud library`,
+            text: local.evicted
+              ? `Saved ${name} to your cloud library and this browser. Removed the oldest local, ${local.evicted}.`
+              : `Saved ${name} to your cloud library and this browser`,
             id: toastSeq.current,
           });
         })();
         return;
       }
-      const result = saveDesign(name, topoLiveRef.current);
       toastSeq.current += 1;
-      if (!result.ok) {
-        setToast({ text: result.error, id: toastSeq.current });
-        return;
-      }
-      setArchitectureTitle(name);
       // The eviction is said out loud. A shelf that silently drops the
       // oldest thing on it is a shelf that loses work.
       setToast({
-        text: result.evicted
-          ? `Saved ${name}. Removed the oldest, ${result.evicted}.`
+        text: local.evicted
+          ? `Saved ${name}. Removed the oldest, ${local.evicted}.`
           : `Saved ${name}`,
         id: toastSeq.current,
       });
@@ -3345,7 +3348,9 @@ export default function App() {
 
   /**
    * Copy link. Signed in: the design is stored in the cloud and a short
-   * `?d=` link is copied, so megabyte designs share as a one-liner.
+   * `?d=` link is copied, so megabyte designs share as a one-liner. The
+   * Worker also files the design in the cloud library, so the shared
+   * design shows up in "Your designs" alongside saves.
    * Logged out (or the cloud call fails): the whole design rides in the
    * URL fragment, exactly as before.
    */
@@ -3362,7 +3367,7 @@ export default function App() {
           window.setTimeout(() => setCopiedLink(false), 2000);
           toastSeq.current += 1;
           setToast({
-            text: 'Short link copied. Anyone with the link can open it.',
+            text: 'Short link copied. Also saved to your cloud library.',
             id: toastSeq.current,
           });
           return;

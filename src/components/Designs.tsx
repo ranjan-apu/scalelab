@@ -253,8 +253,8 @@ export function Designs({
                 </p>
               ) : cloud !== null && cloud.length === 0 ? (
                 <p className="dz-empty">
-                  Nothing in the cloud yet. Saves go here while you are
-                  signed in.
+                  Nothing in the cloud yet. Saves and shared short links land
+                  here while you are signed in.
                 </p>
               ) : (
                 <ul className="dz-list">
@@ -268,7 +268,10 @@ export function Designs({
                           onClose();
                         }}
                       >
-                        <span className="dz-item-name">{d.name}</span>
+                        <span className="dz-item-top">
+                          <span className="dz-item-name">{d.name}</span>
+                          <span className="dz-badge dz-badge-cloud">Cloud</span>
+                        </span>
                         <span className="dz-item-meta">{cloudMeta(d)}</span>
                       </button>
                     </li>
@@ -323,7 +326,10 @@ export function Designs({
                         onClose();
                       }}
                     >
-                      <span className="dz-item-name">{d.name}</span>
+                      <span className="dz-item-top">
+                        <span className="dz-item-name">{d.name}</span>
+                        <span className="dz-badge dz-badge-local">Local</span>
+                      </span>
                       <span className="dz-item-meta">
                         {d.nodeCount} component{d.nodeCount === 1 ? '' : 's'} ·{' '}
                         {savedAgo(d.savedAt)}
@@ -359,10 +365,12 @@ export function Designs({
         <footer className="dz-foot">
           {cloudMode ? (
             <>
-              New saves go to your cloud library and follow you across
-              devices. The shelf below stays on this computer only, so clearing
-              your browser data removes it. A file (from Settings) still
-              moves a design anywhere.
+              New saves go to both your cloud library and this browser, and
+              follow you across devices via the cloud copy. Shared short
+              links are filed in the cloud library too. The shelf below
+              stays on this computer only, so clearing your browser data
+              removes it. A file (from Settings) still moves a design
+              anywhere.
             </>
           ) : (
             <>

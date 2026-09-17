@@ -1,9 +1,21 @@
 /* Shares service: short /d/<id> links backed by D1. */
 
 import type { Bindings } from '../env';
-import { MAX_PAYLOAD_BYTES } from '../config/constants';
+import { MAX_DESIGN_NAME, MAX_PAYLOAD_BYTES } from '../config/constants';
 import { shortId } from '../utils/ids';
 import { nowSec } from '../utils/time';
+import { createDesign } from './designs.service';
+
+/** Design name carried inside a share payload, if it has a valid one. */
+function shareDesignName(payload: unknown): string {
+  if (typeof payload === 'object' && payload !== null) {
+    const name = (payload as { name?: unknown }).name;
+    if (typeof name === 'string' && name.trim()) {
+      return name.trim().slice(0, MAX_DESIGN_NAME);
+    }
+  }
+  return 'Shared design';
+}
 
 export async function createShare(
   env: Bindings,
@@ -20,6 +32,22 @@ export async function createShare(
   )
     .bind(id, ownerUserId, raw, nowSec())
     .run();
+  // A logged-in share also lands in the owner's cloud library, so it shows
+  // up in "Your designs" alongside saves. Same-name shares update the
+  // existing row (see createDesign's upsert); best-effort so a library
+  // hiccup never fails the share itself.
+  if (ownerUserId) {
+    try {
+      let data: unknown = payload;
+      if (typeof payload === 'object' && payload !== null) {
+        const { name: _name, ...rest } = payload as Record<string, unknown>;
+        data = rest;
+      }
+      await createDesign(env, ownerUserId, shareDesignName(payload), data);
+    } catch {
+      // Ignore: the short link is already stored above.
+    }
+  }
   return { ok: true, id };
 }
 
