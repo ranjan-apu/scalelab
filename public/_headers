@@ -1,0 +1,32 @@
+# Cloudflare Pages — cache policy for scalelab.apurba.top
+# Vite copies public/ into dist/, so this is published with the build.
+# https://developers.cloudflare.com/pages/configuration/headers/
+
+# ---------------------------------------------------------------------------
+# Vite emits content-hashed filenames into /assets (index-D3TPAqhG.js,
+# Studio-3rL2oUnX.js, inter-latin-*.woff2, …). The hash changes whenever the
+# bytes change, so these can be cached permanently.
+#
+# Without this, Pages' default is `max-age=14400, must-revalidate`, which makes
+# every repeat visitor revalidate every asset — cf-cache-status came back
+# REVALIDATED on all three consecutive requests for a 228 KB JS file, i.e. a
+# round-trip to origin on a cache hit.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# The app shell. Pages defaults this to `max-age=0, must-revalidate`, which
+# means the document is never stored at the edge and every request is resolved
+# fresh (cf-cache-status: DYNAMIC). A short max-age plus stale-while-revalidate
+# lets the edge serve the shell without a round-trip, while still converging on
+# a fresh copy within ~60s of a deploy.
+#
+# Safe because assets are content-hashed and Pages keeps previous deployments,
+# so a briefly-stale shell still resolves to assets that exist.
+/index.html
+  Cache-Control: public, max-age=60, stale-while-revalidate=600
+
+/favicon.svg
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/favicon.ico
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
