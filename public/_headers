@@ -32,7 +32,7 @@
   Cache-Control: public, max-age=604800, stale-while-revalidate=86400
 
 # Showreel video (/media/showreel.mp4, .webm, showreel-poster.jpg) and the
-# vertical social cut (/media/showreel-vertical.mp4, .webm, -cover.jpg).
+# vertical social cuts (/media/showreel-vertical*.mp4, .webm, *-cover.jpg).
 #
 # These live at fixed paths rather than under /assets, so they carry no content
 # hash — a rebuild that swaps the reel keeps the same URL. Caching them for a
