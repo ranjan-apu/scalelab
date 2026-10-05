@@ -1128,12 +1128,10 @@
       .lp-reel-bar {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-end;
         gap: 12px;
-        /* min-height, not height: the spec line wraps to two lines on narrow
-           phones and a fixed box would clip it */
         min-height: 46px;
-        padding: 8px 8px 8px 18px;
+        padding: 8px 14px;
         border-top: 1px solid rgba(148, 163, 184, 0.14);
         background: rgba(9, 13, 22, 0.72);
         font-family: var(--lp-mono);
@@ -1405,7 +1403,6 @@
                 <source src="/media/showreel.mp4" type="video/mp4" />
               </video>
               <figcaption class="lp-reel-bar">
-                <span>1920 × 1080 · 30 fps · 15 s · silent</span>
                 <button type="button" class="lp-reel-toggle" data-lp-reel-toggle aria-pressed="false" aria-label="Play the showreel">
                   <svg class="lp-reel-icon" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
                     <path class="lp-reel-icon-play" d="M2.4 1.1 10.6 6 2.4 10.9Z" fill="currentColor" />

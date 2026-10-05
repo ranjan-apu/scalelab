@@ -290,7 +290,6 @@ export function Landing({ onOpen, opening = false }: LandingProps) {
                 <source src="/media/showreel.mp4" type="video/mp4" />
               </video>
               <figcaption className="lp-reel-bar">
-                <span>1920 × 1080 · 30 fps · 15 s · silent</span>
                 <button
                   type="button"
                   className="lp-reel-toggle"
