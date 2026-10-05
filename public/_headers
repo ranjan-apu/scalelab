@@ -30,3 +30,16 @@
 
 /favicon.ico
   Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+# Showreel video (/media/showreel.mp4, .webm, showreel-poster.jpg).
+#
+# These live at fixed paths rather than under /assets, so they carry no content
+# hash — a rebuild that swaps the reel keeps the same URL. Caching them for a
+# year would strand the old cut, so they get the same week-long window as the
+# favicons: repeat visits are served from the edge, and a new reel is live
+# within 7 days without needing a purge.
+#
+# The MP4 is written with +faststart, so its moov atom is ahead of mdat and it
+# plays progressively from the first bytes without a range request.
+/media/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
