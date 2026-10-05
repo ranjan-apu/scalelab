@@ -271,10 +271,56 @@ export function Landing({ onOpen, opening = false }: LandingProps) {
             </ul>
           </div>
 
+          <div className="lp-shell lp-reel-wrap">
+            <figure className="lp-reel-figure">
+              <video
+                className="lp-reel-video"
+                data-lp-reel
+                ref={reelRef}
+                width={1920}
+                height={1080}
+                poster="/media/showreel-poster.jpg"
+                preload="none"
+                muted
+                loop
+                playsInline
+                aria-label="A fifteen second motion piece. A system diagram assembles itself on a dark grid, request packets begin flowing along every wire, a service node fails under a retry storm while latency climbs past the service level line, autoscaling brings instances online and the system recovers, and the ScaleLab mark resolves on the end card."
+              >
+                <source src="/media/showreel.webm" type="video/webm" />
+                <source src="/media/showreel.mp4" type="video/mp4" />
+              </video>
+              <figcaption className="lp-reel-bar">
+                <span>1920 × 1080 · 30 fps · 15 s · silent</span>
+                <button
+                  type="button"
+                  className="lp-reel-toggle"
+                  data-lp-reel-toggle
+                  onClick={onReelToggle}
+                  aria-pressed={reelPlaying}
+                  aria-label={reelPlaying ? 'Pause the showreel' : 'Play the showreel'}
+                >
+                  <svg className="lp-reel-icon" viewBox="0 0 12 12" width={12} height={12} aria-hidden="true">
+                    <path className="lp-reel-icon-play" d="M2.4 1.1 10.6 6 2.4 10.9Z" fill="currentColor" />
+                    <path className="lp-reel-icon-pause" d="M2.5 1.4h2.5v9.2H2.5zM7 1.4h2.5v9.2H7z" fill="currentColor" />
+                  </svg>
+                  <span className="lp-reel-toggle-text">{reelPlaying ? 'Pause' : 'Play'}</span>
+                </button>
+              </figcaption>
+            </figure>
+          </div>
+
+          <div className="lp-shell lp-scene-intro">
+            <p className="lp-eyebrow lp-reveal">The simulator</p>
+            <h2 className="lp-h2 lp-reveal">Discrete-event engine running in your browser</h2>
+            <p className="lp-section-lede lp-reveal">
+              Watch traffic ripple through services, queues, and caches with live telemetry and failure injection.
+            </p>
+          </div>
+
           <div className="lp-shell lp-scene-wrap">
             <figure
               ref={sceneRef}
-              className="lp-scene"
+              className="lp-scene lp-reveal"
               role="img"
               aria-label="A ScaleLab simulation mid-run: clients pushing traffic through an API gateway, a service, a cache, a database, and a queue with workers, while latency, cache hit rate and queue depth tick in floating readouts."
             >
@@ -437,55 +483,6 @@ export function Landing({ onOpen, opening = false }: LandingProps) {
                   </div>
                 </div>
               </div>
-            </figure>
-          </div>
-        </section>
-
-        <section className="lp-section lp-dark" id="lp-reel">
-          <div className="lp-shell">
-            <p className="lp-eyebrow lp-reveal">Showreel</p>
-            <h2 className="lp-h2 lp-reveal">Fifteen seconds, start to finish</h2>
-            <p className="lp-section-lede lp-reveal">
-              One motion piece, drawn frame by frame out of the product itself: the
-              canvas assembling itself, traffic arriving, a retry storm taking the
-              system down, and autoscaling bringing it back. Silent, and rendered
-              from source frames rather than cut together in an editor.
-            </p>
-
-            <figure className="lp-reel-figure lp-reveal">
-              <video
-                className="lp-reel-video"
-                data-lp-reel
-                ref={reelRef}
-                width={1920}
-                height={1080}
-                poster="/media/showreel-poster.jpg"
-                preload="none"
-                muted
-                loop
-                playsInline
-                aria-label="A fifteen second motion piece. A system diagram assembles itself on a dark grid, request packets begin flowing along every wire, a service node fails under a retry storm while latency climbs past the service level line, autoscaling brings instances online and the system recovers, and the ScaleLab mark resolves on the end card."
-              >
-                <source src="/media/showreel.webm" type="video/webm" />
-                <source src="/media/showreel.mp4" type="video/mp4" />
-              </video>
-              <figcaption className="lp-reel-bar">
-                <span>1920 × 1080 · 30 fps · 15 s · silent</span>
-                <button
-                  type="button"
-                  className="lp-reel-toggle"
-                  data-lp-reel-toggle
-                  onClick={onReelToggle}
-                  aria-pressed={reelPlaying}
-                  aria-label={reelPlaying ? 'Pause the showreel' : 'Play the showreel'}
-                >
-                  <svg className="lp-reel-icon" viewBox="0 0 12 12" width={12} height={12} aria-hidden="true">
-                    <path className="lp-reel-icon-play" d="M2.4 1.1 10.6 6 2.4 10.9Z" fill="currentColor" />
-                    <path className="lp-reel-icon-pause" d="M2.5 1.4h2.5v9.2H2.5zM7 1.4h2.5v9.2H7z" fill="currentColor" />
-                  </svg>
-                  <span className="lp-reel-toggle-text">{reelPlaying ? 'Pause' : 'Play'}</span>
-                </button>
-              </figcaption>
             </figure>
           </div>
         </section>
